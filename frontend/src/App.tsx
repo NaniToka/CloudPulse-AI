@@ -5,39 +5,57 @@ import { Toaster } from "@/components/ui/toaster";
 import AuthLayout from "@/layouts/AuthLayout";
 import DashboardLayout from "@/layouts/DashboardLayout";
 
+// Guards
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import GuestRoute from "@/components/auth/GuestRoute";
+
 // Auth pages
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 
 // Dashboard pages
 import DashboardPage from "@/pages/dashboard/DashboardPage";
-
-// Guards
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import GuestRoute from "@/components/auth/GuestRoute";
+import AiCopilotPage from "@/pages/ai/AiCopilotPage";
+import InfrastructurePage from "@/pages/infrastructure/InfrastructurePage";
+import ServersPage from "@/pages/servers/ServersPage";
+import LogsPage from "@/pages/logs/LogsPage";
+import CostPage from "@/pages/cost/CostPage";
+import IncidentsPage from "@/pages/incidents/IncidentsPage";
+import AlertsPage from "@/pages/alerts/AlertsPage";
+import NotificationsPage from "@/pages/notifications/NotificationsPage";
+import SettingsPage from "@/pages/settings/SettingsPage";
 
 export default function App() {
   return (
     <>
       <Routes>
-        {/* Public auth routes */}
+        {/* ── Public auth routes ────────────────────────────────── */}
         <Route element={<GuestRoute />}>
           <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/login"    element={<LoginPage />}    />
             <Route path="/register" element={<RegisterPage />} />
           </Route>
         </Route>
 
-        {/* Protected app routes */}
+        {/* ── Protected app routes ──────────────────────────────── */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard"     element={<DashboardPage />}      />
+            <Route path="/ai"            element={<AiCopilotPage />}      />
+            <Route path="/infrastructure"element={<InfrastructurePage />} />
+            <Route path="/servers"       element={<ServersPage />}        />
+            <Route path="/logs"          element={<LogsPage />}           />
+            <Route path="/cost"          element={<CostPage />}           />
+            <Route path="/incidents"     element={<IncidentsPage />}      />
+            <Route path="/alerts"        element={<AlertsPage />}         />
+            <Route path="/notifications" element={<NotificationsPage />}  />
+            <Route path="/settings"      element={<SettingsPage />}       />
           </Route>
         </Route>
 
-        {/* Default redirects */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* ── Default redirects ─────────────────────────────────── */}
+        <Route path="/"   element={<Navigate to="/dashboard" replace />} />
+        <Route path="*"   element={<Navigate to="/dashboard" replace />} />
       </Routes>
 
       <Toaster />
