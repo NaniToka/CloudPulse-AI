@@ -1,41 +1,90 @@
-"""User model."""
+"""
+User ORM model.
+
+Maps to the ``users`` PostgreSQL table.  All sensitive fields (password hash)
+are never exposed directly; Pydantic schemas control serialisation.
+"""
 
 import uuid
-from sqlalchemy import String, Boolean, ForeignKey
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
-from app.models.mixins import UUIDMixin, TimestampMixin
+from app.models.mixins import TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.chat_message import ChatMessage
+    from app.models.chat_session import ChatSession
+    from app.models.notification import Notification
+    from app.models.organization import Organization
 
 
 class User(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "users"
 
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    # ------------------------------------------------------------------
+    # Core identity
+    # ------------------------------------------------------------------
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    first_name: Mapped[str] = mapped_column(String(100), nullable=True)
-    last_name: Mapped[str] = mapped_column(String(100), nullable=True)
-    role: Mapped[str] = mapped_column(String(50), default="member")
-    avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(
+    # ------------------------------------------------------------------
+    # Profile
+    # ------------------------------------------------------------------
+    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # ------------------------------------------------------------------
+    # Account status
+    # ------------------------------------------------------------------
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # ------------------------------------------------------------------
+    # Foreign keys
+    # ------------------------------------------------------------------
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("organizations.id", ondelete="CASCADE"),
+        ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
-    # Relationships
-    organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
+    # ------------------------------------------------------------------
+    # Relationships  (lazy="raise" catches accidental sync access in async)
+    # ------------------------------------------------------------------
+    organization: Mapped[Optional["Organization"]] = relationship(
+        "Organization",
+        back_populates="users",
+        lazy="raise",
+    )
     chat_sessions: Mapped[list["ChatSession"]] = relationship(
-        "ChatSession", back_populates="user"
+        "ChatSession",
+        back_populates="user",
+        lazy="raise",
+        cascade="all, delete-orphan",
     )
     notifications: Mapped[list["Notification"]] = relationship(
-        "Notification", back_populates="user"
+        "Notification",
+        back_populates="user",
+        lazy="raise",
+        cascade="all, delete-orphan",
     )
 
+    # ------------------------------------------------------------------
+    # Convenience
+    # ------------------------------------------------------------------
     @property
     def full_name(self) -> str:
-        return f"{self.first_name or ''} {self.last_name or ''}".strip()
+        parts = filter(None, [self.first_name, self.last_name])
+        return " ".join(parts)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<User id={self.id} email={self.email!r}>"
