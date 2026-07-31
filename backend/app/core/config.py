@@ -1,10 +1,16 @@
 """
 Application configuration — loaded from environment variables via pydantic-settings.
+
+CORS_ORIGINS accepts three formats in the .env file:
+  - JSON array:        ["http://localhost:5173","http://localhost:3000"]
+  - Comma-separated:  http://localhost:5173,http://localhost:3000
+  - Single value:     http://localhost:5173
 """
 
-from typing import List
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Any, List
+
 from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -26,7 +32,10 @@ class Settings(BaseSettings):
     BACKEND_RELOAD: bool = True
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://cloudpulse_user:change_me@localhost:5432/cloudpulse"
+    DATABASE_URL: str = (
+        "postgresql+asyncpg://cloudpulse_user:cloudpulse_dev_password"
+        "@localhost:5432/cloudpulse"
+    )
 
     # JWT
     JWT_SECRET_KEY: str = "insecure_default_change_in_production"
@@ -48,19 +57,32 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # CORS
+    # CORS — stored as List[str] but the validator accepts all three env formats
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v):
+    def parse_cors_origins(cls, v: Any) -> List[str]:
+        """
+        Accept three formats:
+          1. Already a list (passed programmatically or by pydantic internally)
+          2. JSON array string:  '["http://a","http://b"]'
+          3. Comma-separated:   'http://a,http://b'
+          4. Single URL:        'http://a'
+        """
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
+            stripped = v.strip()
+            if stripped.startswith("["):
+                import json
+                return json.loads(stripped)
+            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
         return v
 
     # Logging
     LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "json"
+    LOG_FORMAT: str = "text"
 
     @property
     def is_production(self) -> bool:

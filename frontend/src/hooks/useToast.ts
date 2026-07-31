@@ -1,8 +1,19 @@
+/**
+ * Toast notification state manager.
+ *
+ * Usage:
+ *   import { toast } from "@/hooks/useToast";
+ *   toast({ title: "Done", description: "Action completed.", variant: "success" });
+ *
+ * Variants match the CVA definition in components/ui/toast.tsx:
+ *   "default" | "success" | "warning" | "destructive"
+ */
+
 import * as React from "react";
 import type { ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 5;
-const TOAST_REMOVE_DELAY = 4000;
+const TOAST_REMOVE_DELAY = 4500;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -12,7 +23,7 @@ type ToasterToast = ToastProps & {
 };
 
 let count = 0;
-function genId() {
+function genId(): string {
   count = (count + 1) % Number.MAX_SAFE_INTEGER;
   return count.toString();
 }
@@ -22,19 +33,23 @@ type State = { toasts: ToasterToast[] };
 const listeners: Array<(state: State) => void> = [];
 let memoryState: State = { toasts: [] };
 
-function dispatch(toasts: ToasterToast[]) {
+function dispatch(toasts: ToasterToast[]): void {
   memoryState = { toasts };
   listeners.forEach((l) => l(memoryState));
 }
 
-function toast(props: Omit<ToasterToast, "id">) {
+/**
+ * Programmatic toast trigger — can be called outside of React components.
+ *
+ * @example
+ * toast({ title: "Saved", variant: "success" });
+ * toast({ title: "Error", description: "Something broke.", variant: "destructive" });
+ */
+export function toast(props: Omit<ToasterToast, "id">): string {
   const id = genId();
   const newToast: ToasterToast = { ...props, id, open: true };
 
-  dispatch(
-    [...memoryState.toasts, newToast]
-      .slice(-TOAST_LIMIT)
-  );
+  dispatch([...memoryState.toasts, newToast].slice(-TOAST_LIMIT));
 
   setTimeout(() => {
     dispatch(memoryState.toasts.filter((t) => t.id !== id));
@@ -61,5 +76,3 @@ export function useToast() {
       dispatch(memoryState.toasts.filter((t) => t.id !== id)),
   };
 }
-
-export { toast };
