@@ -6,7 +6,7 @@ All route groups are registered here with their prefixes and tags.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import ai, auth, users
+from app.api.v1.endpoints import ai, auth, logs, users
 
 api_router = APIRouter()
 
@@ -24,4 +24,9 @@ api_router.include_router(
     ai.router,
     prefix="/ai",
     tags=["AI Copilot"],
+)
+api_router.include_router(
+    logs.router,
+    prefix="/logs",
+    tags=["Log Analyzer"],
 )

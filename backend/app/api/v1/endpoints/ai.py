@@ -141,8 +141,8 @@ async def chat(
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",   # tell nginx not to buffer SSE
-                "Access-Control-Allow-Origin": "*",
+                "X-Accel-Buffering": "no",
+                "X-Session-Id": str(session_id),   # frontend reads this to track the session
             },
         )
 
