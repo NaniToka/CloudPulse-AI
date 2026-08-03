@@ -6,7 +6,7 @@ All route groups are registered here with their prefixes and tags.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import ai, auth, logs, users
+from app.api.v1.endpoints import ai, auth, cost, logs, users
 
 api_router = APIRouter()
 
@@ -29,4 +29,9 @@ api_router.include_router(
     logs.router,
     prefix="/logs",
     tags=["Log Analyzer"],
+)
+api_router.include_router(
+    cost.router,
+    prefix="/cost",
+    tags=["Cost Optimizer"],
 )
