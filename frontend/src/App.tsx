@@ -25,6 +25,7 @@ import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage
 import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
 import DistributedTracingPage from "@/pages/tracing/DistributedTracingPage";
 import RAGChatPage from "@/pages/ragChat/RAGChatPage";
+import RunbookDashboardPage from "@/pages/runbooks/RunbookDashboardPage";
 import AlertsPage from "@/pages/alerts/AlertsPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/logs"          element={<LogsPage />}           />
             <Route path="/cost"          element={<CostPage />}           />
             <Route path="/incidents"     element={<IncidentsPage />}      />
+            <Route path="/runbooks"      element={<RunbookDashboardPage />} />
             <Route path="/predictions"   element={<PredictiveAnalyticsPage />} />
             <Route path="/alerts"        element={<AlertsPage />}         />
             <Route path="/notifications" element={<NotificationsPage />}  />

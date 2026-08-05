@@ -18,3 +18,4 @@ from app.models.cloud_cost import CloudCost, OptimizationRecommendation  # noqa:
 from app.models.prediction import Prediction  # noqa: F401
 from app.models.metric import MetricPoint  # noqa: F401
 from app.models.trace import Trace, Span, ServiceDependency  # noqa: F401
+from app.models.runbook import Runbook, AutomationStep, RunbookExecution  # noqa: F401
