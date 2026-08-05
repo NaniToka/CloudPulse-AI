@@ -1,0 +1,73 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
+
+jobs:
+  test:
+    name: Pytest & Linting
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: cloudpulse
+          POSTGRES_PASSWORD: cloudpulse_secret
+          POSTGRES_DB: cloudpulse_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov ruff black
+
+      - name: Run Ruff Linter
+        run: |
+          ruff check backend/app
+
+      - name: Run Code Formatting Check
+        run: |
+          black --check backend/app
+
+      - name: Run Pytest Test Suite
+        env:
+          DATABASE_URL: postgresql+asyncpg://cloudpulse:cloudpulse_secret@localhost:5432/cloudpulse_db
+          SECRET_KEY: test_secret_key_cloudpulse_ai_production_ready
+          GEMINI_API_KEY: mock_key_for_ci
+        run: |
+          pytest backend/tests/ -v --cov=backend/app --cov-report=xml
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: backend
+          name: backend-coverage
