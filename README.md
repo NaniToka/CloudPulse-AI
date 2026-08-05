@@ -138,6 +138,10 @@ Inspired by industry benchmarks like **Google Cloud Operations (Stackdriver)**, 
 ![Cost Optimizer](assets/screenshots/cost.png)
 *FinOps spend breakdown by region and service with monthly run-rate forecasting and instant savings recommendations.*
 
+### 🏢 Organization & Multi-Tenant RBAC Settings
+![Organization Settings](assets/screenshots/organization.png)
+*Multi-tenant SaaS organization management, team directories, workspace project scoping, and granular RBAC capability matrix.*
+
 </div>
 
 ---
