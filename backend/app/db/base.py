@@ -15,3 +15,4 @@ from app.models.chat_message import ChatMessage  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.log_analysis import LogAnalysis  # noqa: F401
 from app.models.cloud_cost import CloudCost, OptimizationRecommendation  # noqa: F401
+from app.models.prediction import Prediction  # noqa: F401

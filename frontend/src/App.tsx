@@ -21,6 +21,7 @@ import ServersPage from "@/pages/servers/ServersPage";
 import LogsPage from "@/pages/logs/LogsPage";
 import CostPage from "@/pages/cost/CostPage";
 import IncidentsPage from "@/pages/incidents/IncidentsPage";
+import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
 import AlertsPage from "@/pages/alerts/AlertsPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/logs"          element={<LogsPage />}           />
             <Route path="/cost"          element={<CostPage />}           />
             <Route path="/incidents"     element={<IncidentsPage />}      />
+            <Route path="/predictions"   element={<PredictiveAnalyticsPage />} />
             <Route path="/alerts"        element={<AlertsPage />}         />
             <Route path="/notifications" element={<NotificationsPage />}  />
             <Route path="/settings"      element={<SettingsPage />}       />

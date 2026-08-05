@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Activity,
   HardDrive,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -48,8 +49,9 @@ const navGroups = [
   {
     label: "Operations",
     items: [
-      { icon: AlertTriangle, label: "Incidents", to: "/incidents",     badge: 3  },
-      { icon: Bell,          label: "Alerts",    to: "/alerts",        badge: 47 },
+      { icon: Sparkles,      label: "Predictive AI", to: "/predictions",   badge: 4  },
+      { icon: AlertTriangle, label: "Incidents",     to: "/incidents",     badge: 3  },
+      { icon: Bell,          label: "Alerts",        to: "/alerts",        badge: 47 },
     ],
   },
   {
