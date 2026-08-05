@@ -22,8 +22,11 @@ export interface Incident {
   status: IncidentStatus;
   affected_service: string;
   affected_services: string[];
+  affected_region?: string;
   assigned_engineer?: string;
+  assigned_to?: string;
   created_by?: string;
+  started_at?: string;
   created_at: string;
   updated_at: string;
   resolved_at?: string;
@@ -32,12 +35,16 @@ export interface Incident {
 
   // AI Diagnostic fields
   ai_summary?: string;
+  root_cause?: string;
   ai_root_cause?: string;
   ai_business_impact?: string;
   ai_suggested_resolution?: string;
+  ai_immediate_mitigation?: string;
+  ai_long_term_prevention?: string[];
   ai_preventive_actions?: string[];
   ai_similar_incidents?: SimilarIncident[];
   ai_estimated_resolution_time?: string;
+  ai_confidence_score?: number;
 }
 
 export interface IncidentCreatePayload {
@@ -48,8 +55,11 @@ export interface IncidentCreatePayload {
   status: IncidentStatus;
   affected_service: string;
   affected_services?: string[];
+  affected_region?: string;
   assigned_engineer?: string;
+  assigned_to?: string;
   created_by?: string;
+  started_at?: string;
   auto_analyze?: boolean;
 }
 
@@ -61,7 +71,9 @@ export interface IncidentUpdatePayload {
   status?: IncidentStatus;
   affected_service?: string;
   affected_services?: string[];
+  affected_region?: string;
   assigned_engineer?: string;
+  assigned_to?: string;
   resolution_notes?: string;
 }
 
@@ -76,6 +88,13 @@ export interface IncidentListResponse {
   page: number;
   size: number;
   pages: number;
+}
+
+export interface IncidentStats {
+  open_incidents: number;
+  critical_incidents: number;
+  avg_resolution_time_minutes: number;
+  sla_compliance_percent: number;
 }
 
 export interface SeverityCount {
@@ -97,16 +116,21 @@ export interface IncidentAnalytics {
   active_incidents: number;
   resolved_incidents: number;
   total_incidents: number;
+  sla_compliance_percent: number;
 }
 
 export interface IncidentAIAnalysis {
   ai_summary: string;
+  root_cause: string;
   ai_root_cause: string;
   ai_business_impact: string;
   ai_suggested_resolution: string;
+  ai_immediate_mitigation: string;
+  ai_long_term_prevention: string[];
   ai_preventive_actions: string[];
   ai_similar_incidents: SimilarIncident[];
   ai_estimated_resolution_time: string;
+  ai_confidence_score: number;
 }
 
 export interface IncidentWebSocketEvent {

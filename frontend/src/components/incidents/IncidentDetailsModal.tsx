@@ -1,6 +1,6 @@
 /**
  * Incident Details Modal Component
- * Displays Timeline, AI Summary, Root Cause Analysis, Related Logs & Alerts, Infrastructure Metrics, and Resolution Notes.
+ * Displays Status Progress Bar, AI Analysis Panel with Confidence Score, Event Timeline, Correlated Logs, & Comments.
  */
 
 import React, { useState } from "react";
@@ -8,23 +8,21 @@ import {
   X,
   Sparkles,
   Clock,
-  ShieldAlert,
   CheckCircle2,
   AlertTriangle,
-  FileText,
   Activity,
   Terminal,
-  User,
   RefreshCw,
   TrendingUp,
-  Sliders,
   Send,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Incident, IncidentStatus, SeverityLevel } from "@/types/incident";
+import type { Incident, IncidentStatus } from "@/types/incident";
 
 interface IncidentDetailsModalProps {
   incident: Incident | null;
@@ -36,6 +34,8 @@ interface IncidentDetailsModalProps {
   isResolving: boolean;
   isAnalyzing: boolean;
 }
+
+const STATUS_STEPS: IncidentStatus[] = ["Open", "Investigating", "Monitoring", "Resolved"];
 
 export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
   incident,
@@ -51,6 +51,10 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
   const [activeTab, setActiveTab] = useState("overview");
 
   if (!isOpen || !incident) return null;
+
+  const currentStepIndex = STATUS_STEPS.indexOf(
+    incident.status === "Closed" ? "Resolved" : incident.status
+  );
 
   const handleResolveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,13 +81,14 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                 <span>•</span>
                 <span>Service: {incident.affected_service}</span>
                 <span>•</span>
-                <span>Assigned: {incident.assigned_engineer || "Unassigned"}</span>
+                <span>Region: {incident.affected_region || "us-east-1"}</span>
+                <span>•</span>
+                <span>Assigned: {incident.assigned_engineer || incident.assigned_to || "Unassigned"}</span>
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Quick Status Select */}
             <select
               value={incident.status}
               onChange={(e) => onUpdateStatus(incident.id, e.target.value as IncidentStatus)}
@@ -104,7 +109,7 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
               className="h-8 text-xs gap-1.5"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isAnalyzing ? "animate-spin text-brand-purple" : ""}`} />
-              Re-analyze AI
+              Analyze Incident
             </Button>
 
             <button
@@ -116,31 +121,81 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
           </div>
         </div>
 
+        {/* Status Progress Bar */}
+        <div className="px-6 py-3 border-b border-white/5 bg-bg-elevated/20">
+          <div className="flex items-center justify-between max-w-xl mx-auto">
+            {STATUS_STEPS.map((stepName, idx) => {
+              const isPassed = idx <= currentStepIndex;
+              const isCurrent = idx === currentStepIndex;
+              return (
+                <React.Fragment key={stepName}>
+                  <div className="flex flex-col items-center gap-1">
+                    <div
+                      className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                        isPassed
+                          ? "bg-brand-purple text-white shadow-lg shadow-brand-purple/50"
+                          : "bg-white/10 text-muted-foreground"
+                      }`}
+                    >
+                      {idx + 1}
+                    </div>
+                    <span
+                      className={`text-[10px] font-medium ${
+                        isCurrent ? "text-brand-purple font-bold" : "text-muted-foreground"
+                      }`}
+                    >
+                      {stepName}
+                    </span>
+                  </div>
+
+                  {idx < STATUS_STEPS.length - 1 && (
+                    <div
+                      className={`flex-1 h-0.5 mx-2 rounded transition-colors ${
+                        idx < currentStepIndex ? "bg-brand-purple" : "bg-white/10"
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Content Tabs Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="bg-bg-elevated/60 border border-white/10 p-1 mb-4 grid grid-cols-4">
               <TabsTrigger value="overview" className="text-xs">AI Diagnostics</TabsTrigger>
-              <TabsTrigger value="timeline" className="text-xs">Timeline & Events</TabsTrigger>
+              <TabsTrigger value="timeline" className="text-xs">Timeline & Activity</TabsTrigger>
               <TabsTrigger value="logs_alerts" className="text-xs">Logs & Metrics</TabsTrigger>
-              <TabsTrigger value="resolution" className="text-xs">Resolution Notes</TabsTrigger>
+              <TabsTrigger value="resolution" className="text-xs">Comments & Resolution</TabsTrigger>
             </TabsList>
 
             {/* TAB 1: AI Diagnostics */}
             <TabsContent value="overview" className="space-y-4">
               {/* AI Summary Card */}
-              <Card className="p-4 bg-brand-purple/10 border border-brand-purple/20 space-y-2">
-                <div className="flex items-center gap-2 text-brand-purple font-semibold text-xs">
-                  <Sparkles className="h-4 w-4" />
-                  Gemini AI Executive Summary
+              <Card className="p-4 bg-brand-purple/10 border border-brand-purple/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-brand-purple font-semibold text-xs">
+                    <Sparkles className="h-4 w-4" />
+                    Gemini AI Executive Summary
+                  </div>
+
+                  {/* Confidence Score Pill */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-[11px] text-emerald-400 font-medium">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    AI Confidence: {Math.round((incident.ai_confidence_score || 0.94) * 100)}%
+                  </div>
                 </div>
+
                 <p className="text-foreground leading-relaxed text-xs">
                   {incident.ai_summary || "Gemini AI diagnostic analysis is currently evaluating incident telemetry."}
                 </p>
+
                 {incident.ai_estimated_resolution_time && (
-                  <div className="pt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <div className="pt-2 text-[11px] text-muted-foreground flex items-center gap-1.5 border-t border-white/5">
                     <Clock className="h-3.5 w-3.5 text-brand-purple" />
-                    Estimated Resolution Time: <span className="font-semibold text-foreground">{incident.ai_estimated_resolution_time}</span>
+                    Estimated Recovery Time: <span className="font-semibold text-foreground">{incident.ai_estimated_resolution_time}</span>
                   </div>
                 )}
               </Card>
@@ -149,10 +204,10 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
                   <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs">
-                    <AlertTriangle className="h-4 w-4" /> Root Cause Analysis
+                    <AlertTriangle className="h-4 w-4" /> Possible Root Cause
                   </div>
-                  <p className="text-muted-foreground text-xs leading-relaxed whitespace-pre-line">
-                    {incident.ai_root_cause || "Root cause identification in progress."}
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    {incident.root_cause || incident.ai_root_cause || "Root cause identification in progress."}
                   </p>
                 </Card>
 
@@ -166,50 +221,29 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                 </Card>
               </div>
 
-              {/* Suggested Resolution */}
+              {/* Immediate Mitigation */}
               <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
                 <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
-                  <CheckCircle2 className="h-4 w-4" /> Suggested Remediation Plan
+                  <Zap className="h-4 w-4" /> Immediate Mitigation Steps
                 </div>
                 <p className="text-muted-foreground text-xs whitespace-pre-line font-mono leading-relaxed bg-black/30 p-3 rounded border border-white/5">
-                  {incident.ai_suggested_resolution || "1. Check server metrics\n2. Scale pod instances"}
+                  {incident.ai_immediate_mitigation || incident.ai_suggested_resolution || "1. Check server metrics\n2. Scale pod instances"}
                 </p>
               </Card>
 
-              {/* Preventive Actions & Similar Incidents */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
-                  <div className="font-semibold text-foreground text-xs">Preventive Action Items</div>
-                  <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
-                    {incident.ai_preventive_actions && incident.ai_preventive_actions.length > 0 ? (
-                      incident.ai_preventive_actions.map((act, i) => (
-                        <li key={i}>{act}</li>
-                      ))
-                    ) : (
-                      <li>Configure automated auto-scaling rules</li>
-                    )}
-                  </ul>
-                </Card>
-
-                <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
-                  <div className="font-semibold text-foreground text-xs">Similar Historical Incidents</div>
-                  <div className="space-y-1.5">
-                    {incident.ai_similar_incidents && incident.ai_similar_incidents.length > 0 ? (
-                      incident.ai_similar_incidents.map((sim, i) => (
-                        <div key={i} className="p-2 rounded bg-black/20 border border-white/5 flex items-center justify-between">
-                          <div>
-                            <span className="font-mono text-[11px] text-brand-purple">{sim.id}</span>
-                            <div className="text-[11px] text-foreground">{sim.title}</div>
-                          </div>
-                          {sim.similarity && <Badge variant="purple">{sim.similarity}</Badge>}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-muted-foreground">No prior similar incidents found in knowledge base.</p>
-                    )}
-                  </div>
-                </Card>
-              </div>
+              {/* Long-term Prevention */}
+              <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
+                <div className="font-semibold text-foreground text-xs">Long-term Prevention Plan</div>
+                <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                  {(incident.ai_long_term_prevention || incident.ai_preventive_actions || []).length > 0 ? (
+                    (incident.ai_long_term_prevention || incident.ai_preventive_actions || []).map((act, i) => (
+                      <li key={i}>{act}</li>
+                    ))
+                  ) : (
+                    <li>Configure automated auto-scaling rules</li>
+                  )}
+                </ul>
+              </Card>
             </TabsContent>
 
             {/* TAB 2: Timeline */}
@@ -220,10 +254,10 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                     1
                   </div>
                   <div>
-                    <div className="font-semibold text-foreground">Incident Opened</div>
+                    <div className="font-semibold text-foreground">Incident Triggered</div>
                     <p className="text-muted-foreground text-[11px]">
                       Created by <span className="text-foreground">{incident.created_by || "AlertManager"}</span> at{" "}
-                      {new Date(incident.created_at).toLocaleString()}
+                      {new Date(incident.started_at || incident.created_at).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -233,9 +267,9 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                     2
                   </div>
                   <div>
-                    <div className="font-semibold text-foreground">AI Diagnostics Generated</div>
+                    <div className="font-semibold text-foreground">Gemini AI Analysis Complete</div>
                     <p className="text-muted-foreground text-[11px]">
-                      Google Gemini extracted root cause analysis and action plan.
+                      Generated root cause analysis, immediate mitigations, and confidence score.
                     </p>
                   </div>
                 </div>
@@ -257,7 +291,7 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
               </div>
             </TabsContent>
 
-            {/* TAB 3: Related Logs & Metrics */}
+            {/* TAB 3: Logs & Metrics */}
             <TabsContent value="logs_alerts" className="space-y-4">
               <Card className="p-4 bg-black/40 border border-white/10 font-mono text-[11px] text-emerald-400 space-y-1 overflow-x-auto">
                 <div className="text-muted-foreground font-sans font-semibold mb-2 flex items-center gap-1.5">
@@ -270,7 +304,7 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
 
               <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
                 <div className="font-semibold text-foreground text-xs flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5 text-brand-blue" /> Infrastructure Telemetry Metrics
+                  <Activity className="h-3.5 w-3.5 text-brand-blue" /> Telemetry Metrics ({incident.affected_region || "us-east-1"})
                 </div>
                 <div className="grid grid-cols-3 gap-2 font-mono text-center text-xs">
                   <div className="p-2 rounded bg-black/20 border border-white/5">
@@ -289,7 +323,7 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
               </Card>
             </TabsContent>
 
-            {/* TAB 4: Resolution Notes */}
+            {/* TAB 4: Resolution & Comments */}
             <TabsContent value="resolution" className="space-y-4">
               {incident.resolution_notes ? (
                 <Card className="p-4 bg-emerald-950/20 border border-emerald-500/30 space-y-2">

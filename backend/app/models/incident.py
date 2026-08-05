@@ -20,20 +20,27 @@ class Incident(UUIDMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(50), default="Open")  # Open, Investigating, Monitoring, Resolved, Closed
     affected_service: Mapped[str] = mapped_column(String(255), nullable=True, default="api-gateway")
     affected_services: Mapped[list] = mapped_column(JSON, default=list)
+    affected_region: Mapped[str] = mapped_column(String(100), nullable=True, default="us-east-1")
     assigned_engineer: Mapped[str] = mapped_column(String(255), nullable=True)
+    assigned_to: Mapped[str] = mapped_column(String(255), nullable=True)
     created_by: Mapped[str] = mapped_column(String(255), nullable=True, default="System")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     resolution_notes: Mapped[str] = mapped_column(Text, nullable=True)
     resolved_by: Mapped[str] = mapped_column(String(50), nullable=True)  # manual | ai | auto
 
     # AI Analysis Fields
     ai_summary: Mapped[str] = mapped_column(Text, nullable=True)
+    root_cause: Mapped[str] = mapped_column(Text, nullable=True)
     ai_root_cause: Mapped[str] = mapped_column(Text, nullable=True)
     ai_business_impact: Mapped[str] = mapped_column(Text, nullable=True)
     ai_suggested_resolution: Mapped[str] = mapped_column(Text, nullable=True)
+    ai_immediate_mitigation: Mapped[str] = mapped_column(Text, nullable=True)
+    ai_long_term_prevention: Mapped[list] = mapped_column(JSON, nullable=True, default=list)
     ai_preventive_actions: Mapped[list] = mapped_column(JSON, nullable=True, default=list)
     ai_similar_incidents: Mapped[list] = mapped_column(JSON, nullable=True, default=list)
     ai_estimated_resolution_time: Mapped[str] = mapped_column(String(100), nullable=True)
+    ai_confidence_score: Mapped[float] = mapped_column(Text, nullable=True, default="0.94")
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

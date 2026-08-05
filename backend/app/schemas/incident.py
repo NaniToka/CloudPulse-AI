@@ -39,11 +39,14 @@ class IncidentBase(BaseModel):
     status: IncidentStatus = Field(default=IncidentStatus.OPEN, description="Current lifecycle status")
     affected_service: Optional[str] = Field(default="api-gateway", description="Primary affected service")
     affected_services: List[str] = Field(default_factory=list, description="List of affected services")
+    affected_region: Optional[str] = Field(default="us-east-1", description="Affected cloud region")
     assigned_engineer: Optional[str] = Field(None, description="Engineer assigned to the incident")
+    assigned_to: Optional[str] = Field(None, description="Assignee name or email")
 
 
 class IncidentCreate(IncidentBase):
     created_by: Optional[str] = Field(default="System User", description="User who opened the incident")
+    started_at: Optional[datetime] = Field(None, description="Time incident started")
     auto_analyze: bool = Field(default=True, description="Whether to trigger Gemini AI analysis immediately")
 
 
@@ -55,7 +58,9 @@ class IncidentUpdate(BaseModel):
     status: Optional[IncidentStatus] = None
     affected_service: Optional[str] = None
     affected_services: Optional[List[str]] = None
+    affected_region: Optional[str] = None
     assigned_engineer: Optional[str] = None
+    assigned_to: Optional[str] = None
     resolution_notes: Optional[str] = None
 
 
@@ -66,12 +71,16 @@ class IncidentResolve(BaseModel):
 
 class IncidentAIAnalysisResponse(BaseModel):
     ai_summary: str
+    root_cause: str
     ai_root_cause: str
     ai_business_impact: str
     ai_suggested_resolution: str
+    ai_immediate_mitigation: str
+    ai_long_term_prevention: List[str]
     ai_preventive_actions: List[str]
     ai_similar_incidents: List[dict[str, Any]]
     ai_estimated_resolution_time: str
+    ai_confidence_score: float
 
 
 class IncidentResponse(IncidentBase):
@@ -79,6 +88,7 @@ class IncidentResponse(IncidentBase):
 
     id: uuid.UUID
     created_by: Optional[str] = None
+    started_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     resolved_at: Optional[datetime] = None
@@ -87,12 +97,16 @@ class IncidentResponse(IncidentBase):
 
     # AI Fields
     ai_summary: Optional[str] = None
+    root_cause: Optional[str] = None
     ai_root_cause: Optional[str] = None
     ai_business_impact: Optional[str] = None
     ai_suggested_resolution: Optional[str] = None
+    ai_immediate_mitigation: Optional[str] = None
+    ai_long_term_prevention: Optional[List[str]] = Field(default_factory=list)
     ai_preventive_actions: Optional[List[str]] = Field(default_factory=list)
     ai_similar_incidents: Optional[List[dict[str, Any]]] = Field(default_factory=list)
     ai_estimated_resolution_time: Optional[str] = None
+    ai_confidence_score: Optional[float] = 0.94
 
 
 class IncidentListResponse(BaseModel):
@@ -101,6 +115,13 @@ class IncidentListResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+
+class IncidentStatsResponse(BaseModel):
+    open_incidents: int
+    critical_incidents: int
+    avg_resolution_time_minutes: float
+    sla_compliance_percent: float
 
 
 class SeverityCount(BaseModel):
@@ -122,3 +143,4 @@ class IncidentAnalyticsResponse(BaseModel):
     active_incidents: int
     resolved_incidents: int
     total_incidents: int
+    sla_compliance_percent: float

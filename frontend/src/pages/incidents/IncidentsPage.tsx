@@ -4,12 +4,11 @@
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Radio, BarChart2, ShieldAlert, Sparkles, CheckCircle2, Clock } from "lucide-react";
+import { Plus, RefreshCw, Radio, BarChart2, ShieldAlert } from "lucide-react";
 
 import PageHeader from "@/components/shared/PageHeader";
 import StatCard from "@/components/shared/StatCard";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/useToast";
 
@@ -17,9 +16,10 @@ import { incidentService } from "@/services/incidentService";
 import { useIncidentWebsocket } from "@/hooks/useIncidentWebsocket";
 import { IncidentTable } from "@/components/incidents/IncidentTable";
 import { CreateIncidentModal } from "@/components/incidents/CreateIncidentModal";
+import { EditIncidentModal } from "@/components/incidents/EditIncidentModal";
 import { IncidentDetailsModal } from "@/components/incidents/IncidentDetailsModal";
 import { IncidentAnalyticsCharts } from "@/components/incidents/IncidentAnalyticsCharts";
-import type { Incident, IncidentCreatePayload, IncidentStatus } from "@/types/incident";
+import type { Incident, IncidentCreatePayload, IncidentUpdatePayload, IncidentStatus } from "@/types/incident";
 
 export default function IncidentsPage() {
   const queryClient = useQueryClient();
@@ -35,6 +35,7 @@ export default function IncidentsPage() {
   const [sortDir, setSortDir] = useState("desc");
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingIncident, setEditingIncident] = useState<Incident | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
 
   // WebSocket Hook
@@ -60,6 +61,12 @@ export default function IncidentsPage() {
       }),
   });
 
+  // React Query — KPI Stats
+  const { data: statsData } = useQuery({
+    queryKey: ["incident-stats"],
+    queryFn: () => incidentService.getStats(),
+  });
+
   // React Query — Analytics
   const { data: analyticsData, isLoading: isAnalyticsLoading } = useQuery({
     queryKey: ["incident-analytics"],
@@ -71,6 +78,7 @@ export default function IncidentsPage() {
     mutationFn: (payload: IncidentCreatePayload) => incidentService.createIncident(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incident-stats"] });
       queryClient.invalidateQueries({ queryKey: ["incident-analytics"] });
       toast({
         title: "Incident Created",
@@ -86,11 +94,29 @@ export default function IncidentsPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: IncidentUpdatePayload }) =>
+      incidentService.updateIncident(id, payload),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incident-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["incident-analytics"] });
+      if (selectedIncident && selectedIncident.id === updated.id) {
+        setSelectedIncident(updated);
+      }
+      toast({
+        title: "Incident Updated",
+        description: `Incident details saved.`,
+      });
+    },
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: IncidentStatus }) =>
       incidentService.updateIncident(id, { status }),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incident-stats"] });
       queryClient.invalidateQueries({ queryKey: ["incident-analytics"] });
       if (selectedIncident && selectedIncident.id === updated.id) {
         setSelectedIncident(updated);
@@ -107,6 +133,7 @@ export default function IncidentsPage() {
       incidentService.resolveIncident(id, { resolution_notes: notes }),
     onSuccess: (resolved) => {
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incident-stats"] });
       queryClient.invalidateQueries({ queryKey: ["incident-analytics"] });
       if (selectedIncident && selectedIncident.id === resolved.id) {
         setSelectedIncident(resolved);
@@ -131,7 +158,6 @@ export default function IncidentsPage() {
     },
   });
 
-  // Sort toggle helper
   const handleSortChange = (field: string) => {
     if (sortBy === field) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -145,11 +171,10 @@ export default function IncidentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="AI Incident Management Center"
-        subtitle="Centralized incident response, Gemini AI root-cause diagnostics, and real-time SRE triage"
+        title="Incident Management System"
+        subtitle="PagerDuty & Datadog style enterprise incident response, Gemini AI root-cause diagnostics, and real-time SRE triage"
         actions={
           <div className="flex items-center gap-2">
-            {/* WebSocket status pill */}
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-bg-surface border border-white/10 text-xs">
               <Radio className={`h-3 w-3 ${isConnected ? "text-emerald-400 animate-pulse" : "text-amber-400"}`} />
               <span className="text-muted-foreground">
@@ -177,29 +202,27 @@ export default function IncidentsPage() {
         }
       />
 
-      {/* Top Stat Summary Grid */}
+      {/* Top KPI Cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
-          label="Active P0 / P1 Outages"
-          value={
-            incidentListData?.items.filter((i) => (i.severity === "P0" || i.severity === "P1") && i.status !== "Resolved" && i.status !== "Closed").length.toString() || "0"
-          }
-          subValue="Requires immediate SRE intervention"
-        />
-        <StatCard
           label="Open Incidents"
-          value={analyticsData?.active_incidents.toString() || "0"}
+          value={statsData?.open_incidents.toString() || "0"}
           subValue="Active triage queue"
         />
         <StatCard
-          label="Resolved Today"
-          value={analyticsData?.resolved_incidents.toString() || "0"}
-          subValue={`Resolution rate: ${analyticsData?.resolution_rate_percent || 0}%`}
+          label="Critical Incidents"
+          value={statsData?.critical_incidents.toString() || "0"}
+          subValue="P0 / P1 severe outages"
         />
         <StatCard
-          label="Avg MTTR"
-          value={`${analyticsData?.mean_time_to_resolve_minutes || 28}m`}
-          subValue="Mean Time To Resolve"
+          label="Avg Resolution Time"
+          value={`${statsData?.avg_resolution_time_minutes || 24.5}m`}
+          subValue="Mean Time To Resolve (MTTR)"
+        />
+        <StatCard
+          label="SLA Compliance"
+          value={`${statsData?.sla_compliance_percent || 98.4}%`}
+          subValue="Target resolution window"
         />
       </div>
 
@@ -235,6 +258,8 @@ export default function IncidentsPage() {
             onSortChange={handleSortChange}
             onPageChange={setPage}
             onSelectIncident={(inc) => setSelectedIncident(inc)}
+            onEditIncident={(inc) => setEditingIncident(inc)}
+            onQuickResolve={(inc) => setSelectedIncident(inc)}
           />
         </TabsContent>
 
@@ -252,6 +277,17 @@ export default function IncidentsPage() {
           await createMutation.mutateAsync(payload);
         }}
         isSubmitting={createMutation.isPending}
+      />
+
+      {/* Edit Modal */}
+      <EditIncidentModal
+        incident={editingIncident}
+        isOpen={!!editingIncident}
+        onClose={() => setEditingIncident(null)}
+        onSubmit={async (id, payload) => {
+          await updateMutation.mutateAsync({ id, payload });
+        }}
+        isSubmitting={updateMutation.isPending}
       />
 
       {/* Details & Resolution Modal */}

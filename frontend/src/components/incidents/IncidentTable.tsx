@@ -1,30 +1,28 @@
 /**
  * Enterprise Incident Table Component
- * Features: filters, search, sorting, severity/status badges, pagination.
+ * Features: filters, search, sorting, severity/status badges, pagination, quick actions.
  */
 
 import React from "react";
 import {
   Search,
-  Filter,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   ShieldAlert,
-  Clock,
   User,
   Sparkles,
-  CheckCircle2,
   AlertCircle,
-  Activity,
-  Layers,
+  Edit3,
+  CheckCircle,
+  Eye,
+  Globe,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import type { Incident, IncidentSeverity, IncidentStatus } from "@/types/incident";
+import type { Incident } from "@/types/incident";
 
 interface IncidentTableProps {
   incidents: Incident[];
@@ -45,6 +43,8 @@ interface IncidentTableProps {
   onSortChange: (field: string) => void;
   onPageChange: (newPage: number) => void;
   onSelectIncident: (incident: Incident) => void;
+  onEditIncident: (incident: Incident) => void;
+  onQuickResolve: (incident: Incident) => void;
 }
 
 const severityBadgeMap: Record<string, "critical" | "danger" | "warning" | "info"> = {
@@ -81,6 +81,8 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
   onSortChange,
   onPageChange,
   onSelectIncident,
+  onEditIncident,
+  onQuickResolve,
 }) => {
   return (
     <Card className="border border-white/10 bg-bg-surface/80 backdrop-blur-md shadow-2xl">
@@ -102,7 +104,7 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search title, service, engineer..."
+              placeholder="Search ID, title, service, engineer..."
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-9 h-9 text-xs bg-bg-elevated/60 border-white/10 focus:border-brand-purple"
@@ -143,6 +145,7 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-white/10 text-muted-foreground bg-bg-elevated/40">
+                <th className="px-4 py-3 text-left font-mono font-medium">ID</th>
                 <th
                   onClick={() => onSortChange("severity")}
                   className="px-4 py-3 text-left font-medium cursor-pointer hover:text-foreground transition-colors"
@@ -156,51 +159,43 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
                   className="px-4 py-3 text-left font-medium cursor-pointer hover:text-foreground transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    Title & Description <ArrowUpDown className="h-3 w-3 opacity-60" />
+                    Title & Context <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
                 <th
                   onClick={() => onSortChange("status")}
                   className="px-4 py-3 text-left font-medium cursor-pointer hover:text-foreground transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    Status <ArrowUpDown className="h-3 w-3 opacity-60" />
-                  </div>
+                  Status
                 </th>
-                <th
-                  onClick={() => onSortChange("affected_service")}
-                  className="px-4 py-3 text-left font-medium cursor-pointer hover:text-foreground transition-colors"
-                >
-                  Service
-                </th>
+                <th className="px-4 py-3 text-left font-medium">Service & Region</th>
                 <th className="px-4 py-3 text-left font-medium">Assigned Engineer</th>
-                <th className="px-4 py-3 text-left font-medium">AI Insights</th>
                 <th
                   onClick={() => onSortChange("created_at")}
-                  className="px-4 py-3 text-right font-medium cursor-pointer hover:text-foreground transition-colors"
+                  className="px-4 py-3 text-left font-medium cursor-pointer hover:text-foreground transition-colors"
                 >
-                  <div className="flex items-center justify-end gap-1">
-                    Created <ArrowUpDown className="h-3 w-3 opacity-60" />
-                  </div>
+                  Started Time
                 </th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/5 animate-pulse">
+                    <td className="px-4 py-4"><div className="h-4 w-12 bg-white/10 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-5 w-10 bg-white/10 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-4 w-48 bg-white/10 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-5 w-20 bg-white/10 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-4 w-24 bg-white/10 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-4 w-28 bg-white/10 rounded" /></td>
-                    <td className="px-4 py-4"><div className="h-4 w-16 bg-white/10 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-20 bg-white/10 rounded" /></td>
                     <td className="px-4 py-4 text-right"><div className="h-4 w-16 bg-white/10 rounded ml-auto" /></td>
                   </tr>
                 ))
               ) : incidents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                     <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                     No incidents match your active filters.
                   </td>
@@ -209,9 +204,16 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
                 incidents.map((inc) => (
                   <tr
                     key={inc.id}
-                    onClick={() => onSelectIncident(inc)}
-                    className="border-b border-white/5 hover:bg-white/[0.04] transition-all cursor-pointer group"
+                    className="border-b border-white/5 hover:bg-white/[0.04] transition-all group"
                   >
+                    {/* Incident ID */}
+                    <td
+                      onClick={() => onSelectIncident(inc)}
+                      className="px-4 py-3 font-mono text-[11px] text-brand-purple cursor-pointer hover:underline"
+                    >
+                      {inc.id.slice(0, 8)}
+                    </td>
+
                     {/* Severity Badge */}
                     <td className="px-4 py-3 font-mono font-medium">
                       <Badge variant={severityBadgeMap[inc.severity] || "default"}>
@@ -220,7 +222,10 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
                     </td>
 
                     {/* Title */}
-                    <td className="px-4 py-3 max-w-xs md:max-w-md truncate">
+                    <td
+                      onClick={() => onSelectIncident(inc)}
+                      className="px-4 py-3 max-w-xs md:max-w-md truncate cursor-pointer"
+                    >
                       <div className="font-semibold text-foreground group-hover:text-brand-purple transition-colors truncate">
                         {inc.title}
                       </div>
@@ -238,11 +243,16 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
                       </Badge>
                     </td>
 
-                    {/* Affected Service */}
+                    {/* Affected Service & Region */}
                     <td className="px-4 py-3 font-mono text-muted-foreground">
-                      <span className="px-2 py-0.5 rounded bg-bg-elevated border border-white/5">
-                        {inc.affected_service || "api-gateway"}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded bg-bg-elevated border border-white/5">
+                          {inc.affected_service || "api-gateway"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <Globe className="h-3 w-3" /> {inc.affected_region || "us-east-1"}
+                        </span>
+                      </div>
                     </td>
 
                     {/* Engineer */}
@@ -250,27 +260,49 @@ export const IncidentTable: React.FC<IncidentTableProps> = ({
                       <div className="flex items-center gap-1.5">
                         <User className="h-3 w-3 text-brand-purple/70" />
                         <span className="truncate max-w-[130px]">
-                          {inc.assigned_engineer || "Unassigned"}
+                          {inc.assigned_engineer || inc.assigned_to || "Unassigned"}
                         </span>
                       </div>
                     </td>
 
-                    {/* AI Insights badge */}
-                    <td className="px-4 py-3">
-                      {inc.ai_summary ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                          <Sparkles className="h-3 w-3" /> Ready
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                          Pending
-                        </span>
-                      )}
+                    {/* Started Time */}
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-[11px]">
+                      {new Date(inc.started_at || inc.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </td>
 
-                    {/* Time */}
-                    <td className="px-4 py-3 text-right text-muted-foreground font-mono text-[11px]">
-                      {new Date(inc.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {/* Actions */}
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onSelectIncident(inc)}
+                          title="View Details"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onEditIncident(inc)}
+                          title="Edit Incident"
+                          className="h-7 w-7 text-muted-foreground hover:text-brand-blue"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </Button>
+                        {inc.status !== "Resolved" && inc.status !== "Closed" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onQuickResolve(inc)}
+                            title="Quick Resolve"
+                            className="h-7 w-7 text-muted-foreground hover:text-emerald-400"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

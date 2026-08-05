@@ -9,6 +9,7 @@ import type {
   IncidentUpdatePayload,
   IncidentResolvePayload,
   IncidentListResponse,
+  IncidentStats,
   IncidentAnalytics,
   IncidentAIAnalysis,
 } from "@/types/incident";
@@ -28,6 +29,16 @@ export interface GetIncidentsParams {
 export const incidentService = {
   async getIncidents(params?: GetIncidentsParams): Promise<IncidentListResponse> {
     const response = await apiClient.get<IncidentListResponse>("/incidents", { params });
+    return response.data;
+  },
+
+  async getActiveIncidents(): Promise<Incident[]> {
+    const response = await apiClient.get<Incident[]>("/incidents/active");
+    return response.data;
+  },
+
+  async getStats(): Promise<IncidentStats> {
+    const response = await apiClient.get<IncidentStats>("/incidents/stats");
     return response.data;
   },
 

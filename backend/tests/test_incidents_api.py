@@ -39,6 +39,31 @@ async def test_list_incidents(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_get_active_incidents(client: AsyncClient):
+    headers = await get_auth_headers(client)
+
+    response = await client.get("/api/v1/incidents/active", headers=headers)
+    assert response.status_code == 200, response.text
+    items = response.json()
+    assert isinstance(items, list)
+    assert len(items) > 0
+
+
+@pytest.mark.asyncio
+async def test_get_incident_stats(client: AsyncClient):
+    headers = await get_auth_headers(client)
+
+    response = await client.get("/api/v1/incidents/stats", headers=headers)
+    assert response.status_code == 200, response.text
+    stats = response.json()
+
+    assert "open_incidents" in stats
+    assert "critical_incidents" in stats
+    assert "avg_resolution_time_minutes" in stats
+    assert "sla_compliance_percent" in stats
+
+
+@pytest.mark.asyncio
 async def test_create_and_get_incident(client: AsyncClient):
     headers = await get_auth_headers(client)
 
@@ -49,6 +74,7 @@ async def test_create_and_get_incident(client: AsyncClient):
         "priority": "High",
         "status": "Open",
         "affected_service": "api-gateway",
+        "affected_region": "us-east-1",
         "assigned_engineer": "DevOps Engineer",
         "auto_analyze": True,
     }
@@ -91,6 +117,7 @@ async def test_update_and_resolve_incident(client: AsyncClient):
         "status": "Investigating",
         "severity": "P1",
         "assigned_engineer": "Senior DBA",
+        "assigned_to": "Senior DBA",
     }
     update_resp = await client.put(f"/api/v1/incidents/{inc_id}", json=update_payload, headers=headers)
     assert update_resp.status_code == 200
