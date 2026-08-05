@@ -24,6 +24,7 @@ import IncidentsPage from "@/pages/incidents/IncidentsPage";
 import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
 import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
 import DistributedTracingPage from "@/pages/tracing/DistributedTracingPage";
+import RAGChatPage from "@/pages/ragChat/RAGChatPage";
 import AlertsPage from "@/pages/alerts/AlertsPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
@@ -44,6 +45,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard"     element={<DashboardPage />}      />
+            <Route path="/chat"          element={<RAGChatPage />}        />
             <Route path="/monitoring"    element={<RealTimeMonitoringPage />} />
             <Route path="/tracing"       element={<DistributedTracingPage />} />
             <Route path="/ai"            element={<AiCopilotPage />}      />
