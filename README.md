@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/cloudpulse_banner.png" alt="CloudPulse AI — AI-Powered Enterprise Cloud Observability Platform" width="100%" />
+</p>
+
 # CloudPulse AI
 
 > Premium enterprise infrastructure observability platform powered by AI.
