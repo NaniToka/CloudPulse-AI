@@ -27,6 +27,7 @@ import DistributedTracingPage from "@/pages/tracing/DistributedTracingPage";
 import RAGChatPage from "@/pages/ragChat/RAGChatPage";
 import RunbookDashboardPage from "@/pages/runbooks/RunbookDashboardPage";
 import SecurityCenterPage from "@/pages/security/SecurityCenterPage";
+import AIOpsCenterPage from "@/pages/aiops/AIOpsCenterPage";
 import AlertsPage from "@/pages/alerts/AlertsPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
@@ -47,6 +48,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard"     element={<DashboardPage />}      />
+            <Route path="/aiops"         element={<AIOpsCenterPage />}    />
             <Route path="/chat"          element={<RAGChatPage />}        />
             <Route path="/monitoring"    element={<RealTimeMonitoringPage />} />
             <Route path="/tracing"       element={<DistributedTracingPage />} />

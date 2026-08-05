@@ -19,6 +19,7 @@ import {
   Bot,
   BookOpen,
   ShieldCheck,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -39,6 +40,7 @@ const navGroups = [
     label: "Overview",
     items: [
       { icon: LayoutDashboard, label: "Dashboard",       to: "/dashboard"      },
+      { icon: Cpu,             label: "AIOps Agent",     to: "/aiops"          },
       { icon: Bot,             label: "RAG AI Chat",     to: "/chat"           },
       { icon: Radio,           label: "Live Monitoring", to: "/monitoring"     },
       { icon: Activity,        label: "AI Copilot",      to: "/ai"             },
