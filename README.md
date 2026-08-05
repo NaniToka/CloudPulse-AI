@@ -119,7 +119,7 @@ Inspired by industry benchmarks like **Google Cloud Operations (Stackdriver)**, 
 <div align="center">
 
 ### 🖥️ Executive Enterprise Dashboard
-![Executive Dashboard](docs/images/cloudpulse_banner.png)
+![Executive Dashboard](assets/screenshots/dashboard.png)
 *Real-time cross-cloud health overview, active server counts, error rate sparklines, and AI insight highlights.*
 
 ### 🤖 Autonomous AIOps Agent Center
