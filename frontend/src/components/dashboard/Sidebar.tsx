@@ -19,6 +19,7 @@ import {
   Bot,
   BookOpen,
   ShieldCheck,
+  Building2,
   Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,7 @@ const navGroups = [
   {
     label: "System",
     items: [
+      { icon: Building2,     label: "Organization",  to: "/organization"  },
       { icon: Settings,      label: "Settings",      to: "/settings"      },
       { icon: MessageSquare, label: "Notifications",  to: "/notifications", badge: 7 },
     ],

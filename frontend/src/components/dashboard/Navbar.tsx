@@ -1,4 +1,4 @@
-import { Bell, Globe, Command, Search, Menu, LogOut, User, Settings } from "lucide-react";
+import { Bell, Globe, Command, Search, Menu, LogOut, User, Settings, Building2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -102,6 +102,11 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <NavLink to="/organization" className="gap-2">
+                  <Building2 className="h-3.5 w-3.5" /> Organization & Workspace
+                </NavLink>
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <NavLink to="/settings" className="gap-2">
                   <User className="h-3.5 w-3.5" /> Profile

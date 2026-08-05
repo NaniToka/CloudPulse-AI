@@ -63,6 +63,7 @@ class User(UUIDMixin, TimestampMixin, Base):
     organization: Mapped[Optional["Organization"]] = relationship(
         "Organization",
         back_populates="users",
+        foreign_keys=[organization_id],
         lazy="raise",
     )
     chat_sessions: Mapped[list["ChatSession"]] = relationship(

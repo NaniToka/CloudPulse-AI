@@ -21,3 +21,4 @@ from app.models.trace import Trace, Span, ServiceDependency  # noqa: F401
 from app.models.runbook import Runbook, AutomationStep, RunbookExecution  # noqa: F401
 from app.models.security import SecurityScan, ComplianceReport  # noqa: F401
 from app.models.aiops import AIOpsAgent, AgentTask, AgentRecommendation, AgentExecution  # noqa: F401
+from app.models.tenant import Team, Project, OrganizationMember, TeamMember, Invitation, AuditLog  # noqa: F401

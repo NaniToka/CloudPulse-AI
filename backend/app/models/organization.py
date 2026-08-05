@@ -7,7 +7,9 @@ The slug is a URL-safe unique identifier derived from the name.
 
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Integer, String
+import uuid
+from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -32,9 +34,12 @@ class Organization(UUIDMixin, TimestampMixin, Base):
     logo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     member_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="Active")  # Active, Suspended
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL", use_alter=True, name="fk_organization_owner"), nullable=True)
+
     # Relationships
     users: Mapped[list["User"]] = relationship(
-        "User", back_populates="organization", lazy="raise"
+        "User", back_populates="organization", foreign_keys="[User.organization_id]", lazy="raise"
     )
     resources: Mapped[list["Resource"]] = relationship(
         "Resource", back_populates="organization", lazy="raise"
@@ -42,6 +47,11 @@ class Organization(UUIDMixin, TimestampMixin, Base):
     incidents: Mapped[list["Incident"]] = relationship(
         "Incident", back_populates="organization", lazy="raise"
     )
+    teams: Mapped[list["Team"]] = relationship("Team", back_populates="organization", cascade="all, delete-orphan")
+    projects: Mapped[list["Project"]] = relationship("Project", back_populates="organization", cascade="all, delete-orphan")
+    members: Mapped[list["OrganizationMember"]] = relationship("OrganizationMember", back_populates="organization", cascade="all, delete-orphan")
+    invitations: Mapped[list["Invitation"]] = relationship("Invitation", back_populates="organization", cascade="all, delete-orphan")
+    audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="organization", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Organization id={self.id} slug={self.slug!r}>"
