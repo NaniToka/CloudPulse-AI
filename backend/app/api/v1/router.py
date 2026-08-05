@@ -6,7 +6,7 @@ All route groups are registered here with their prefixes and tags.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import ai, auth, cost, incidents, logs, predictions, users
+from app.api.v1.endpoints import ai, auth, cost, incidents, logs, metrics, predictions, users
 
 api_router = APIRouter()
 
@@ -44,4 +44,9 @@ api_router.include_router(
     predictions.router,
     prefix="/predictions",
     tags=["Predictive Analytics"],
+)
+api_router.include_router(
+    metrics.router,
+    prefix="/metrics",
+    tags=["Real-Time Observability"],
 )

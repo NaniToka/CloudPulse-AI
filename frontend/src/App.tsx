@@ -22,6 +22,7 @@ import LogsPage from "@/pages/logs/LogsPage";
 import CostPage from "@/pages/cost/CostPage";
 import IncidentsPage from "@/pages/incidents/IncidentsPage";
 import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
+import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
 import AlertsPage from "@/pages/alerts/AlertsPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
@@ -42,6 +43,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard"     element={<DashboardPage />}      />
+            <Route path="/monitoring"    element={<RealTimeMonitoringPage />} />
             <Route path="/ai"            element={<AiCopilotPage />}      />
             <Route path="/infrastructure"element={<InfrastructurePage />} />
             <Route path="/servers"       element={<ServersPage />}        />
