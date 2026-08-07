@@ -46,7 +46,7 @@ services:
   # ChromaDB (Vector Database)
   # ---------------------------------------------------------------------------
   chromadb:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.5.23
     container_name: cloudpulse_chromadb
     restart: unless-stopped
     environment:
@@ -56,11 +56,6 @@ services:
       - chroma_data:/chroma/data
     ports:
       - "${CHROMA_PORT:-8001}:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
 
   # ---------------------------------------------------------------------------
   # Backend (FastAPI)
@@ -85,9 +80,10 @@ services:
       redis:
         condition: service_healthy
       chromadb:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./backend:/app
+      - /app/.venv
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s
