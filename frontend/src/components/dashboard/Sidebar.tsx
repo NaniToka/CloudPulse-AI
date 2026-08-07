@@ -22,6 +22,7 @@ import {
   Building2,
   Cpu,
   Cloud,
+  Box,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -51,6 +52,7 @@ const navGroups = [
   {
     label: "Infrastructure",
     items: [
+      { icon: Box,        label: "Kubernetes K8s", to: "/k8s"            },
       { icon: Cloud,      label: "Multi-Cloud",    to: "/cloud"          },
       { icon: Server,     label: "Infrastructure", to: "/infrastructure" },
       { icon: HardDrive,  label: "Servers",        to: "/servers"        },
