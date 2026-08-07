@@ -40,6 +40,8 @@ import K8sPodExplorerPage from "@/pages/kubernetes/K8sPodExplorerPage";
 import K8sDeploymentExplorerPage from "@/pages/kubernetes/K8sDeploymentExplorerPage";
 import WorkflowsListPage from "@/pages/workflows/WorkflowsListPage";
 import WorkflowEditorPage from "@/pages/workflows/WorkflowEditorPage";
+import DigitalTwinDashboardPage from "@/pages/twin/DigitalTwinDashboardPage";
+import SimulationStudioPage from "@/pages/twin/SimulationStudioPage";
 
 export default function App() {
   return (
@@ -57,6 +59,8 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard"             element={<DashboardPage />}      />
+            <Route path="/twin"                  element={<DigitalTwinDashboardPage />} />
+            <Route path="/twin/simulation/:id"   element={<SimulationStudioPage />} />
             <Route path="/workflows"             element={<WorkflowsListPage />}  />
             <Route path="/workflows/builder/:id" element={<WorkflowEditorPage />} />
             <Route path="/k8s"                   element={<KubernetesDashboardPage />} />

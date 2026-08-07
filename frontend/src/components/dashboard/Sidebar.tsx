@@ -52,6 +52,7 @@ const navGroups = [
   {
     label: "Infrastructure",
     items: [
+      { icon: Radio,      label: "Digital Twin",   to: "/twin"           },
       { icon: Box,        label: "Kubernetes K8s", to: "/k8s"            },
       { icon: Cloud,      label: "Multi-Cloud",    to: "/cloud"          },
       { icon: Server,     label: "Infrastructure", to: "/infrastructure" },

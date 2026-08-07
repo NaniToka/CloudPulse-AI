@@ -29,3 +29,6 @@ from app.models.kubernetes import K8sCluster, K8sNode, K8sPod, K8sDeployment, K8
 from app.models.workflow import (  # noqa: F401
     Workflow, WorkflowExecution, WorkflowStepLog, WorkflowApproval, WorkflowTemplate
 )
+from app.models.digital_twin import (  # noqa: F401
+    InfrastructureTwin, SimulationScenario, SimulationExecution, WhatIfQuery
+)

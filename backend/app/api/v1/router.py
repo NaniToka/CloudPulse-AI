@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     ai, aiops, alerts, auth, cloud, cost, incidents, kubernetes, logs, members, metrics,
     notifications, organizations, predictions, projects, rag_chat,
-    runbooks, security, servers, teams, traces, users, workflows
+    runbooks, security, servers, teams, traces, twin, users, workflows
 )
 
 api_router = APIRouter()
@@ -18,6 +18,11 @@ api_router.include_router(
     auth.router,
     prefix="/auth",
     tags=["Authentication"],
+)
+api_router.include_router(
+    twin.router,
+    prefix="/twin",
+    tags=["Digital Twin Infrastructure"],
 )
 api_router.include_router(
     workflows.router,
