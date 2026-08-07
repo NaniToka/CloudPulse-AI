@@ -26,3 +26,6 @@ from app.models.cloud_account import CloudAccount  # noqa: F401
 from app.models.cloud_resource import CloudResource  # noqa: F401
 from app.models.cloud_region import CloudRegion  # noqa: F401
 from app.models.kubernetes import K8sCluster, K8sNode, K8sPod, K8sDeployment, K8sEvent  # noqa: F401
+from app.models.workflow import (  # noqa: F401
+    Workflow, WorkflowExecution, WorkflowStepLog, WorkflowApproval, WorkflowTemplate
+)

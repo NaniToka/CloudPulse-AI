@@ -38,6 +38,8 @@ import CloudResourceExplorerPage from "@/pages/cloud/CloudResourceExplorerPage";
 import KubernetesDashboardPage from "@/pages/kubernetes/KubernetesDashboardPage";
 import K8sPodExplorerPage from "@/pages/kubernetes/K8sPodExplorerPage";
 import K8sDeploymentExplorerPage from "@/pages/kubernetes/K8sDeploymentExplorerPage";
+import WorkflowsListPage from "@/pages/workflows/WorkflowsListPage";
+import WorkflowEditorPage from "@/pages/workflows/WorkflowEditorPage";
 
 export default function App() {
   return (
@@ -54,8 +56,10 @@ export default function App() {
         {/* ── Protected app routes ──────────────────────────────── */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/dashboard"       element={<DashboardPage />}      />
-            <Route path="/k8s"             element={<KubernetesDashboardPage />} />
+            <Route path="/dashboard"             element={<DashboardPage />}      />
+            <Route path="/workflows"             element={<WorkflowsListPage />}  />
+            <Route path="/workflows/builder/:id" element={<WorkflowEditorPage />} />
+            <Route path="/k8s"                   element={<KubernetesDashboardPage />} />
             <Route path="/k8s/pods"        element={<K8sPodExplorerPage />} />
             <Route path="/k8s/deployments" element={<K8sDeploymentExplorerPage />} />
             <Route path="/cloud"           element={<MultiCloudDashboardPage />} />
