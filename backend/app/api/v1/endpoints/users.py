@@ -82,6 +82,19 @@ async def update_profile(
 
 
 @router.get(
+    "",
+    response_model=list[UserResponse],
+    summary="List all users",
+)
+async def list_users(
+    _: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[User]:
+    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    return list(result.scalars().all())
+
+
+@router.get(
     "/{user_id}",
     response_model=UserResponse,
     summary="Fetch a user by ID",
@@ -99,3 +112,26 @@ async def get_user(
             detail="User not found.",
         )
     return user  # type: ignore[return-value]
+
+
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a user account",
+)
+async def delete_user(
+    user_id: UUID,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+    await db.delete(user)
+    await db.commit()
+    log.info("user_deleted", user_id=str(user_id), deleted_by=str(current_user.id))
+    return None

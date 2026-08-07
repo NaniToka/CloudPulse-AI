@@ -65,6 +65,35 @@ async def get_organization(
     return OrganizationResponse.model_validate(org)
 
 
+@router.patch("/{org_id}", response_model=OrganizationResponse, summary="Update Organization")
+async def update_organization(
+    org_id: uuid.UUID,
+    payload: OrganizationUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    service: TenantService = Depends(lambda: tenant_service),
+):
+    """Update organization settings."""
+    org = await service.update_organization(db, org_id, payload)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return OrganizationResponse.model_validate(org)
+
+
+@router.delete("/{org_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete Organization")
+async def delete_organization(
+    org_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    service: TenantService = Depends(lambda: tenant_service),
+):
+    """Delete an organization."""
+    success = await service.delete_organization(db, org_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return None
+
+
 @router.get("/{org_id}/audit-logs", response_model=List[AuditLogResponse], summary="Get Organization Audit Trail")
 async def get_audit_logs(
     org_id: uuid.UUID,

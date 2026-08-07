@@ -43,6 +43,11 @@ class TeamCreate(BaseModel):
     description: Optional[str] = None
 
 
+class TeamUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
 class TeamResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -60,6 +65,14 @@ class ProjectCreate(BaseModel):
     cloud_provider: str = "AWS"
     environment: str = "Production"
     region: str = "us-east-1"
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    cloud_provider: Optional[str] = None
+    environment: Optional[str] = None
+    region: Optional[str] = None
+    team_id: Optional[uuid.UUID] = None
 
 
 class ProjectResponse(BaseModel):

@@ -92,7 +92,15 @@ async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> str:
     """Return the authenticated user's UUID as a plain string."""
-    return _extract_user_id(credentials.credentials)
+    token = credentials.credentials
+    from app.services.cache_service import cache_service
+    if await cache_service.is_token_blocklisted(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return _extract_user_id(token)
 
 
 # ---------------------------------------------------------------------------

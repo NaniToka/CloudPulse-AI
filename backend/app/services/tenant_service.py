@@ -95,6 +95,34 @@ class TenantService:
     async def get_organization(self, db: AsyncSession, org_id: uuid.UUID) -> Optional[Organization]:
         return await self.crud.get(db, id=org_id)
 
+    async def update_organization(
+        self, db: AsyncSession, org_id: uuid.UUID, payload: OrganizationUpdate
+    ) -> Optional[Organization]:
+        org = await self.get_organization(db, org_id)
+        if not org:
+            return None
+        now = datetime.now(timezone.utc)
+        if payload.name is not None:
+            org.name = payload.name
+        if payload.logo is not None:
+            org.logo_url = payload.logo
+        if payload.plan is not None:
+            org.plan = payload.plan
+        if payload.status is not None:
+            org.status = payload.status
+        org.updated_at = now
+        await db.commit()
+        await db.refresh(org)
+        return org
+
+    async def delete_organization(self, db: AsyncSession, org_id: uuid.UUID) -> bool:
+        org = await self.get_organization(db, org_id)
+        if not org:
+            return False
+        await db.delete(org)
+        await db.commit()
+        return True
+
     async def create_team(self, db: AsyncSession, payload: TeamCreate) -> Team:
         now = datetime.now(timezone.utc)
         team = Team(
@@ -108,6 +136,33 @@ class TenantService:
         await db.commit()
         await db.refresh(team)
         return team
+
+    async def get_team(self, db: AsyncSession, team_id: uuid.UUID) -> Optional[Team]:
+        stmt = select(Team).where(Team.id == team_id)
+        res = await db.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def update_team(
+        self, db: AsyncSession, team_id: uuid.UUID, name: Optional[str] = None, description: Optional[str] = None
+    ) -> Optional[Team]:
+        team = await self.get_team(db, team_id)
+        if not team:
+            return None
+        if name is not None:
+            team.name = name
+        if description is not None:
+            team.description = description
+        await db.commit()
+        await db.refresh(team)
+        return team
+
+    async def delete_team(self, db: AsyncSession, team_id: uuid.UUID) -> bool:
+        team = await self.get_team(db, team_id)
+        if not team:
+            return False
+        await db.delete(team)
+        await db.commit()
+        return True
 
     async def get_teams(self, db: AsyncSession, org_id: uuid.UUID) -> List[Team]:
         return await self.crud.get_teams(db, org_id)
@@ -128,6 +183,46 @@ class TenantService:
         await db.commit()
         await db.refresh(project)
         return project
+
+    async def get_project(self, db: AsyncSession, project_id: uuid.UUID) -> Optional[Project]:
+        stmt = select(Project).where(Project.id == project_id)
+        res = await db.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def update_project(
+        self,
+        db: AsyncSession,
+        project_id: uuid.UUID,
+        name: Optional[str] = None,
+        cloud_provider: Optional[str] = None,
+        environment: Optional[str] = None,
+        region: Optional[str] = None,
+        team_id: Optional[uuid.UUID] = None,
+    ) -> Optional[Project]:
+        project = await self.get_project(db, project_id)
+        if not project:
+            return None
+        if name is not None:
+            project.name = name
+        if cloud_provider is not None:
+            project.cloud_provider = cloud_provider
+        if environment is not None:
+            project.environment = environment
+        if region is not None:
+            project.region = region
+        if team_id is not None:
+            project.team_id = team_id
+        await db.commit()
+        await db.refresh(project)
+        return project
+
+    async def delete_project(self, db: AsyncSession, project_id: uuid.UUID) -> bool:
+        project = await self.get_project(db, project_id)
+        if not project:
+            return False
+        await db.delete(project)
+        await db.commit()
+        return True
 
     async def get_projects(self, db: AsyncSession, org_id: uuid.UUID) -> List[Project]:
         return await self.crud.get_projects(db, org_id)

@@ -214,7 +214,15 @@ async def refresh(
         "Production deployments should add the access token to a Redis blocklist."
     ),
 )
-async def logout(current_user: User = Depends(get_current_user)) -> None:
+async def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> None:
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        from app.services.cache_service import cache_service
+        await cache_service.blocklist_token(token)
     log.info("logout", user_id=str(current_user.id))
     return None
 

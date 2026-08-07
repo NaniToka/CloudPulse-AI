@@ -34,6 +34,15 @@ export const tenantService = {
     return response.data;
   },
 
+  async updateOrganization(orgId: string, payload: { name?: string; logo?: string; plan?: string }): Promise<Organization> {
+    const response = await apiClient.patch<Organization>(`/organizations/${orgId}`, payload);
+    return response.data;
+  },
+
+  async deleteOrganization(orgId: string): Promise<void> {
+    await apiClient.delete(`/organizations/${orgId}`);
+  },
+
   async getTeams(orgId: string): Promise<Team[]> {
     const response = await apiClient.get<Team[]>("/teams", { params: { organization_id: orgId } });
     return response.data;
@@ -42,6 +51,15 @@ export const tenantService = {
   async createTeam(orgId: string, name: string, description?: string): Promise<Team> {
     const response = await apiClient.post<Team>("/teams", { organization_id: orgId, name, description });
     return response.data;
+  },
+
+  async updateTeam(teamId: string, payload: { name?: string; description?: string }): Promise<Team> {
+    const response = await apiClient.patch<Team>(`/teams/${teamId}`, payload);
+    return response.data;
+  },
+
+  async deleteTeam(teamId: string): Promise<void> {
+    await apiClient.delete(`/teams/${teamId}`);
   },
 
   async getProjects(orgId: string): Promise<Project[]> {
@@ -57,6 +75,15 @@ export const tenantService = {
       environment,
     });
     return response.data;
+  },
+
+  async updateProject(projectId: string, payload: { name?: string; cloud_provider?: string; environment?: string; region?: string }): Promise<Project> {
+    const response = await apiClient.patch<Project>(`/projects/${projectId}`, payload);
+    return response.data;
+  },
+
+  async deleteProject(projectId: string): Promise<void> {
+    await apiClient.delete(`/projects/${projectId}`);
   },
 
   async getMembers(orgId: string): Promise<OrganizationMember[]> {

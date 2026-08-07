@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from sqlalchemy import Boolean, Float, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -89,7 +89,10 @@ class ServerMetric(UUIDMixin, Base):
     from sqlalchemy.orm import mapped_column as _mc
 
     server_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("servers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Timestamp of collection (set by metric collector, NOT server_default)
@@ -122,7 +125,10 @@ class InfraAlert(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "infra_alerts"
 
     server_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("servers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     # Alert details
