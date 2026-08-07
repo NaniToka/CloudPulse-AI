@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'cloudpulse-backend'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['backend:8000']
+        labels:
+          environment: 'production'
+          app: 'cloudpulse-ai'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

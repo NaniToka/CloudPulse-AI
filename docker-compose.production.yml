@@ -1,0 +1,166 @@
+name: cloudpulse-production
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cloudpulse_prod_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cloudpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cloudpulse_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-cloudpulse_db}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cloudpulse} -d ${POSTGRES_DB:-cloudpulse_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - cloudpulse_prod_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: cloudpulse_prod_redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - cloudpulse_prod_network
+
+  chromadb:
+    image: chromadb/chroma:0.5.23
+    container_name: cloudpulse_prod_chromadb
+    restart: always
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_prod_data:/chroma/chroma
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
+    networks:
+      - cloudpulse_prod_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudpulse_prod_backend
+    restart: always
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--no-access-log"]
+    environment:
+      APP_NAME: "CloudPulse AI"
+      APP_ENV: "production"
+      DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-cloudpulse}:${POSTGRES_PASSWORD:-cloudpulse_secret}@postgres:5432/${POSTGRES_DB:-cloudpulse_db}"
+      REDIS_URL: "redis://redis:6379/0"
+      CHROMADB_HOST: "chromadb"
+      CHROMADB_PORT: 8000
+      SECRET_KEY: ${SECRET_KEY:-cloudpulse_production_secret_key_32bytes}
+      ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      CORS_ORIGINS: '["http://localhost", "http://localhost:80", "http://localhost:5173", "https://cloudpulse.ai"]'
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-""}
+      GEMINI_MODEL: "gemini-1.5-flash"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+    networks:
+      - cloudpulse_prod_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloudpulse_prod_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - cloudpulse_prod_network
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: cloudpulse_prod_prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_prod_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - cloudpulse_prod_network
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: cloudpulse_prod_grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_prod_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - cloudpulse_prod_network
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  chroma_prod_data:
+  prometheus_prod_data:
+  grafana_prod_data:
+
+networks:
+  cloudpulse_prod_network:
+    driver: bridge

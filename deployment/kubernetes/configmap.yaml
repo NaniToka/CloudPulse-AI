@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudpulse-config
+  namespace: cloudpulse-system
+data:
+  APP_NAME: "CloudPulse AI"
+  APP_ENV: "production"
+  APP_VERSION: "1.0.0"
+  DATABASE_URL: "postgresql+asyncpg://cloudpulse:$(POSTGRES_PASSWORD)@postgres-service.cloudpulse-system.svc.cluster.local:5432/cloudpulse_db"
+  REDIS_URL: "redis://redis-service.cloudpulse-system.svc.cluster.local:6379/0"
+  CHROMADB_HOST: "chromadb-service.cloudpulse-system.svc.cluster.local"
+  CHROMADB_PORT: "8000"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+  GEMINI_MODEL: "gemini-1.5-flash"
+  CORS_ORIGINS: '["https://cloudpulse.ai", "https://app.cloudpulse.ai"]'

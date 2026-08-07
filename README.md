@@ -333,32 +333,47 @@ CloudPulse-AI/
 
 ---
 
-### Option 2: Local Development Setup
+### Option 2: Production Docker Compose Deployment
 
-#### Backend Setup
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# Launch the complete enterprise production stack with Prometheus & Grafana
+docker compose -f docker-compose.production.yml up -d --build
 
-# Run Pytest suite
-pytest tests/ -v
-
-# Start FastAPI dev server
-uvicorn app.main:app --reload --port 8000
+# Verify healthy status
+docker compose -f docker-compose.production.yml ps
 ```
 
-#### Frontend Setup
+- 🌐 **Production Frontend**: `http://localhost:80`
+- ⚡ **Production API Backend**: `http://localhost:8000`
+- 📊 **Prometheus Metrics**: `http://localhost:9090`
+- 📈 **Grafana Observability**: `http://localhost:3000` (admin/admin)
+
+---
+
+### Option 3: Enterprise Kubernetes Deployment
+
+All production Kubernetes manifests are configured in `deployment/kubernetes/`:
+
 ```bash
-cd frontend
-npm install
+# 1. Create dedicated namespace
+kubectl apply -f deployment/kubernetes/namespace.yaml
 
-# Run TypeScript typecheck & build
-npx tsc --noEmit && npm run build
+# 2. Deploy ConfigMaps and Secrets
+kubectl apply -f deployment/kubernetes/configmap.yaml
+kubectl apply -f deployment/kubernetes/secrets.yaml
 
-# Start Vite dev server
-npm run dev
+# 3. Deploy Stateful Storage (PostgreSQL & Redis)
+kubectl apply -f deployment/kubernetes/postgres-statefulset.yaml
+kubectl apply -f deployment/kubernetes/redis-deployment.yaml
+
+# 4. Deploy Services and Core Workloads
+kubectl apply -f deployment/kubernetes/services.yaml
+kubectl apply -f deployment/kubernetes/backend-deployment.yaml
+kubectl apply -f deployment/kubernetes/frontend-deployment.yaml
+
+# 5. Enable Ingress & Horizontal Pod Autoscaling (HPA)
+kubectl apply -f deployment/kubernetes/ingress.yaml
+kubectl apply -f deployment/kubernetes/hpa.yaml
 ```
 
 ---
@@ -367,11 +382,15 @@ npm run dev
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://...` |
-| `SECRET_KEY` | JWT signing secret key | `cloudpulse_secret_key` |
+| `DATABASE_URL` | PostgreSQL asyncpg connection string | `postgresql+asyncpg://...` |
+| `REDIS_URL` | Redis cache and blocklist URL | `redis://redis:6379/0` |
+| `CHROMADB_HOST` | ChromaDB vector database host | `chromadb` |
+| `SECRET_KEY` | JWT signing secret key (32 bytes) | `cloudpulse_production_secret_key` |
 | `GEMINI_API_KEY` | Google Gemini API Key | `your_gemini_api_key_here` |
 | `GEMINI_MODEL` | Gemini LLM model name | `gemini-1.5-flash` |
-| `ENVIRONMENT` | Environment mode | `production` |
+| `APP_ENV` | Environment mode (`production` / `development`) | `production` |
+
+---
 
 ## 🛡️ CI/CD Quality Engineering
 
@@ -380,15 +399,16 @@ CloudPulse AI maintains a strict zero-compromise CI/CD quality gate policy acros
 - **Automated Python Quality Gates**: Verified with [Ruff](https://astral.sh/ruff) enforcing PEP 604 union types (`X | None`), modern Python 3.11+ builtins (`list`, `dict`, `tuple`), sorted imports, and strict datetime standards (`datetime.UTC`).
 - **Full Async Test Suite**: 95+ asynchronous integration and unit tests running against live PostgreSQL, Redis, and ChromaDB via pytest & AnyIO.
 - **Frontend Type Safety**: Strict TypeScript compiler checks (`tsc --noEmit`) and optimized production bundling via Vite.
-- **Container Health Verification**: Docker Compose services run continuous healthcheck probes ensuring all infrastructure dependencies are fully operational before API exposure.
+- **Security Scanners**: Bandit static analysis, Safety dependency vulnerability scanning, npm audit, and Trivy container scans in `.github/workflows/`.
+- **Container Health Verification**: Docker Compose and Kubernetes readiness/liveness probes (`/health`, `/ready`, `/metrics`).
 
 ---
 
 ## 🔒 Security, Performance & Benchmarks
 
-- **Security**: Strict Pydantic v2 validation on input payloads, passlib PBKDF2 password hashing, 15-minute JWT token expiration with HTTP-only refresh rotation, and 9-domain CSPM scanner rules.
-- **Performance**: Async SQLAlchemy query execution, sub-second WebSocket metric streaming, and optimized bundle size (<350KB gzipped JS).
-- **Scalability**: Stateless FastAPI worker scaling with Gunicorn/Uvicorn, vector index partitioning in ChromaDB, and isolated PostgreSQL tenant schemas.
+- **Security Model**: Strict Pydantic v2 payload validation, passlib PBKDF2 password hashing, JWT refresh token rotation with Redis blocklist, role-based access control (`Owner`, `Admin`, `Manager`, `Engineer`, `Viewer`), and CSP / HSTS security headers middleware.
+- **Observability**: Prometheus text exposition at `/metrics`, OpenTelemetry distributed trace context propagation (`traceparent`), and real-time WebSocket metric streaming.
+- **Scalability**: Stateless FastAPI horizontal scaling with Gunicorn/Uvicorn, Kubernetes HPA scaling 2-10 replicas, and isolated PostgreSQL tenant schemas.
 
 ---
 
@@ -401,7 +421,8 @@ CloudPulse AI maintains a strict zero-compromise CI/CD quality gate policy acros
 | **Phase 3** | OpenTelemetry Tracing, RAG Infrastructure Chat, AI Runbooks | ✅ Completed |
 | **Phase 4** | AI Security & Cloud Compliance Center, Autonomous AIOps Agent | ✅ Completed |
 | **Phase 5** | Multi-Tenant Enterprise SaaS Architecture & Granular RBAC | ✅ Completed |
-| **Phase 6** | eBPF Kernel Ingress Observability & Kubernetes Controller Operator | 🚧 In Progress |
+| **Phase 6** | Digital Twin Infrastructure Simulation & Chaos Blast-Radius Modeling | ✅ Completed |
+| **Phase 7** | Production Hardening, Kubernetes Manifests & GitHub Actions CI/CD | ✅ Completed |
 
 ---
 

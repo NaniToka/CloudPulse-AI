@@ -2,6 +2,8 @@
 Redis Cache & Token Blocklist Service.
 """
 
+from __future__ import annotations
+
 import json
 from typing import Any
 
@@ -72,6 +74,16 @@ class CacheService:
         """Check if a JWT token has been revoked."""
         res = await self.get(f"blocklist:{token}")
         return res is not None
+
+    async def ping(self) -> bool:
+        """Check Redis connectivity."""
+        client = self._get_client()
+        if not client:
+            return False
+        try:
+            return bool(await client.ping())
+        except Exception:
+            return False
 
 
 cache_service = CacheService()

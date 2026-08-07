@@ -5,28 +5,39 @@ Startup sequence
 ----------------
 1. ``setup_logging()`` — configure structlog before anything else logs.
 2. FastAPI app is instantiated with metadata and response class.
-3. Middleware is registered (order matters for CORS + GZip).
+3. Middleware is registered (Correlation ID, Security Headers, Rate Limiting, CORS, GZip).
 4. Global exception handlers are registered.
 5. API routers are mounted under ``/api/v1``.
-6. ``/health`` route is added.
+6. System routes: ``/health`` (Liveness), ``/ready`` (Readiness), ``/metrics`` (Prometheus).
 7. ``lifespan`` context manager handles DB table creation on startup and
    engine disposal on shutdown.
 """
 
+from __future__ import annotations
+
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import ORJSONResponse, PlainTextResponse
+from sqlalchemy import text
 
 from app.api.errors import register_exception_handlers
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.core.middleware import (
+    CorrelationIdMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.db.session import engine
+from app.services.cache_service import cache_service
+from app.services.metrics_collector import metrics_collector
 
 # Configure logging as the very first action so all subsequent imports
 # that obtain loggers receive a properly configured instance.
@@ -81,7 +92,7 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# Middleware  (registration order = outermost → innermost execution)
+# Middleware (Outer to Inner)
 # ---------------------------------------------------------------------------
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -91,8 +102,26 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Session-Id"],  # allow browser to read SSE session header
+    expose_headers=["X-Session-Id", "X-Correlation-ID", "X-Request-ID", "traceparent"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests_per_minute=300)
+
+
+@app.middleware("http")
+async def track_request_metrics(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = time.time() - start
+    metrics_collector.record_request(
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_sec=duration,
+    )
+    return response
+
 
 # ---------------------------------------------------------------------------
 # Exception handlers
@@ -107,15 +136,53 @@ register_exception_handlers(app)
 app.include_router(api_router, prefix="/api/v1")
 
 # ---------------------------------------------------------------------------
-# System routes
+# System & Observability Routes
 # ---------------------------------------------------------------------------
 
 
-@app.get("/health", tags=["System"], summary="Health check")
+@app.get("/health", tags=["System"], summary="Liveness Probe")
 async def health_check() -> dict:
+    """Kubernetes liveness probe — verifies the API process is alive and responsive."""
     return {
         "status": "ok",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "env": settings.APP_ENV,
     }
+
+
+@app.get("/ready", tags=["System"], summary="Readiness Probe")
+async def readiness_check(response: Response) -> dict:
+    """Kubernetes readiness probe — validates database and Redis connectivity."""
+    db_ok = False
+    redis_ok = False
+
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            db_ok = True
+    except Exception as e:
+        log.error("readiness_db_failed", error=str(e))
+
+    try:
+        redis_ok = await cache_service.ping()
+    except Exception as e:
+        log.error("readiness_redis_failed", error=str(e))
+
+    is_ready = db_ok and redis_ok
+    if not is_ready:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+    return {
+        "status": "ready" if is_ready else "degraded",
+        "database": "connected" if db_ok else "unhealthy",
+        "redis": "connected" if redis_ok else "unhealthy",
+        "timestamp": time.time(),
+    }
+
+
+@app.get("/metrics", tags=["System"], summary="Prometheus Metrics")
+async def prometheus_metrics() -> PlainTextResponse:
+    """Prometheus exposition metrics endpoint for scraper scraping."""
+    content = metrics_collector.render_prometheus()
+    return PlainTextResponse(content=content, media_type="text/plain; version=0.0.4")
