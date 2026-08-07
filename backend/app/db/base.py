@@ -51,3 +51,8 @@ from app.models.workflow import (  # noqa: F401
     WorkflowStepLog,
     WorkflowTemplate,
 )
+from app.models.telemetry import (  # noqa: F401
+    TelemetryEvent,
+    MetricRecord,
+    TraceRecord,
+)
