@@ -5,8 +5,10 @@ Maps to the ``users`` PostgreSQL table.  All sensitive fields (password hash)
 are never exposed directly; Pydantic schemas control serialisation.
 """
 
+from __future__ import annotations
+
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -39,9 +41,10 @@ class User(UUIDMixin, TimestampMixin, Base):
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # ------------------------------------------------------------------
-    # Account status
+    # Account status & security flags
     # ------------------------------------------------------------------
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_superuser: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # ------------------------------------------------------------------
@@ -57,7 +60,7 @@ class User(UUIDMixin, TimestampMixin, Base):
     # ------------------------------------------------------------------
     # Relationships  (lazy="raise" catches accidental sync access in async)
     # ------------------------------------------------------------------
-    organization: Mapped[Optional["Organization"]] = relationship(
+    organization: Mapped[Organization | None] = relationship(
         "Organization",
         back_populates="users",
         foreign_keys=[organization_id],

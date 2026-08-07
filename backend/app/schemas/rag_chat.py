@@ -3,7 +3,7 @@ Pydantic v2 schemas for RAG AI Infrastructure Chat Platform.
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -47,7 +47,7 @@ class RAGQueryResponse(BaseModel):
     related_incidents: list[RelatedItem] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
     suggested_followup_questions: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class RAGUploadResponse(BaseModel):
