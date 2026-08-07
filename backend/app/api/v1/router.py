@@ -7,7 +7,7 @@ All route groups are registered here with their prefixes and tags.
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    ai, aiops, alerts, auth, cost, incidents, logs, members, metrics,
+    ai, aiops, alerts, auth, cloud, cost, incidents, logs, members, metrics,
     notifications, organizations, predictions, projects, rag_chat,
     runbooks, security, servers, teams, traces, users
 )
@@ -18,6 +18,11 @@ api_router.include_router(
     auth.router,
     prefix="/auth",
     tags=["Authentication"],
+)
+api_router.include_router(
+    cloud.router,
+    prefix="/cloud",
+    tags=["Multi-Cloud Observability"],
 )
 api_router.include_router(
     users.router,

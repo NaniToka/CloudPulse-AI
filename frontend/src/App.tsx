@@ -32,6 +32,9 @@ import AlertsPage from "@/pages/alerts/AlertsPage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import OrganizationSettingsPage from "@/pages/tenant/OrganizationSettingsPage";
+import MultiCloudDashboardPage from "@/pages/cloud/MultiCloudDashboardPage";
+import CloudAccountsPage from "@/pages/cloud/CloudAccountsPage";
+import CloudResourceExplorerPage from "@/pages/cloud/CloudResourceExplorerPage";
 
 export default function App() {
   return (
@@ -48,8 +51,11 @@ export default function App() {
         {/* ── Protected app routes ──────────────────────────────── */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/dashboard"     element={<DashboardPage />}      />
-            <Route path="/organization"  element={<OrganizationSettingsPage />} />
+            <Route path="/dashboard"       element={<DashboardPage />}      />
+            <Route path="/cloud"           element={<MultiCloudDashboardPage />} />
+            <Route path="/cloud/accounts"  element={<CloudAccountsPage />} />
+            <Route path="/cloud/resources" element={<CloudResourceExplorerPage />} />
+            <Route path="/organization"    element={<OrganizationSettingsPage />} />
             <Route path="/aiops"         element={<AIOpsCenterPage />}    />
             <Route path="/chat"          element={<RAGChatPage />}        />
             <Route path="/monitoring"    element={<RealTimeMonitoringPage />} />

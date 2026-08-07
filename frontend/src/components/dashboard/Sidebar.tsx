@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Building2,
   Cpu,
+  Cloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -50,10 +51,11 @@ const navGroups = [
   {
     label: "Infrastructure",
     items: [
-      { icon: Server,    label: "Infrastructure", to: "/infrastructure" },
-      { icon: HardDrive, label: "Servers",         to: "/servers"        },
-      { icon: Terminal,  label: "Logs",            to: "/logs"           },
-      { icon: DollarSign,label: "Cost Optimizer",  to: "/cost"           },
+      { icon: Cloud,      label: "Multi-Cloud",    to: "/cloud"          },
+      { icon: Server,     label: "Infrastructure", to: "/infrastructure" },
+      { icon: HardDrive,  label: "Servers",        to: "/servers"        },
+      { icon: Terminal,   label: "Logs",           to: "/logs"           },
+      { icon: DollarSign, label: "Cost Optimizer", to: "/cost"           },
     ],
   },
   {
