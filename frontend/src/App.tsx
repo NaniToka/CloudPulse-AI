@@ -43,6 +43,8 @@ import WorkflowEditorPage from "@/pages/workflows/WorkflowEditorPage";
 import DigitalTwinDashboardPage from "@/pages/twin/DigitalTwinDashboardPage";
 import SimulationStudioPage from "@/pages/twin/SimulationStudioPage";
 
+import TelemetryIntelligenceDashboardPage from "@/pages/telemetry/TelemetryIntelligenceDashboardPage";
+
 export default function App() {
   return (
     <>
@@ -59,6 +61,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard"             element={<DashboardPage />}      />
+            <Route path="/telemetry"             element={<TelemetryIntelligenceDashboardPage />} />
             <Route path="/twin"                  element={<DigitalTwinDashboardPage />} />
             <Route path="/twin/simulation/:id"   element={<SimulationStudioPage />} />
             <Route path="/workflows"             element={<WorkflowsListPage />}  />
