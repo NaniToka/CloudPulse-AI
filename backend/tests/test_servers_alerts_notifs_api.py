@@ -3,6 +3,7 @@ API unit tests for Servers, Alerts, and Notifications endpoints.
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 

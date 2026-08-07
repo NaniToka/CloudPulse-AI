@@ -14,7 +14,6 @@ PATCH  /api/v1/cost/recommendations/{id}/status — Update recommendation status
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -44,6 +43,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # GET /cost/overview
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/overview",
@@ -76,6 +76,7 @@ async def get_cost_overview(
 # GET /cost/services
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/services",
     response_model=ServiceCostsResponse,
@@ -99,13 +100,14 @@ async def get_service_costs(
 # GET /cost/recommendations
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/recommendations",
     response_model=RecommendationsResponse,
     summary="List AI optimization recommendations",
 )
 async def get_recommendations(
-    status_filter: Optional[str] = Query(default="active", alias="status"),
+    status_filter: str | None = Query(default="active", alias="status"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> RecommendationsResponse:
@@ -122,6 +124,7 @@ async def get_recommendations(
 # ---------------------------------------------------------------------------
 # POST /cost/analyze
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/analyze",
@@ -192,6 +195,7 @@ async def analyze_costs(
 # GET /cost/resources
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/resources",
     response_model=CloudCostListResponse,
@@ -200,9 +204,9 @@ async def analyze_costs(
 async def get_resource_costs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    service: Optional[str] = None,
-    region: Optional[str] = None,
-    search: Optional[str] = None,
+    service: str | None = None,
+    region: str | None = None,
+    search: str | None = None,
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CloudCostListResponse:
@@ -224,6 +228,7 @@ async def get_resource_costs(
 # ---------------------------------------------------------------------------
 # PATCH /cost/recommendations/{id}/status
 # ---------------------------------------------------------------------------
+
 
 @router.patch(
     "/recommendations/{recommendation_id}/status",

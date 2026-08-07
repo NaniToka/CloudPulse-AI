@@ -9,14 +9,14 @@ SessionSchema — a chat session with its messages
 
 import uuid
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, field_validator
-
 
 # ---------------------------------------------------------------------------
 # Shared
 # ---------------------------------------------------------------------------
+
 
 class MessageSchema(BaseModel):
     """A single chat message — mirrors the ChatMessage ORM model."""
@@ -33,11 +33,11 @@ class SessionSchema(BaseModel):
     """A chat session with nested messages."""
 
     id: uuid.UUID
-    title: Optional[str]
+    title: str | None
     is_pinned: bool
     created_at: datetime
     updated_at: datetime
-    messages: List[MessageSchema] = []
+    messages: list[MessageSchema] = []
 
     model_config = {"from_attributes": True}
 
@@ -45,6 +45,7 @@ class SessionSchema(BaseModel):
 # ---------------------------------------------------------------------------
 # POST /ai/chat  request / response
 # ---------------------------------------------------------------------------
+
 
 class ChatRequest(BaseModel):
     """
@@ -60,7 +61,7 @@ class ChatRequest(BaseModel):
     """
 
     message: str
-    session_id: Optional[uuid.UUID] = None
+    session_id: uuid.UUID | None = None
     stream: bool = False
 
     @field_validator("message")
@@ -78,7 +79,7 @@ class ChatResponse(BaseModel):
     """Response body for non-streaming POST /ai/chat."""
 
     session_id: uuid.UUID
-    message_id: uuid.UUID        # ID of the assistant ChatMessage row
+    message_id: uuid.UUID  # ID of the assistant ChatMessage row
     reply: str
     model: str
 
@@ -87,6 +88,7 @@ class ChatResponse(BaseModel):
 # GET /ai/history  response
 # ---------------------------------------------------------------------------
 
+
 class HistoryResponse(BaseModel):
-    sessions: List[SessionSchema]
+    sessions: list[SessionSchema]
     total: int

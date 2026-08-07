@@ -3,20 +3,16 @@ Service Layer for Autonomous AIOps Agent & AI Operations Center.
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import List, Optional, Tuple, Dict, Any
+from datetime import UTC, datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_aiops import crud_aiops
-from app.models.aiops import AIOpsAgent, AgentTask, AgentRecommendation, AgentExecution
+from app.models.aiops import AgentExecution, AgentRecommendation, AgentTask, AIOpsAgent
 from app.schemas.aiops import (
-    AIOpsAgentStatusResponse,
-    AgentRecommendationResponse,
     AgentAnalyzePayload,
     AgentApprovePayload,
-    AgentExecutionResponse,
 )
 from app.services.aiops_ai_service import generate_aiops_analysis
 
@@ -40,13 +36,13 @@ class AIOpsService:
         self,
         db: AsyncSession,
         *,
-        category: Optional[str] = None,
-        priority: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        category: str | None = None,
+        priority: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[AgentRecommendation], int, int]:
+    ) -> tuple[list[AgentRecommendation], int, int]:
         await self.get_agent_status(db)
         return await self.crud.get_filtered_recommendations(
             db,
@@ -58,10 +54,12 @@ class AIOpsService:
             size=size,
         )
 
-    async def trigger_agent_loop(self, db: AsyncSession, payload: AgentAnalyzePayload) -> AgentRecommendation:
+    async def trigger_agent_loop(
+        self, db: AsyncSession, payload: AgentAnalyzePayload
+    ) -> AgentRecommendation:
         """Executes the 6-phase Agent Loop: Observe -> Detect -> Analyze -> Plan -> Recommend -> Verify."""
         agent = await self.get_agent_status(db)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         target = payload.target_system or "All"
         log.info("triggering_aiops_agent_loop", phase="Observe", target=target)
@@ -98,6 +96,7 @@ class AIOpsService:
         # Re-fetch with loaded executions
         from sqlalchemy import select
         from sqlalchemy.orm import selectinload
+
         stmt = (
             select(AgentRecommendation)
             .options(selectinload(AgentRecommendation.executions))
@@ -108,10 +107,10 @@ class AIOpsService:
 
     async def approve_or_reject_recommendation(
         self, db: AsyncSession, payload: AgentApprovePayload
-    ) -> Optional[AgentRecommendation]:
+    ) -> AgentRecommendation | None:
         """Approve or Reject an AIOps Recommendation."""
-        from sqlalchemy.orm import selectinload
         from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
 
         stmt = (
             select(AgentRecommendation)
@@ -124,7 +123,7 @@ class AIOpsService:
         if not select_rec:
             return None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if payload.action == "Reject":
             select_rec.status = "Rejected"
             select_rec.updated_at = now
@@ -141,7 +140,7 @@ class AIOpsService:
             f"[{now.isoformat()}] Dispatching automated action candidates to CloudPulse Agent Engine.",
         ]
         for cmd in select_rec.automation_candidates or []:
-            exec_logs.append(f"[{datetime.now(timezone.utc).isoformat()}] Executed: {cmd}")
+            exec_logs.append(f"[{datetime.now(UTC).isoformat()}] Executed: {cmd}")
 
         execution = AgentExecution(
             id=uuid.uuid4(),
@@ -150,7 +149,7 @@ class AIOpsService:
             approved_by=payload.approved_by,
             status="Completed",
             execution_logs=exec_logs,
-            executed_at=datetime.now(timezone.utc),
+            executed_at=datetime.now(UTC),
         )
 
         select_rec.status = "Executed"
@@ -163,7 +162,7 @@ class AIOpsService:
 
     async def _seed_initial_agent(self, db: AsyncSession) -> AIOpsAgent:
         """Seed initial Autonomous AIOps Agent and tasks."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agent = AIOpsAgent(
             id=uuid.uuid4(),
             agent_name="CloudPulse Autonomous Core",
@@ -177,10 +176,42 @@ class AIOpsService:
         db.add(agent)
 
         tasks = [
-            AgentTask(id=uuid.uuid4(), agent_id=agent.id, task_name="Metrics Sliding Window Anomaly Detection", target_system="Metrics", status="Completed", started_at=now, completed_at=now),
-            AgentTask(id=uuid.uuid4(), agent_id=agent.id, task_name="Cross-Layer OpenTelemetry Latency Waterfall Correlation", target_system="Traces", status="Completed", started_at=now, completed_at=now),
-            AgentTask(id=uuid.uuid4(), agent_id=agent.id, task_name="FinOps Cloud Cost Spikes & Idle Capacity Audit", target_system="Cost", status="Completed", started_at=now, completed_at=now),
-            AgentTask(id=uuid.uuid4(), agent_id=agent.id, task_name="CSPM Vulnerability & Open Firewall Rule Correlation", target_system="Security", status="Completed", started_at=now, completed_at=now),
+            AgentTask(
+                id=uuid.uuid4(),
+                agent_id=agent.id,
+                task_name="Metrics Sliding Window Anomaly Detection",
+                target_system="Metrics",
+                status="Completed",
+                started_at=now,
+                completed_at=now,
+            ),
+            AgentTask(
+                id=uuid.uuid4(),
+                agent_id=agent.id,
+                task_name="Cross-Layer OpenTelemetry Latency Waterfall Correlation",
+                target_system="Traces",
+                status="Completed",
+                started_at=now,
+                completed_at=now,
+            ),
+            AgentTask(
+                id=uuid.uuid4(),
+                agent_id=agent.id,
+                task_name="FinOps Cloud Cost Spikes & Idle Capacity Audit",
+                target_system="Cost",
+                status="Completed",
+                started_at=now,
+                completed_at=now,
+            ),
+            AgentTask(
+                id=uuid.uuid4(),
+                agent_id=agent.id,
+                task_name="CSPM Vulnerability & Open Firewall Rule Correlation",
+                target_system="Security",
+                status="Completed",
+                started_at=now,
+                completed_at=now,
+            ),
         ]
         for t in tasks:
             db.add(t)

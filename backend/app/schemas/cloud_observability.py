@@ -4,18 +4,25 @@ Pydantic schemas for Multi-Cloud Observability Platform.
 
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class CloudAccountCreate(BaseModel):
     name: str = Field(..., description="Display name for cloud account")
     provider: str = Field(..., description="AWS | Azure | GCP")
-    account_id: str = Field(..., description="AWS Account ID, Azure Subscription ID, or GCP Project ID")
-    credentials_type: str = Field("role_arn", description="role_arn | service_principal | service_account_key")
-    credentials_meta: Dict[str, Any] = Field(default_factory=dict, description="Credentials or Role ARN metadata")
-    default_region: Optional[str] = "us-east-1"
-    environment: Optional[str] = "production"
+    account_id: str = Field(
+        ..., description="AWS Account ID, Azure Subscription ID, or GCP Project ID"
+    )
+    credentials_type: str = Field(
+        "role_arn", description="role_arn | service_principal | service_account_key"
+    )
+    credentials_meta: dict[str, Any] = Field(
+        default_factory=dict, description="Credentials or Role ARN metadata"
+    )
+    default_region: str | None = "us-east-1"
+    environment: str | None = "production"
 
 
 class CloudAccountResponse(BaseModel):
@@ -27,11 +34,11 @@ class CloudAccountResponse(BaseModel):
     provider: str
     account_id: str
     credentials_type: str
-    credentials_meta: Dict[str, Any]
+    credentials_meta: dict[str, Any]
     default_region: str
     environment: str
     status: str
-    last_synced_at: Optional[datetime] = None
+    last_synced_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -46,18 +53,18 @@ class CloudResourceResponse(BaseModel):
     service: str
     provider: str
     region: str
-    availability_zone: Optional[str] = None
+    availability_zone: str | None = None
     environment: str
     status: str
-    cpu_percent: Optional[float] = None
-    memory_percent: Optional[float] = None
-    disk_percent: Optional[float] = None
-    network_in_mbps: Optional[float] = None
-    network_out_mbps: Optional[float] = None
+    cpu_percent: float | None = None
+    memory_percent: float | None = None
+    disk_percent: float | None = None
+    network_in_mbps: float | None = None
+    network_out_mbps: float | None = None
     monthly_cost: float
     risk_score: int
-    tags: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict, alias="metadata_")
+    tags: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict, alias="metadata_")
     created_at: datetime
     updated_at: datetime
 
@@ -65,7 +72,7 @@ class CloudResourceResponse(BaseModel):
 class CloudCostSummaryResponse(BaseModel):
     total_monthly_spend: float
     forecasted_next_month: float
-    provider_breakdown: Dict[str, float]
+    provider_breakdown: dict[str, float]
     idle_resource_savings: float
 
 
@@ -73,7 +80,7 @@ class CloudSecuritySummaryResponse(BaseModel):
     overall_compliance_score: int
     high_risk_resources_count: int
     open_vulnerabilities: int
-    high_risk_list: List[Dict[str, Any]]
+    high_risk_list: list[dict[str, Any]]
 
 
 class CloudHealthSummaryResponse(BaseModel):
@@ -82,4 +89,4 @@ class CloudHealthSummaryResponse(BaseModel):
     degraded_count: int
     critical_count: int
     health_score_percent: float
-    ai_insights: List[Dict[str, Any]]
+    ai_insights: list[dict[str, Any]]

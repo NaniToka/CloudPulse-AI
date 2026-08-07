@@ -2,9 +2,10 @@
 WebSocket Connection Manager for Incident Management Center real-time updates.
 """
 
-from typing import List, Dict, Any
-from fastapi import WebSocket
+from typing import Any
+
 import structlog
+from fastapi import WebSocket
 
 log = structlog.get_logger(__name__)
 
@@ -13,7 +14,7 @@ class ConnectionManager:
     """Manages active WebSocket connections and broadcasts real-time incident notifications."""
 
     def __init__(self) -> None:
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
@@ -25,15 +26,19 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
             log.info("websocket_client_disconnected", active_total=len(self.active_connections))
 
-    async def send_personal_message(self, message: Dict[str, Any], websocket: WebSocket) -> None:
+    async def send_personal_message(self, message: dict[str, Any], websocket: WebSocket) -> None:
         try:
             await websocket.send_json(message)
         except Exception as e:
             log.warning("websocket_send_failed", error=str(e))
 
-    async def broadcast(self, message: Dict[str, Any]) -> None:
+    async def broadcast(self, message: dict[str, Any]) -> None:
         """Broadcast event to all connected WebSocket clients."""
-        log.info("websocket_broadcasting", event_type=message.get("event"), active_clients=len(self.active_connections))
+        log.info(
+            "websocket_broadcasting",
+            event_type=message.get("event"),
+            active_clients=len(self.active_connections),
+        )
         disconnected = []
         for connection in self.active_connections:
             try:

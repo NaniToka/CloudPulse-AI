@@ -3,6 +3,7 @@ API tests for RAG AI Infrastructure Chat Platform (/api/v1/chat).
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -49,12 +50,16 @@ async def test_rag_chat_history_and_clear(client: AsyncClient):
     headers = await get_auth_headers(client)
 
     # Get History
-    hist_resp = await client.get("/api/v1/chat/history?conversation_id=conv-test-101", headers=headers)
+    hist_resp = await client.get(
+        "/api/v1/chat/history?conversation_id=conv-test-101", headers=headers
+    )
     assert hist_resp.status_code == 200, hist_resp.text
     data = hist_resp.json()
     assert "messages" in data
 
     # Clear History
-    del_resp = await client.delete("/api/v1/chat/history?conversation_id=conv-test-101", headers=headers)
+    del_resp = await client.delete(
+        "/api/v1/chat/history?conversation_id=conv-test-101", headers=headers
+    )
     assert del_resp.status_code == 200, del_resp.text
     assert del_resp.json()["status"] == "success"

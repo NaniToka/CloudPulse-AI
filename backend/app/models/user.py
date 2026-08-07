@@ -16,7 +16,6 @@ from app.db.base_class import Base
 from app.models.mixins import TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
-    from app.models.chat_message import ChatMessage
     from app.models.chat_session import ChatSession
     from app.models.notification import Notification
     from app.models.organization import Organization
@@ -28,18 +27,16 @@ class User(UUIDMixin, TimestampMixin, Base):
     # ------------------------------------------------------------------
     # Core identity
     # ------------------------------------------------------------------
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
-    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # ------------------------------------------------------------------
     # Profile
     # ------------------------------------------------------------------
-    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # ------------------------------------------------------------------
     # Account status
@@ -50,7 +47,7 @@ class User(UUIDMixin, TimestampMixin, Base):
     # ------------------------------------------------------------------
     # Foreign keys
     # ------------------------------------------------------------------
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,

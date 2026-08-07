@@ -7,7 +7,7 @@ and ``delete`` operations for any SQLAlchemy model.
 Concrete CRUD classes inherit from this and may override any method.
 """
 
-from typing import Any, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -22,15 +22,14 @@ UpdateSchemaT = TypeVar("UpdateSchemaT", bound=BaseModel)
 
 
 class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
-
-    def __init__(self, model: Type[ModelT]) -> None:
+    def __init__(self, model: type[ModelT]) -> None:
         self.model = model
 
     # ------------------------------------------------------------------
     # Read
     # ------------------------------------------------------------------
 
-    async def get(self, db: AsyncSession, id: UUID) -> Optional[ModelT]:
+    async def get(self, db: AsyncSession, id: UUID) -> ModelT | None:
         """Fetch a single record by primary key. Returns None if not found."""
         result = await db.execute(
             select(self.model).where(self.model.id == id)  # type: ignore[attr-defined]
@@ -43,27 +42,21 @@ class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
         *,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[ModelT]:
+    ) -> list[ModelT]:
         """Fetch a paginated list of records."""
-        result = await db.execute(
-            select(self.model).offset(skip).limit(limit)
-        )
+        result = await db.execute(select(self.model).offset(skip).limit(limit))
         return list(result.scalars().all())
 
     async def count(self, db: AsyncSession) -> int:
         """Return total row count for the model's table."""
-        result = await db.execute(
-            select(func.count()).select_from(self.model)
-        )
+        result = await db.execute(select(func.count()).select_from(self.model))
         return result.scalar_one()
 
     # ------------------------------------------------------------------
     # Write
     # ------------------------------------------------------------------
 
-    async def create(
-        self, db: AsyncSession, *, obj_in: CreateSchemaT
-    ) -> ModelT:
+    async def create(self, db: AsyncSession, *, obj_in: CreateSchemaT) -> ModelT:
         """
         Instantiate model from *obj_in* dict and flush to the session.
 
@@ -82,7 +75,7 @@ class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
         db: AsyncSession,
         *,
         db_obj: ModelT,
-        obj_in: Union[UpdateSchemaT, dict[str, Any]],
+        obj_in: UpdateSchemaT | dict[str, Any],
     ) -> ModelT:
         """
         Partially update *db_obj* with the fields present in *obj_in*.
@@ -103,7 +96,7 @@ class CRUDBase(Generic[ModelT, CreateSchemaT, UpdateSchemaT]):
         await db.refresh(db_obj)
         return db_obj
 
-    async def delete(self, db: AsyncSession, *, id: UUID) -> Optional[ModelT]:
+    async def delete(self, db: AsyncSession, *, id: UUID) -> ModelT | None:
         """Delete a record by primary key. Returns the deleted object or None."""
         obj = await self.get(db, id)
         if obj is not None:

@@ -2,10 +2,7 @@
 Role-Based Access Control (RBAC) & Granular Permission Core Engine.
 """
 
-from typing import Dict, List, Callable
-from fastapi import HTTPException, Depends, status
-
-ROLE_PERMISSIONS: Dict[str, List[str]] = {
+ROLE_PERMISSIONS: dict[str, list[str]] = {
     "Owner": [
         "Dashboard.Read",
         "Dashboard.Write",
@@ -57,6 +54,6 @@ def has_permission(role: str, permission: str) -> bool:
     return permission in allowed
 
 
-def get_all_permissions_matrix() -> Dict[str, List[str]]:
+def get_all_permissions_matrix() -> dict[str, list[str]]:
     """Return the complete role permission matrix for UI rendering."""
     return ROLE_PERMISSIONS

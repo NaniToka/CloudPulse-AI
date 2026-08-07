@@ -2,10 +2,10 @@
 Automated Cloud Security Scanners — Evaluates 9 security domain checks across AWS, GCP, and Azure.
 """
 
-from typing import List, Dict, Any
+from typing import Any
 
 
-def run_cloud_security_scanners(provider: str = "AWS") -> List[Dict[str, Any]]:
+def run_cloud_security_scanners(provider: str = "AWS") -> list[dict[str, Any]]:
     """Runs automated security scanners across simulated cloud infrastructure."""
     return [
         {

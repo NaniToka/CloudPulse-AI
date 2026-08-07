@@ -1,12 +1,20 @@
 """Infrastructure resource model."""
 
+from __future__ import annotations
+
 import uuid
-from sqlalchemy import String, Float, JSON, ForeignKey
+from typing import TYPE_CHECKING
+
+from sqlalchemy import JSON, Float, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
-from app.models.mixins import UUIDMixin, TimestampMixin
+from app.models.mixins import TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.alert import Alert
+    from app.models.organization import Organization
 
 
 class Resource(UUIDMixin, TimestampMixin, Base):
@@ -37,7 +45,5 @@ class Resource(UUIDMixin, TimestampMixin, Base):
     )
 
     # Relationships
-    organization: Mapped["Organization"] = relationship(
-        "Organization", back_populates="resources"
-    )
-    alerts: Mapped[list["Alert"]] = relationship("Alert", back_populates="resource")
+    organization: Mapped[Organization] = relationship("Organization", back_populates="resources")
+    alerts: Mapped[list[Alert]] = relationship("Alert", back_populates="resource")

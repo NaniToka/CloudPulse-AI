@@ -3,8 +3,7 @@ Predictive Incident Detection Engine API Endpoints.
 """
 
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Optional, List
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,14 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_db
 from app.models.prediction import Prediction
 from app.schemas.prediction import (
-    PredictionResponse,
-    PredictionListResponse,
-    PredictionStatsResponse,
     InfrastructureRiskHeatmapResponse,
     PredictionAnalyzeRequest,
+    PredictionListResponse,
+    PredictionResponse,
+    PredictionStatsResponse,
     PredictionStatusUpdate,
 )
-from app.services.prediction_service import prediction_service, PredictionService
+from app.services.prediction_service import PredictionService, prediction_service
 
 log = structlog.get_logger(__name__)
 
@@ -35,7 +34,7 @@ async def _seed_initial_predictions_if_empty(db: AsyncSession, service: Predicti
     preds, total, _ = await service.list_predictions(db, size=1)
     if total == 0:
         log.info("seeding_initial_predictive_failures")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sample_predictions = [
             Prediction(
                 title="Imminent OOM & Thread Exhaustion on api-gateway",
@@ -132,7 +131,9 @@ async def _seed_initial_predictions_if_empty(db: AsyncSession, service: Predicti
                 ai_historical_pattern_comparison="92% match with INC-388 connection pool lock contention.",
                 ai_possible_impact="User authentication failure rate rising to > 15%.",
                 ai_immediate_preventive_actions=["Increase PgBouncer max_connections to 400"],
-                ai_long_term_recommendations=["Offload bcrypt password hashing to async worker queue"],
+                ai_long_term_recommendations=[
+                    "Offload bcrypt password hashing to async worker queue"
+                ],
                 created_at=now - timedelta(minutes=20),
                 updated_at=now - timedelta(minutes=20),
             ),
@@ -204,7 +205,11 @@ async def get_prediction_stats(
     return await service.get_stats(db)
 
 
-@router.get("/heatmap", response_model=InfrastructureRiskHeatmapResponse, summary="Get Infrastructure Risk Heatmap")
+@router.get(
+    "/heatmap",
+    response_model=InfrastructureRiskHeatmapResponse,
+    summary="Get Infrastructure Risk Heatmap",
+)
 async def get_risk_heatmap(
     db: AsyncSession = Depends(get_db),
     service: PredictionService = Depends(get_prediction_service),
@@ -217,10 +222,10 @@ async def get_risk_heatmap(
 
 @router.get("/history", response_model=PredictionListResponse, summary="Get historical predictions")
 async def get_prediction_history(
-    service: Optional[str] = Query(None),
-    region: Optional[str] = Query(None),
-    risk: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    service: str | None = Query(None),
+    region: str | None = Query(None),
+    risk: str | None = Query(None),
+    search: str | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -248,11 +253,13 @@ async def get_prediction_history(
 
 @router.get("", response_model=PredictionListResponse, summary="List active predictions")
 async def list_predictions(
-    service: Optional[str] = Query(None, description="Filter by service name"),
-    region: Optional[str] = Query(None, description="Filter by region"),
-    risk: Optional[str] = Query(None, description="Filter by risk level (Critical, High, Medium, Low)"),
-    status: Optional[str] = Query(None, description="Filter by status (Active, Mitigated, Dismissed)"),
-    search: Optional[str] = Query(None, description="Search in title or root cause"),
+    service: str | None = Query(None, description="Filter by service name"),
+    region: str | None = Query(None, description="Filter by region"),
+    risk: str | None = Query(
+        None, description="Filter by risk level (Critical, High, Medium, Low)"
+    ),
+    status: str | None = Query(None, description="Filter by status (Active, Mitigated, Dismissed)"),
+    search: str | None = Query(None, description="Search in title or root cause"),
     sort_by: str = Query("created_at", description="Sort field"),
     sort_dir: str = Query("desc", description="Sort direction"),
     page: int = Query(1, ge=1),
@@ -283,7 +290,12 @@ async def list_predictions(
     )
 
 
-@router.post("/analyze", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED, summary="Trigger predictive analysis")
+@router.post(
+    "/analyze",
+    response_model=PredictionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Trigger predictive analysis",
+)
 async def analyze_predictions(
     req: PredictionAnalyzeRequest,
     db: AsyncSession = Depends(get_db),
@@ -311,7 +323,9 @@ async def get_prediction(
     return PredictionResponse.model_validate(prediction)
 
 
-@router.patch("/{prediction_id}/status", response_model=PredictionResponse, summary="Update prediction status")
+@router.patch(
+    "/{prediction_id}/status", response_model=PredictionResponse, summary="Update prediction status"
+)
 async def update_prediction_status(
     prediction_id: uuid.UUID,
     payload: PredictionStatusUpdate,

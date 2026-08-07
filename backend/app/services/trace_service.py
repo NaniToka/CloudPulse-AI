@@ -3,16 +3,14 @@ Service Layer for Distributed Tracing Platform.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Tuple, Dict, Any
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_trace import crud_trace
-from app.models.trace import Trace, Span, ServiceDependency
+from app.models.trace import Span, Trace
 from app.schemas.trace import (
-    TraceResponse,
     ServiceMapResponse,
     ServiceMetricsResponse,
     TraceAIAnalysisResponse,
@@ -22,9 +20,11 @@ from app.services.trace_ai_service import analyze_trace_spans
 log = structlog.get_logger(__name__)
 
 
-def generate_sample_trace_tree(trace_id: str, name: str, root_service: str, status: str = "ok", duration_ms: float = 654.5) -> Trace:
+def generate_sample_trace_tree(
+    trace_id: str, name: str, root_service: str, status: str = "ok", duration_ms: float = 654.5
+) -> Trace:
     """Generates a multi-service OpenTelemetry span tree (Load Balancer -> API Gateway -> Auth -> Application -> Cache -> DB)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     t_start = now - timedelta(milliseconds=duration_ms)
 
     trace = Trace(
@@ -120,7 +120,10 @@ def generate_sample_trace_tree(trace_id: str, name: str, root_service: str, stat
         duration_ms=420.0,
         start_time=t_start + timedelta(milliseconds=100.0),
         end_time=t_start + timedelta(milliseconds=520.0),
-        attributes_json={"peer.service": "stripe.com", "http.url": "https://api.stripe.com/v1/charges"},
+        attributes_json={
+            "peer.service": "stripe.com",
+            "http.url": "https://api.stripe.com/v1/charges",
+        },
     )
 
     span7 = Span(
@@ -134,7 +137,10 @@ def generate_sample_trace_tree(trace_id: str, name: str, root_service: str, stat
         duration_ms=14.2,
         start_time=t_start + timedelta(milliseconds=530.0),
         end_time=t_start + timedelta(milliseconds=544.2),
-        attributes_json={"db.system": "postgresql", "db.statement": "INSERT INTO transactions VALUES (...)"},
+        attributes_json={
+            "db.system": "postgresql",
+            "db.statement": "INSERT INTO transactions VALUES (...)",
+        },
     )
 
     trace.spans = [span1, span2, span3, span4, span5, span6, span7]
@@ -151,14 +157,14 @@ class TraceService:
         self,
         db: AsyncSession,
         *,
-        service: Optional[str] = None,
-        status: Optional[str] = None,
-        min_duration_ms: Optional[float] = None,
-        max_duration_ms: Optional[float] = None,
-        search: Optional[str] = None,
+        service: str | None = None,
+        status: str | None = None,
+        min_duration_ms: float | None = None,
+        max_duration_ms: float | None = None,
+        search: str | None = None,
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[Trace], int, int]:
+    ) -> tuple[list[Trace], int, int]:
         return await self.crud.get_filtered(
             db,
             service=service,
@@ -170,13 +176,15 @@ class TraceService:
             size=size,
         )
 
-    async def get_by_trace_id(self, db: AsyncSession, trace_id: str) -> Optional[Trace]:
+    async def get_by_trace_id(self, db: AsyncSession, trace_id: str) -> Trace | None:
         return await self.crud.get_by_trace_id(db, trace_id)
 
     async def get_service_map(self, db: AsyncSession) -> ServiceMapResponse:
         return await self.crud.get_service_map(db)
 
-    async def get_service_metrics(self, db: AsyncSession, service_name: str) -> ServiceMetricsResponse:
+    async def get_service_metrics(
+        self, db: AsyncSession, service_name: str
+    ) -> ServiceMetricsResponse:
         """Returns performance metrics for a specific service."""
         return ServiceMetricsResponse(
             service_name=service_name,
@@ -197,14 +205,16 @@ class TraceService:
         spans_summary = []
         if trace and trace.spans:
             for s in trace.spans:
-                spans_summary.append({
-                    "span_id": s.span_id,
-                    "parent_span_id": s.parent_span_id,
-                    "service_name": s.service_name,
-                    "operation_name": s.operation_name,
-                    "duration_ms": s.duration_ms,
-                    "status_code": s.status_code,
-                })
+                spans_summary.append(
+                    {
+                        "span_id": s.span_id,
+                        "parent_span_id": s.parent_span_id,
+                        "service_name": s.service_name,
+                        "operation_name": s.operation_name,
+                        "duration_ms": s.duration_ms,
+                        "status_code": s.status_code,
+                    }
+                )
 
         ai_res = await analyze_trace_spans(trace_id, root_service, spans_summary)
         return TraceAIAnalysisResponse(**ai_res)

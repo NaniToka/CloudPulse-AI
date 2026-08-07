@@ -30,11 +30,13 @@ def register_exception_handlers(app: FastAPI) -> None:
         for error in exc.errors():
             # Drop "body" and "query" location prefixes for cleaner output
             locs = [str(loc) for loc in error["loc"] if loc not in ("body", "query")]
-            details.append({
-                "field": ".".join(locs) or None,
-                "message": error["msg"],
-                "type": error["type"],
-            })
+            details.append(
+                {
+                    "field": ".".join(locs) or None,
+                    "message": error["msg"],
+                    "type": error["type"],
+                }
+            )
         log.info(
             "request_validation_error",
             path=str(request.url),
@@ -62,9 +64,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     # HTTPException — covers 400, 401, 403, 404, 409, etc.
     # ------------------------------------------------------------------
     @app.exception_handler(HTTPException)
-    async def _http_exception_handler(
-        request: Request, exc: HTTPException
-    ) -> ORJSONResponse:
+    async def _http_exception_handler(request: Request, exc: HTTPException) -> ORJSONResponse:
         if exc.status_code >= 500:
             log.error(
                 "http_exception",
@@ -82,9 +82,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     # 500 — Unhandled exceptions (last-resort safety net)
     # ------------------------------------------------------------------
     @app.exception_handler(Exception)
-    async def _unhandled_exception_handler(
-        request: Request, exc: Exception
-    ) -> ORJSONResponse:
+    async def _unhandled_exception_handler(request: Request, exc: Exception) -> ORJSONResponse:
         log.exception(
             "unhandled_exception",
             exc_type=type(exc).__name__,

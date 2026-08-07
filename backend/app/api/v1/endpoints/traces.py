@@ -2,21 +2,19 @@
 Distributed Tracing Platform REST API Endpoints.
 """
 
-from typing import Optional, List
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
-from app.models.trace import Trace
 from app.schemas.trace import (
-    TraceResponse,
-    TraceListResponse,
     ServiceMapResponse,
     ServiceMetricsResponse,
     TraceAIAnalysisResponse,
+    TraceListResponse,
+    TraceResponse,
 )
-from app.services.trace_service import trace_service, TraceService, generate_sample_trace_tree
+from app.services.trace_service import TraceService, generate_sample_trace_tree, trace_service
 
 log = structlog.get_logger(__name__)
 
@@ -32,11 +30,21 @@ async def _seed_initial_traces_if_empty(db: AsyncSession, service: TraceService)
     if total == 0:
         log.info("seeding_initial_distributed_traces")
         sample_traces = [
-            generate_sample_trace_tree("tr-94821a0b", "POST /api/v1/checkout", "api-gateway", "error", 654.5),
-            generate_sample_trace_tree("tr-10293b8c", "POST /api/v1/auth/login", "auth-service", "ok", 84.2),
-            generate_sample_trace_tree("tr-55410c9d", "GET /api/v1/users/me", "user-service", "ok", 42.8),
-            generate_sample_trace_tree("tr-88912d3e", "POST /api/v1/billing/charge", "billing-service", "error", 980.4),
-            generate_sample_trace_tree("tr-33214e5f", "GET /api/v1/notifications/list", "notification-service", "ok", 112.5),
+            generate_sample_trace_tree(
+                "tr-94821a0b", "POST /api/v1/checkout", "api-gateway", "error", 654.5
+            ),
+            generate_sample_trace_tree(
+                "tr-10293b8c", "POST /api/v1/auth/login", "auth-service", "ok", 84.2
+            ),
+            generate_sample_trace_tree(
+                "tr-55410c9d", "GET /api/v1/users/me", "user-service", "ok", 42.8
+            ),
+            generate_sample_trace_tree(
+                "tr-88912d3e", "POST /api/v1/billing/charge", "billing-service", "error", 980.4
+            ),
+            generate_sample_trace_tree(
+                "tr-33214e5f", "GET /api/v1/notifications/list", "notification-service", "ok", 112.5
+            ),
         ]
         for tr in sample_traces:
             db.add(tr)
@@ -45,11 +53,11 @@ async def _seed_initial_traces_if_empty(db: AsyncSession, service: TraceService)
 
 @router.get("/traces", response_model=TraceListResponse, summary="List distributed traces")
 async def list_traces(
-    service: Optional[str] = Query(None, description="Filter by service name"),
-    status: Optional[str] = Query(None, description="Filter by status (ok, error)"),
-    min_duration_ms: Optional[float] = Query(None, description="Minimum duration in ms"),
-    max_duration_ms: Optional[float] = Query(None, description="Maximum duration in ms"),
-    search: Optional[str] = Query(None, description="Search trace name or trace_id"),
+    service: str | None = Query(None, description="Filter by service name"),
+    status: str | None = Query(None, description="Filter by status (ok, error)"),
+    min_duration_ms: float | None = Query(None, description="Minimum duration in ms"),
+    max_duration_ms: float | None = Query(None, description="Maximum duration in ms"),
+    search: str | None = Query(None, description="Search trace name or trace_id"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -76,7 +84,9 @@ async def list_traces(
     )
 
 
-@router.get("/traces/{trace_id}", response_model=TraceResponse, summary="Get trace detail & span tree")
+@router.get(
+    "/traces/{trace_id}", response_model=TraceResponse, summary="Get trace detail & span tree"
+)
 async def get_trace(
     trace_id: str,
     db: AsyncSession = Depends(get_db),
@@ -90,7 +100,11 @@ async def get_trace(
     return TraceResponse.model_validate(trace)
 
 
-@router.post("/traces/{trace_id}/analyze", response_model=TraceAIAnalysisResponse, summary="Analyze trace with Gemini AI")
+@router.post(
+    "/traces/{trace_id}/analyze",
+    response_model=TraceAIAnalysisResponse,
+    summary="Analyze trace with Gemini AI",
+)
 async def analyze_trace(
     trace_id: str,
     db: AsyncSession = Depends(get_db),
@@ -120,7 +134,11 @@ async def get_service_dependencies(
     return {"dependencies": service_map.edges}
 
 
-@router.get("/services/{service_name}/metrics", response_model=ServiceMetricsResponse, summary="Get service performance metrics")
+@router.get(
+    "/services/{service_name}/metrics",
+    response_model=ServiceMetricsResponse,
+    summary="Get service performance metrics",
+)
 async def get_service_metrics(
     service_name: str,
     db: AsyncSession = Depends(get_db),

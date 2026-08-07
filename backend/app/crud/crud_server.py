@@ -3,13 +3,13 @@ Repository for Servers & Infrastructure Monitoring.
 """
 
 import uuid
-from typing import List, Optional, Tuple, Any
-from sqlalchemy import select, func, or_, and_
+from typing import Any
+
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
-from app.models.infrastructure import Server, ServerMetric, InfraAlert
+from app.models.infrastructure import Server
 
 
 class CRUDServer(CRUDBase[Server, Any, Any]):
@@ -21,10 +21,10 @@ class CRUDServer(CRUDBase[Server, Any, Any]):
         user_id: uuid.UUID,
         skip: int = 0,
         limit: int = 100,
-        provider: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[Server]:
+        provider: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[Server]:
         stmt = select(Server).where(Server.user_id == user_id)
         if provider and provider != "all":
             stmt = stmt.where(Server.provider == provider)
@@ -42,7 +42,7 @@ class CRUDServer(CRUDBase[Server, Any, Any]):
         res = await db.execute(stmt)
         return list(res.scalars().all())
 
-    async def get_by_name(self, db: AsyncSession, name: str) -> Optional[Server]:
+    async def get_by_name(self, db: AsyncSession, name: str) -> Server | None:
         stmt = select(Server).where(Server.name == name)
         res = await db.execute(stmt)
         return res.scalar_one_or_none()

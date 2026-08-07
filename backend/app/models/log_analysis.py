@@ -8,11 +8,10 @@ Each row represents one uploaded file and its analysis output.
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base_class import Base
 from app.models.mixins import TimestampMixin, UUIDMixin
@@ -35,24 +34,22 @@ class LogAnalysis(UUIDMixin, TimestampMixin, Base):
 
     # ── Raw parsed log content (capped; not the full file) ────────────
     # Stores up to 500 parsed log entries as a JSON array for the viewer
-    parsed_entries: Mapped[list] = mapped_column(
-        JSON, default=list, nullable=False
-    )
+    parsed_entries: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     # ── AI analysis output ────────────────────────────────────────────
     status: Mapped[str] = mapped_column(
         String(20), default="pending", nullable=False
     )  # pending | analyzing | complete | error
 
-    executive_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    root_cause: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    severity: Mapped[Optional[str]] = mapped_column(
+    executive_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    root_cause: Mapped[str | None] = mapped_column(Text, nullable=True)
+    severity: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )  # critical | high | medium | low
-    recommended_fixes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    preventive_measures: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    ai_error: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    recommended_fixes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    preventive_measures: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ai_error: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     # ── Owner ─────────────────────────────────────────────────────────
     user_id: Mapped[uuid.UUID] = mapped_column(

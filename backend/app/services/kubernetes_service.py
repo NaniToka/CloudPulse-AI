@@ -4,20 +4,21 @@ Handles auto-discovery, telemetry aggregation, pod log streaming, and Gemini AI 
 """
 
 import uuid
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from app.crud.crud_kubernetes import (
     crud_k8s_cluster,
-    crud_k8s_node,
-    crud_k8s_pod,
     crud_k8s_deployment,
     crud_k8s_event,
+    crud_k8s_node,
+    crud_k8s_pod,
 )
-from app.models.kubernetes import K8sCluster, K8sNode, K8sPod, K8sDeployment, K8sEvent
+from app.models.kubernetes import K8sCluster, K8sDeployment, K8sEvent, K8sNode, K8sPod
 
 log = structlog.get_logger(__name__)
 
@@ -82,15 +83,17 @@ class KubernetesService:
         self.event_crud = event_repo
 
     async def get_clusters(
-        self, db: AsyncSession, user_id: uuid.UUID, provider: Optional[str] = None
-    ) -> List[K8sCluster]:
+        self, db: AsyncSession, user_id: uuid.UUID, provider: str | None = None
+    ) -> list[K8sCluster]:
         clusters = await self.cluster_crud.get_multi_by_user(db, user_id=user_id, provider=provider)
         if not clusters:
             clusters = await self.seed_default_kubernetes(db, user_id)
         return clusters
 
-    async def seed_default_kubernetes(self, db: AsyncSession, user_id: uuid.UUID) -> List[K8sCluster]:
-        now = datetime.now(timezone.utc)
+    async def seed_default_kubernetes(
+        self, db: AsyncSession, user_id: uuid.UUID
+    ) -> list[K8sCluster]:
+        now = datetime.now(UTC)
         created_clusters = []
         for c_data in DEFAULT_CLUSTERS:
             cluster = K8sCluster(
@@ -118,7 +121,12 @@ class KubernetesService:
             primary_c = created_clusters[0]
 
             # Nodes
-            node_names = ["gke-node-pool-1-a8b2", "gke-node-pool-1-c9d4", "gke-node-pool-1-e1f6", "gke-node-pool-2-g3h5"]
+            node_names = [
+                "gke-node-pool-1-a8b2",
+                "gke-node-pool-1-c9d4",
+                "gke-node-pool-1-e1f6",
+                "gke-node-pool-2-g3h5",
+            ]
             nodes = []
             for i, name in enumerate(node_names):
                 node = K8sNode(
@@ -143,10 +151,34 @@ class KubernetesService:
 
             # Deployments
             deployments = [
-                {"name": "api-gateway", "namespace": "default", "desired": 3, "ready": 3, "image": "gcr.io/cloudpulse/api-gateway:v2.14.1"},
-                {"name": "auth-service", "namespace": "default", "desired": 2, "ready": 2, "image": "gcr.io/cloudpulse/auth-service:v1.8.3"},
-                {"name": "payment-svc", "namespace": "prod-billing", "desired": 4, "ready": 3, "image": "gcr.io/cloudpulse/payment-svc:v3.2.0"},
-                {"name": "data-pipeline-worker", "namespace": "data-engine", "desired": 5, "ready": 4, "image": "gcr.io/cloudpulse/data-pipeline:v0.9.4"},
+                {
+                    "name": "api-gateway",
+                    "namespace": "default",
+                    "desired": 3,
+                    "ready": 3,
+                    "image": "gcr.io/cloudpulse/api-gateway:v2.14.1",
+                },
+                {
+                    "name": "auth-service",
+                    "namespace": "default",
+                    "desired": 2,
+                    "ready": 2,
+                    "image": "gcr.io/cloudpulse/auth-service:v1.8.3",
+                },
+                {
+                    "name": "payment-svc",
+                    "namespace": "prod-billing",
+                    "desired": 4,
+                    "ready": 3,
+                    "image": "gcr.io/cloudpulse/payment-svc:v3.2.0",
+                },
+                {
+                    "name": "data-pipeline-worker",
+                    "namespace": "data-engine",
+                    "desired": 5,
+                    "ready": 4,
+                    "image": "gcr.io/cloudpulse/data-pipeline:v0.9.4",
+                },
             ]
             for dep in deployments:
                 d = K8sDeployment(
@@ -166,12 +198,60 @@ class KubernetesService:
 
             # Pods
             sample_pods = [
-                {"name": "api-gateway-7b9f88c-x9a1", "namespace": "default", "deployment": "api-gateway", "status": "Running", "restarts": 0, "cpu": 140, "mem": 320},
-                {"name": "api-gateway-7b9f88c-y2b4", "namespace": "default", "deployment": "api-gateway", "status": "Running", "restarts": 0, "cpu": 135, "mem": 310},
-                {"name": "auth-service-589d7b-k1m9", "namespace": "default", "deployment": "auth-service", "status": "Running", "restarts": 1, "cpu": 85, "mem": 180},
-                {"name": "payment-svc-67d4fc-m8n2", "namespace": "prod-billing", "deployment": "payment-svc", "status": "CrashLoopBackOff", "restarts": 14, "cpu": 450, "mem": 920},
-                {"name": "payment-svc-67d4fc-p4q7", "namespace": "prod-billing", "deployment": "payment-svc", "status": "OOMKilled", "restarts": 6, "cpu": 512, "mem": 1024},
-                {"name": "data-pipeline-worker-91a3-z8x1", "namespace": "data-engine", "deployment": "data-pipeline-worker", "status": "Pending", "restarts": 0, "cpu": 0, "mem": 0},
+                {
+                    "name": "api-gateway-7b9f88c-x9a1",
+                    "namespace": "default",
+                    "deployment": "api-gateway",
+                    "status": "Running",
+                    "restarts": 0,
+                    "cpu": 140,
+                    "mem": 320,
+                },
+                {
+                    "name": "api-gateway-7b9f88c-y2b4",
+                    "namespace": "default",
+                    "deployment": "api-gateway",
+                    "status": "Running",
+                    "restarts": 0,
+                    "cpu": 135,
+                    "mem": 310,
+                },
+                {
+                    "name": "auth-service-589d7b-k1m9",
+                    "namespace": "default",
+                    "deployment": "auth-service",
+                    "status": "Running",
+                    "restarts": 1,
+                    "cpu": 85,
+                    "mem": 180,
+                },
+                {
+                    "name": "payment-svc-67d4fc-m8n2",
+                    "namespace": "prod-billing",
+                    "deployment": "payment-svc",
+                    "status": "CrashLoopBackOff",
+                    "restarts": 14,
+                    "cpu": 450,
+                    "mem": 920,
+                },
+                {
+                    "name": "payment-svc-67d4fc-p4q7",
+                    "namespace": "prod-billing",
+                    "deployment": "payment-svc",
+                    "status": "OOMKilled",
+                    "restarts": 6,
+                    "cpu": 512,
+                    "mem": 1024,
+                },
+                {
+                    "name": "data-pipeline-worker-91a3-z8x1",
+                    "namespace": "data-engine",
+                    "deployment": "data-pipeline-worker",
+                    "status": "Pending",
+                    "restarts": 0,
+                    "cpu": 0,
+                    "mem": 0,
+                },
             ]
             for p in sample_pods:
                 pod = K8sPod(
@@ -193,9 +273,27 @@ class KubernetesService:
 
             # Events
             events = [
-                {"type": "Warning", "reason": "OOMKilled", "object_name": "payment-svc-67d4fc-p4q7", "namespace": "prod-billing", "msg": "Container main in pod payment-svc-67d4fc-p4q7 was killed due to Memory limit (1024Mi) exceeded."},
-                {"type": "Warning", "reason": "BackOff", "object_name": "payment-svc-67d4fc-m8n2", "namespace": "prod-billing", "msg": "Back-off restarting failed container main in pod payment-svc-67d4fc-m8n2."},
-                {"type": "Warning", "reason": "FailedScheduling", "object_name": "data-pipeline-worker-91a3-z8x1", "namespace": "data-engine", "msg": "0/4 nodes are available: 4 Insufficient memory."},
+                {
+                    "type": "Warning",
+                    "reason": "OOMKilled",
+                    "object_name": "payment-svc-67d4fc-p4q7",
+                    "namespace": "prod-billing",
+                    "msg": "Container main in pod payment-svc-67d4fc-p4q7 was killed due to Memory limit (1024Mi) exceeded.",
+                },
+                {
+                    "type": "Warning",
+                    "reason": "BackOff",
+                    "object_name": "payment-svc-67d4fc-m8n2",
+                    "namespace": "prod-billing",
+                    "msg": "Back-off restarting failed container main in pod payment-svc-67d4fc-m8n2.",
+                },
+                {
+                    "type": "Warning",
+                    "reason": "FailedScheduling",
+                    "object_name": "data-pipeline-worker-91a3-z8x1",
+                    "namespace": "data-engine",
+                    "msg": "0/4 nodes are available: 4 Insufficient memory.",
+                },
             ]
             for ev in events:
                 event = K8sEvent(
@@ -218,7 +316,9 @@ class KubernetesService:
             await db.refresh(c)
         return created_clusters
 
-    async def get_nodes(self, db: AsyncSession, cluster_id: Optional[uuid.UUID] = None) -> List[K8sNode]:
+    async def get_nodes(
+        self, db: AsyncSession, cluster_id: uuid.UUID | None = None
+    ) -> list[K8sNode]:
         if cluster_id:
             return await self.node_crud.get_by_cluster(db, cluster_id)
         res = await db.execute(select(K8sNode))
@@ -227,30 +327,32 @@ class KubernetesService:
     async def get_pods(
         self,
         db: AsyncSession,
-        cluster_id: Optional[uuid.UUID] = None,
-        namespace: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[K8sPod]:
+        cluster_id: uuid.UUID | None = None,
+        namespace: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[K8sPod]:
         return await self.pod_crud.get_multi_filtered(
             db, cluster_id=cluster_id, namespace=namespace, status=status, search=search
         )
 
     async def get_deployments(
-        self, db: AsyncSession, cluster_id: Optional[uuid.UUID] = None, namespace: Optional[str] = None
-    ) -> List[K8sDeployment]:
-        return await self.deploy_crud.get_multi_filtered(db, cluster_id=cluster_id, namespace=namespace)
+        self, db: AsyncSession, cluster_id: uuid.UUID | None = None, namespace: str | None = None
+    ) -> list[K8sDeployment]:
+        return await self.deploy_crud.get_multi_filtered(
+            db, cluster_id=cluster_id, namespace=namespace
+        )
 
-    async def get_events(self, db: AsyncSession, event_type: Optional[str] = None) -> List[K8sEvent]:
+    async def get_events(self, db: AsyncSession, event_type: str | None = None) -> list[K8sEvent]:
         return await self.event_crud.get_multi_filtered(db, event_type=event_type)
 
-    async def get_pod_logs(self, db: AsyncSession, pod_name: str, tail: int = 100) -> List[str]:
+    async def get_pod_logs(self, db: AsyncSession, pod_name: str, tail: int = 100) -> list[str]:
         pod = await self.pod_crud.get_by_name(db, pod_name)
         if not pod:
             return [f"2026-08-07T15:20:00Z [INFO] Initializing stdout stream for {pod_name}..."]
 
         status = pod.status
-        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now_str = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         if status == "OOMKilled":
             return [
@@ -274,7 +376,9 @@ class KubernetesService:
                 f"{now_str} [INFO] [worker] Processing queue task_20260807_19...",
             ]
 
-    async def analyze_cluster(self, db: AsyncSession, cluster_id: Optional[uuid.UUID] = None) -> Dict[str, Any]:
+    async def analyze_cluster(
+        self, db: AsyncSession, cluster_id: uuid.UUID | None = None
+    ) -> dict[str, Any]:
         events = await self.get_events(db)
         pods = await self.get_pods(db, cluster_id=cluster_id)
 

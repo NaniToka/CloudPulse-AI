@@ -4,7 +4,7 @@ Cost Analysis Engine — calculations and aggregations for cloud spending.
 
 from __future__ import annotations
 
-from typing import Any, List, Dict
+from typing import Any
 
 
 def calculate_efficiency_score(monthly_cost: float, potential_savings: float) -> int:
@@ -19,10 +19,10 @@ def calculate_efficiency_score(monthly_cost: float, potential_savings: float) ->
     return max(0, min(100, int((1.0 - waste_ratio) * 100)))
 
 
-def group_costs_by_service(costs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def group_costs_by_service(costs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Group list of resource cost dicts by service name."""
     total_cost = sum(c.get("cost", 0.0) for c in costs)
-    services: Dict[str, Dict[str, Any]] = {}
+    services: dict[str, dict[str, Any]] = {}
 
     for c in costs:
         svc = c.get("service", "Other")
@@ -34,19 +34,21 @@ def group_costs_by_service(costs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result = []
     for svc, data in sorted(services.items(), key=lambda x: x[1]["cost"], reverse=True):
         pct = (data["cost"] / total_cost * 100.0) if total_cost > 0 else 0.0
-        result.append({
-            "service": svc,
-            "cost": round(data["cost"], 2),
-            "percentage": round(pct, 1),
-            "resource_count": data["resource_count"],
-        })
+        result.append(
+            {
+                "service": svc,
+                "cost": round(data["cost"], 2),
+                "percentage": round(pct, 1),
+                "resource_count": data["resource_count"],
+            }
+        )
     return result
 
 
-def group_costs_by_region(costs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def group_costs_by_region(costs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Group list of resource cost dicts by region."""
     total_cost = sum(c.get("cost", 0.0) for c in costs)
-    regions: Dict[str, Dict[str, Any]] = {}
+    regions: dict[str, dict[str, Any]] = {}
 
     for c in costs:
         reg = c.get("region", "global")
@@ -58,10 +60,12 @@ def group_costs_by_region(costs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result = []
     for reg, data in sorted(regions.items(), key=lambda x: x[1]["cost"], reverse=True):
         pct = (data["cost"] / total_cost * 100.0) if total_cost > 0 else 0.0
-        result.append({
-            "region": reg,
-            "cost": round(data["cost"], 2),
-            "percentage": round(pct, 1),
-            "resource_count": data["resource_count"],
-        })
+        result.append(
+            {
+                "region": reg,
+                "cost": round(data["cost"], 2),
+                "percentage": round(pct, 1),
+                "resource_count": data["resource_count"],
+            }
+        )
     return result

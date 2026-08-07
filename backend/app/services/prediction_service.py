@@ -3,17 +3,14 @@ Service Layer for Predictive Incident Detection Engine.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Tuple, Dict, Any
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_prediction import crud_prediction
 from app.models.prediction import Prediction
 from app.schemas.prediction import (
-    PredictionCreate,
-    PredictionUpdate,
     PredictionStatsResponse,
     ServiceRiskItem,
 )
@@ -33,16 +30,16 @@ class PredictionService:
         self,
         db: AsyncSession,
         *,
-        service: Optional[str] = None,
-        region: Optional[str] = None,
-        risk: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        service: str | None = None,
+        region: str | None = None,
+        risk: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[Prediction], int, int]:
+    ) -> tuple[list[Prediction], int, int]:
         return await self.crud.get_filtered(
             db,
             service=service,
@@ -56,27 +53,29 @@ class PredictionService:
             size=size,
         )
 
-    async def get_active(self, db: AsyncSession) -> List[Prediction]:
+    async def get_active(self, db: AsyncSession) -> list[Prediction]:
         return await self.crud.get_active(db)
 
     async def get_stats(self, db: AsyncSession) -> PredictionStatsResponse:
         return await self.crud.get_stats(db)
 
-    async def get_risk_heatmap(self, db: AsyncSession) -> List[ServiceRiskItem]:
+    async def get_risk_heatmap(self, db: AsyncSession) -> list[ServiceRiskItem]:
         return await self.crud.get_risk_heatmap(db)
 
-    async def get_by_id(self, db: AsyncSession, prediction_id: uuid.UUID) -> Optional[Prediction]:
+    async def get_by_id(self, db: AsyncSession, prediction_id: uuid.UUID) -> Prediction | None:
         return await self.crud.get(db, prediction_id)
 
     async def trigger_analysis(
         self,
         db: AsyncSession,
-        target_services: Optional[List[str]] = None,
+        target_services: list[str] | None = None,
         lookback_hours: int = 24,
     ) -> Prediction:
         """Runs Gemini Predictive AI Analysis against telemetry data and stores new prediction."""
-        now = datetime.now(timezone.utc)
-        primary_service = target_services[0] if target_services and len(target_services) > 0 else "api-gateway"
+        now = datetime.now(UTC)
+        primary_service = (
+            target_services[0] if target_services and len(target_services) > 0 else "api-gateway"
+        )
         region = "us-east-1"
 
         metrics_sample = {
@@ -102,7 +101,8 @@ class PredictionService:
             expected_failure_time=expected_time,
             risk_level=ai_res["risk_level"],
             status="Active",
-            affected_services=target_services or [primary_service, "auth-service", "database-cluster"],
+            affected_services=target_services
+            or [primary_service, "auth-service", "database-cluster"],
             likely_root_cause=ai_res["likely_root_cause"],
             confidence_score=ai_res["confidence_score"],
             recommended_preventive_actions=ai_res["ai_immediate_preventive_actions"],
@@ -122,18 +122,22 @@ class PredictionService:
         await db.refresh(prediction)
 
         # Notify via WebSocket
-        await incident_ws_manager.broadcast({
-            "event": "prediction_created",
-            "prediction_id": str(prediction.id),
-            "service": prediction.service,
-            "risk_level": prediction.risk_level,
-            "failure_probability": prediction.failure_probability,
-            "timestamp": now.isoformat(),
-        })
+        await incident_ws_manager.broadcast(
+            {
+                "event": "prediction_created",
+                "prediction_id": str(prediction.id),
+                "service": prediction.service,
+                "risk_level": prediction.risk_level,
+                "failure_probability": prediction.failure_probability,
+                "timestamp": now.isoformat(),
+            }
+        )
 
         return prediction
 
-    async def update_status(self, db: AsyncSession, prediction_id: uuid.UUID, status: str) -> Optional[Prediction]:
+    async def update_status(
+        self, db: AsyncSession, prediction_id: uuid.UUID, status: str
+    ) -> Prediction | None:
         pred = await self.crud.get(db, prediction_id)
         if not pred:
             return None
@@ -141,7 +145,7 @@ class PredictionService:
         updated = await self.crud.update(
             db,
             db_obj=pred,
-            obj_in={"status": status, "updated_at": datetime.now(timezone.utc)},
+            obj_in={"status": status, "updated_at": datetime.now(UTC)},
         )
         return updated
 

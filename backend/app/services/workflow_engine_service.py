@@ -3,25 +3,25 @@ Enterprise Workflow Execution Engine Service (DAG Runner, Retries, Approvals, Ge
 """
 
 import uuid
-import time
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from app.crud.crud_workflow import (
     crud_workflow,
+    crud_workflow_approval,
     crud_workflow_execution,
     crud_workflow_step_log,
-    crud_workflow_approval,
     crud_workflow_template,
 )
 from app.models.workflow import (
     Workflow,
+    WorkflowApproval,
     WorkflowExecution,
     WorkflowStepLog,
-    WorkflowApproval,
     WorkflowTemplate,
 )
 
@@ -36,11 +36,47 @@ DEFAULT_TEMPLATES = [
         "description": "Detects Pod CrashLoopBackOff or OOMKilled events, fetches container logs, runs Gemini AI root-cause analysis, and triggers automated rolling restart with Slack notification.",
         "tags": ["kubernetes", "self-healing", "gemini-ai", "slack"],
         "nodes": [
-            {"id": "node-1", "type": "trigger", "label": "Alert Trigger: K8s Pod CrashLoop", "position": {"x": 100, "y": 150}, "config": {"alert_name": "K8sPodCrashLoopBackOff"}},
-            {"id": "node-2", "type": "action", "label": "Fetch Container Logs (stdout/stderr)", "position": {"x": 350, "y": 150}, "config": {"action_type": "k8s_fetch_logs", "tail_lines": 200}},
-            {"id": "node-3", "type": "ai", "label": "Gemini AI Root Cause Analysis", "position": {"x": 600, "y": 150}, "config": {"model": "gemini-1.5-pro", "prompt": "Diagnose pod crash logs and verify safety of restart"}},
-            {"id": "node-4", "type": "action", "label": "Restart Pod via K8s Rolling Update", "position": {"x": 850, "y": 150}, "config": {"action_type": "k8s_restart_pod"}},
-            {"id": "node-5", "type": "action", "label": "Dispatch Slack SRE Notification", "position": {"x": 1100, "y": 150}, "config": {"channel": "#sre-alerts", "template": "Pod {{pod.name}} auto-remediated."}},
+            {
+                "id": "node-1",
+                "type": "trigger",
+                "label": "Alert Trigger: K8s Pod CrashLoop",
+                "position": {"x": 100, "y": 150},
+                "config": {"alert_name": "K8sPodCrashLoopBackOff"},
+            },
+            {
+                "id": "node-2",
+                "type": "action",
+                "label": "Fetch Container Logs (stdout/stderr)",
+                "position": {"x": 350, "y": 150},
+                "config": {"action_type": "k8s_fetch_logs", "tail_lines": 200},
+            },
+            {
+                "id": "node-3",
+                "type": "ai",
+                "label": "Gemini AI Root Cause Analysis",
+                "position": {"x": 600, "y": 150},
+                "config": {
+                    "model": "gemini-1.5-pro",
+                    "prompt": "Diagnose pod crash logs and verify safety of restart",
+                },
+            },
+            {
+                "id": "node-4",
+                "type": "action",
+                "label": "Restart Pod via K8s Rolling Update",
+                "position": {"x": 850, "y": 150},
+                "config": {"action_type": "k8s_restart_pod"},
+            },
+            {
+                "id": "node-5",
+                "type": "action",
+                "label": "Dispatch Slack SRE Notification",
+                "position": {"x": 1100, "y": 150},
+                "config": {
+                    "channel": "#sre-alerts",
+                    "template": "Pod {{pod.name}} auto-remediated.",
+                },
+            },
         ],
         "edges": [
             {"id": "e1-2", "source": "node-1", "target": "node-2"},
@@ -57,10 +93,37 @@ DEFAULT_TEMPLATES = [
         "description": "Triggers when cluster node or container CPU exceeds 90% for 3 minutes. Scales deployment replicas from 3 to 6, files an automated Incident, and requests SRE approval if capacity limit is reached.",
         "tags": ["autoscaling", "incident", "cpu", "approval-gate"],
         "nodes": [
-            {"id": "n1", "type": "trigger", "label": "Trigger: CPU Utilization > 90%", "position": {"x": 100, "y": 150}, "config": {"threshold": 90, "duration": "3m"}},
-            {"id": "n2", "type": "action", "label": "Scale K8s Deployment (+3 Replicas)", "position": {"x": 350, "y": 150}, "config": {"action_type": "k8s_scale", "increment": 3}},
-            {"id": "n3", "type": "approval", "label": "Manual Approval: Node Pool Expansion", "position": {"x": 600, "y": 150}, "config": {"approver_role": "sre", "timeout_minutes": 15}},
-            {"id": "n4", "type": "action", "label": "Create CloudPulse Incident", "position": {"x": 850, "y": 150}, "config": {"severity": "SEV-2", "title": "Automated scaling triggered for high CPU"}},
+            {
+                "id": "n1",
+                "type": "trigger",
+                "label": "Trigger: CPU Utilization > 90%",
+                "position": {"x": 100, "y": 150},
+                "config": {"threshold": 90, "duration": "3m"},
+            },
+            {
+                "id": "n2",
+                "type": "action",
+                "label": "Scale K8s Deployment (+3 Replicas)",
+                "position": {"x": 350, "y": 150},
+                "config": {"action_type": "k8s_scale", "increment": 3},
+            },
+            {
+                "id": "n3",
+                "type": "approval",
+                "label": "Manual Approval: Node Pool Expansion",
+                "position": {"x": 600, "y": 150},
+                "config": {"approver_role": "sre", "timeout_minutes": 15},
+            },
+            {
+                "id": "n4",
+                "type": "action",
+                "label": "Create CloudPulse Incident",
+                "position": {"x": 850, "y": 150},
+                "config": {
+                    "severity": "SEV-2",
+                    "title": "Automated scaling triggered for high CPU",
+                },
+            },
         ],
         "edges": [
             {"id": "e1", "source": "n1", "target": "n2"},
@@ -76,10 +139,34 @@ DEFAULT_TEMPLATES = [
         "description": "Quarantines vulnerable workloads or invalid IAM tokens detected by the AI Security Center and creates an urgent remediation ticket.",
         "tags": ["security", "quarantine", "compliance", "pagerduty"],
         "nodes": [
-            {"id": "s1", "type": "trigger", "label": "Trigger: Critical CVE Detected", "position": {"x": 100, "y": 150}, "config": {"min_cve_score": 8.5}},
-            {"id": "s2", "type": "action", "label": "Apply Network Isolation Policy", "position": {"x": 350, "y": 150}, "config": {"action_type": "k8s_network_policy_isolate"}},
-            {"id": "s3", "type": "action", "label": "Generate AI Patching Runbook", "position": {"x": 600, "y": 150}, "config": {"action_type": "generate_runbook"}},
-            {"id": "s4", "type": "action", "label": "Notify Security Response Team", "position": {"x": 850, "y": 150}, "config": {"channel": "#security-ops"}},
+            {
+                "id": "s1",
+                "type": "trigger",
+                "label": "Trigger: Critical CVE Detected",
+                "position": {"x": 100, "y": 150},
+                "config": {"min_cve_score": 8.5},
+            },
+            {
+                "id": "s2",
+                "type": "action",
+                "label": "Apply Network Isolation Policy",
+                "position": {"x": 350, "y": 150},
+                "config": {"action_type": "k8s_network_policy_isolate"},
+            },
+            {
+                "id": "s3",
+                "type": "action",
+                "label": "Generate AI Patching Runbook",
+                "position": {"x": 600, "y": 150},
+                "config": {"action_type": "generate_runbook"},
+            },
+            {
+                "id": "s4",
+                "type": "action",
+                "label": "Notify Security Response Team",
+                "position": {"x": 850, "y": 150},
+                "config": {"channel": "#security-ops"},
+            },
         ],
         "edges": [
             {"id": "es1", "source": "s1", "target": "s2"},
@@ -107,14 +194,16 @@ class WorkflowEngineService:
         self.approval_crud = approval_repo
         self.template_crud = template_repo
 
-    async def get_templates(self, db: AsyncSession, category: Optional[str] = None) -> List[WorkflowTemplate]:
+    async def get_templates(
+        self, db: AsyncSession, category: str | None = None
+    ) -> list[WorkflowTemplate]:
         templates = await self.template_crud.get_all_templates(db, category=category)
         if not templates:
             templates = await self.seed_default_templates(db)
         return templates
 
-    async def seed_default_templates(self, db: AsyncSession) -> List[WorkflowTemplate]:
-        now = datetime.now(timezone.utc)
+    async def seed_default_templates(self, db: AsyncSession) -> list[WorkflowTemplate]:
+        now = datetime.now(UTC)
         created = []
         for t_data in DEFAULT_TEMPLATES:
             t = WorkflowTemplate(
@@ -141,10 +230,10 @@ class WorkflowEngineService:
         self,
         db: AsyncSession,
         user_id: uuid.UUID,
-        status: Optional[str] = None,
-        trigger_type: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[Workflow]:
+        status: str | None = None,
+        trigger_type: str | None = None,
+        search: str | None = None,
+    ) -> list[Workflow]:
         workflows = await self.workflow_crud.get_multi_by_user(
             db, user_id=user_id, status=status, trigger_type=trigger_type, search=search
         )
@@ -152,9 +241,9 @@ class WorkflowEngineService:
             workflows = await self.seed_default_workflows(db, user_id)
         return workflows
 
-    async def seed_default_workflows(self, db: AsyncSession, user_id: uuid.UUID) -> List[Workflow]:
+    async def seed_default_workflows(self, db: AsyncSession, user_id: uuid.UUID) -> list[Workflow]:
         templates = await self.get_templates(db)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created = []
         for t in templates[:2]:
             wf = Workflow(
@@ -180,9 +269,13 @@ class WorkflowEngineService:
         return created
 
     async def execute_workflow(
-        self, db: AsyncSession, workflow: Workflow, trigger_source: str = "manual", trigger_payload: Dict[str, Any] = None
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        trigger_source: str = "manual",
+        trigger_payload: dict[str, Any] = None,
     ) -> WorkflowExecution:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         payload = trigger_payload or {"source": trigger_source, "timestamp": now.isoformat()}
 
         execution = WorkflowExecution(
@@ -239,14 +332,16 @@ class WorkflowEngineService:
                     updated_at=now,
                 )
                 db.add(step_log)
-                step_results.append({"node_id": node_id, "label": node_label, "status": "awaiting_approval"})
+                step_results.append(
+                    {"node_id": node_id, "label": node_label, "status": "awaiting_approval"}
+                )
                 break  # pause execution at approval gate
 
             # Execute normal action / trigger / AI node
             output = {
                 "status": "success",
                 "message": f"Successfully executed {node_label}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
             step_log = WorkflowStepLog(
                 id=uuid.uuid4(),
@@ -264,7 +359,7 @@ class WorkflowEngineService:
             db.add(step_log)
             step_results.append({"node_id": node_id, "label": node_label, "status": "completed"})
 
-        finish_time = datetime.now(timezone.utc)
+        finish_time = datetime.now(UTC)
         duration_ms = int((finish_time - now).total_seconds() * 1000)
 
         execution.step_results = step_results
@@ -277,9 +372,14 @@ class WorkflowEngineService:
         return execution
 
     async def decide_approval(
-        self, db: AsyncSession, execution_id: uuid.UUID, approval_id: uuid.UUID, decision: str, reason: Optional[str] = None
+        self,
+        db: AsyncSession,
+        execution_id: uuid.UUID,
+        approval_id: uuid.UUID,
+        decision: str,
+        reason: str | None = None,
     ) -> WorkflowExecution:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = select(WorkflowApproval).where(
             WorkflowApproval.id == approval_id, WorkflowApproval.execution_id == execution_id
         )
@@ -308,7 +408,7 @@ class WorkflowEngineService:
             await db.refresh(execution)
         return execution
 
-    async def generate_workflow_from_ai(self, prompt: str) -> Dict[str, Any]:
+    async def generate_workflow_from_ai(self, prompt: str) -> dict[str, Any]:
         """Synthesize natural language prompt into executable workflow DAG."""
         return {
             "name": f"AI Generated: {prompt[:40]}...",
@@ -316,10 +416,34 @@ class WorkflowEngineService:
             "trigger_type": "alert_fired",
             "tags": ["ai-generated", "gemini", "autonomous"],
             "nodes": [
-                {"id": "gen-1", "type": "trigger", "label": "Trigger: Cloud Event Detected", "position": {"x": 100, "y": 150}, "config": {"prompt": prompt}},
-                {"id": "gen-2", "type": "ai", "label": "Gemini AI Context Assessment", "position": {"x": 350, "y": 150}, "config": {"model": "gemini-1.5-pro"}},
-                {"id": "gen-3", "type": "action", "label": "Execute Auto-Remediation", "position": {"x": 600, "y": 150}, "config": {"action_type": "rest_api_call"}},
-                {"id": "gen-4", "type": "action", "label": "Dispatch Slack & Email Alert", "position": {"x": 850, "y": 150}, "config": {"channel": "#ops-feed"}},
+                {
+                    "id": "gen-1",
+                    "type": "trigger",
+                    "label": "Trigger: Cloud Event Detected",
+                    "position": {"x": 100, "y": 150},
+                    "config": {"prompt": prompt},
+                },
+                {
+                    "id": "gen-2",
+                    "type": "ai",
+                    "label": "Gemini AI Context Assessment",
+                    "position": {"x": 350, "y": 150},
+                    "config": {"model": "gemini-1.5-pro"},
+                },
+                {
+                    "id": "gen-3",
+                    "type": "action",
+                    "label": "Execute Auto-Remediation",
+                    "position": {"x": 600, "y": 150},
+                    "config": {"action_type": "rest_api_call"},
+                },
+                {
+                    "id": "gen-4",
+                    "type": "action",
+                    "label": "Dispatch Slack & Email Alert",
+                    "position": {"x": 850, "y": 150},
+                    "config": {"channel": "#ops-feed"},
+                },
             ],
             "edges": [
                 {"id": "eg-1-2", "source": "gen-1", "target": "gen-2"},

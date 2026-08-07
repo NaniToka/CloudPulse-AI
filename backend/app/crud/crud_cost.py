@@ -5,8 +5,8 @@ CRUD operations for CloudCost and OptimizationRecommendation models.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,7 @@ DEFAULT_COLOR = "#94a3b8"
 
 # ── Seed Default Costs ────────────────────────────────────────────────────────
 
+
 async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> None:
     """Seed sample cloud cost data if user has no cost records."""
     count_stmt = select(func.count()).select_from(CloudCost).where(CloudCost.user_id == user_id)
@@ -37,29 +38,172 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
     if res.scalar_one() > 0:
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sample_resources = [
         # GKE Cluster
-        ("prod-gke-cluster-us-central1", "Google Kubernetes Engine", "gcp", "us-central1", 28450.00, 948.33, 720.0, "hrs", "production", "active"),
-        ("staging-gke-cluster-us-east1", "Google Kubernetes Engine", "gcp", "us-east1", 8200.00, 273.33, 720.0, "hrs", "staging", "active"),
+        (
+            "prod-gke-cluster-us-central1",
+            "Google Kubernetes Engine",
+            "gcp",
+            "us-central1",
+            28450.00,
+            948.33,
+            720.0,
+            "hrs",
+            "production",
+            "active",
+        ),
+        (
+            "staging-gke-cluster-us-east1",
+            "Google Kubernetes Engine",
+            "gcp",
+            "us-east1",
+            8200.00,
+            273.33,
+            720.0,
+            "hrs",
+            "staging",
+            "active",
+        ),
         # Compute Engine VMs
-        ("analytics-n2-standard-16", "Google Compute Engine", "gcp", "us-central1", 14200.00, 473.33, 720.0, "vCPU-hrs", "production", "active"),
-        ("dev-worker-n1-standard-8", "Google Compute Engine", "gcp", "us-central1", 3800.00, 126.66, 720.0, "vCPU-hrs", "development", "idle"),
-        ("legacy-batch-vm-e2-highmem", "Google Compute Engine", "gcp", "europe-west1", 4600.00, 153.33, 400.0, "vCPU-hrs", "production", "overprovisioned"),
-        ("test-bench-n1-standard-4", "Google Compute Engine", "gcp", "us-west1", 2100.00, 70.00, 100.0, "vCPU-hrs", "staging", "idle"),
+        (
+            "analytics-n2-standard-16",
+            "Google Compute Engine",
+            "gcp",
+            "us-central1",
+            14200.00,
+            473.33,
+            720.0,
+            "vCPU-hrs",
+            "production",
+            "active",
+        ),
+        (
+            "dev-worker-n1-standard-8",
+            "Google Compute Engine",
+            "gcp",
+            "us-central1",
+            3800.00,
+            126.66,
+            720.0,
+            "vCPU-hrs",
+            "development",
+            "idle",
+        ),
+        (
+            "legacy-batch-vm-e2-highmem",
+            "Google Compute Engine",
+            "gcp",
+            "europe-west1",
+            4600.00,
+            153.33,
+            400.0,
+            "vCPU-hrs",
+            "production",
+            "overprovisioned",
+        ),
+        (
+            "test-bench-n1-standard-4",
+            "Google Compute Engine",
+            "gcp",
+            "us-west1",
+            2100.00,
+            70.00,
+            100.0,
+            "vCPU-hrs",
+            "staging",
+            "idle",
+        ),
         # Cloud SQL
-        ("prod-postgres-db-primary", "Cloud SQL", "gcp", "us-central1", 11200.00, 373.33, 720.0, "hrs", "production", "active"),
-        ("staging-postgres-db-replica", "Cloud SQL", "gcp", "us-east1", 2900.00, 96.66, 720.0, "hrs", "staging", "active"),
+        (
+            "prod-postgres-db-primary",
+            "Cloud SQL",
+            "gcp",
+            "us-central1",
+            11200.00,
+            373.33,
+            720.0,
+            "hrs",
+            "production",
+            "active",
+        ),
+        (
+            "staging-postgres-db-replica",
+            "Cloud SQL",
+            "gcp",
+            "us-east1",
+            2900.00,
+            96.66,
+            720.0,
+            "hrs",
+            "staging",
+            "active",
+        ),
         # BigQuery
-        ("dw-data-warehouse-queries", "BigQuery", "gcp", "us-central1", 6400.00, 213.33, 1250.0, "TB", "production", "active"),
+        (
+            "dw-data-warehouse-queries",
+            "BigQuery",
+            "gcp",
+            "us-central1",
+            6400.00,
+            213.33,
+            1250.0,
+            "TB",
+            "production",
+            "active",
+        ),
         # Cloud Storage
-        ("prod-media-backup-bucket", "Cloud Storage", "gcp", "us-central1", 3200.00, 106.66, 160.0, "TB", "production", "active"),
-        ("archive-logs-multi-region", "Cloud Storage", "gcp", "europe-west1", 1850.00, 61.66, 120.0, "TB", "production", "active"),
+        (
+            "prod-media-backup-bucket",
+            "Cloud Storage",
+            "gcp",
+            "us-central1",
+            3200.00,
+            106.66,
+            160.0,
+            "TB",
+            "production",
+            "active",
+        ),
+        (
+            "archive-logs-multi-region",
+            "Cloud Storage",
+            "gcp",
+            "europe-west1",
+            1850.00,
+            61.66,
+            120.0,
+            "TB",
+            "production",
+            "active",
+        ),
         # Cloud Functions
-        ("event-processor-serverless", "Cloud Functions", "gcp", "us-central1", 930.00, 31.00, 45.0, "M-invocations", "production", "active"),
+        (
+            "event-processor-serverless",
+            "Cloud Functions",
+            "gcp",
+            "us-central1",
+            930.00,
+            31.00,
+            45.0,
+            "M-invocations",
+            "production",
+            "active",
+        ),
     ]
 
-    for name, service, provider, region, cost, daily_cost, usage, unit, env, status in sample_resources:
+    for (
+        name,
+        service,
+        provider,
+        region,
+        cost,
+        daily_cost,
+        usage,
+        unit,
+        env,
+        status,
+    ) in sample_resources:
         record = CloudCost(
             user_id=user_id,
             resource_name=name,
@@ -133,7 +277,19 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
         ),
     ]
 
-    for title, res_name, service, r_type, desc, current_cost, savings, effort, risk, rec_status, ai_sum in sample_recommendations:
+    for (
+        title,
+        res_name,
+        service,
+        r_type,
+        desc,
+        current_cost,
+        savings,
+        effort,
+        risk,
+        rec_status,
+        ai_sum,
+    ) in sample_recommendations:
         rec = OptimizationRecommendation(
             user_id=user_id,
             title=title,
@@ -155,16 +311,17 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
 
 # ── Cost Queries ──────────────────────────────────────────────────────────────
 
+
 async def get_costs(
     db: AsyncSession,
     *,
     user_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
-    service: Optional[str] = None,
-    region: Optional[str] = None,
-    search: Optional[str] = None,
-) -> Tuple[List[CloudCost], int]:
+    service: str | None = None,
+    region: str | None = None,
+    search: str | None = None,
+) -> tuple[list[CloudCost], int]:
     """Fetch paginated cloud costs for a user with optional filters."""
     await seed_default_costs_if_empty(db, user_id)
 
@@ -175,9 +332,7 @@ async def get_costs(
         stmt = stmt.where(CloudCost.region == region)
     if search:
         pattern = f"%{search}%"
-        stmt = stmt.where(
-            CloudCost.resource_name.ilike(pattern) | CloudCost.service.ilike(pattern)
-        )
+        stmt = stmt.where(CloudCost.resource_name.ilike(pattern) | CloudCost.service.ilike(pattern))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total_res = await db.execute(count_stmt)
@@ -199,9 +354,7 @@ async def get_cost_overview_data(
     await seed_default_costs_if_empty(db, user_id)
 
     # 1. Total monthly cost & counts
-    costs_res = await db.execute(
-        select(CloudCost).where(CloudCost.user_id == user_id)
-    )
+    costs_res = await db.execute(select(CloudCost).where(CloudCost.user_id == user_id))
     all_costs = list(costs_res.scalars().all())
 
     monthly_cost = sum(c.cost for c in all_costs)
@@ -229,13 +382,15 @@ async def get_cost_overview_data(
     service_breakdown = []
     for svc, data in sorted(service_totals.items(), key=lambda x: x[1]["cost"], reverse=True):
         pct = (data["cost"] / monthly_cost * 100) if monthly_cost > 0 else 0.0
-        service_breakdown.append({
-            "service": svc,
-            "cost": round(data["cost"], 2),
-            "percentage": round(pct, 1),
-            "resource_count": data["count"],
-            "fill": SERVICE_COLORS.get(svc, DEFAULT_COLOR),
-        })
+        service_breakdown.append(
+            {
+                "service": svc,
+                "cost": round(data["cost"], 2),
+                "percentage": round(pct, 1),
+                "resource_count": data["count"],
+                "fill": SERVICE_COLORS.get(svc, DEFAULT_COLOR),
+            }
+        )
 
     # 4. Region Breakdown
     region_totals: dict[str, dict[str, Any]] = {}
@@ -248,29 +403,37 @@ async def get_cost_overview_data(
     region_breakdown = []
     for reg, data in sorted(region_totals.items(), key=lambda x: x[1]["cost"], reverse=True):
         pct = (data["cost"] / monthly_cost * 100) if monthly_cost > 0 else 0.0
-        region_breakdown.append({
-            "region": reg,
-            "cost": round(data["cost"], 2),
-            "percentage": round(pct, 1),
-            "resource_count": data["count"],
-        })
+        region_breakdown.append(
+            {
+                "region": reg,
+                "cost": round(data["cost"], 2),
+                "percentage": round(pct, 1),
+                "resource_count": data["count"],
+            }
+        )
 
     # 5. Daily Trend (30 days)
     daily_base = monthly_cost / 30.0
     daily_trend = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for i in range(29, -1, -1):
         day_dt = now - timedelta(days=i)
         # Small realistic variance around daily average
-        variance = (1.0 + ((i % 7) - 3) * 0.03)
+        variance = 1.0 + ((i % 7) - 3) * 0.03
         d_cost = round(daily_base * variance, 2)
-        daily_trend.append({
-            "date": day_dt.strftime("%b %d"),
-            "cost": d_cost,
-        })
+        daily_trend.append(
+            {
+                "date": day_dt.strftime("%b %d"),
+                "cost": d_cost,
+            }
+        )
 
     # Efficiency Score calculation (100 - (potential_savings / monthly_cost * 100))
-    efficiency = max(0, min(100, int(100 - (potential_savings / monthly_cost * 50)))) if monthly_cost > 0 else 100
+    efficiency = (
+        max(0, min(100, int(100 - (potential_savings / monthly_cost * 50))))
+        if monthly_cost > 0
+        else 100
+    )
 
     return {
         "monthly_cost": round(monthly_cost, 2),
@@ -289,18 +452,17 @@ async def get_cost_overview_data(
 
 # ── Recommendation CRUD ───────────────────────────────────────────────────────
 
+
 async def get_recommendations(
     db: AsyncSession,
     *,
     user_id: uuid.UUID,
-    status: Optional[str] = "active",
-) -> Tuple[List[OptimizationRecommendation], float]:
+    status: str | None = "active",
+) -> tuple[list[OptimizationRecommendation], float]:
     """Fetch optimization recommendations for user."""
     await seed_default_costs_if_empty(db, user_id)
 
-    stmt = select(OptimizationRecommendation).where(
-        OptimizationRecommendation.user_id == user_id
-    )
+    stmt = select(OptimizationRecommendation).where(OptimizationRecommendation.user_id == user_id)
     if status:
         stmt = stmt.where(OptimizationRecommendation.status == status)
 
@@ -318,7 +480,7 @@ async def update_recommendation_status(
     user_id: uuid.UUID,
     recommendation_id: uuid.UUID,
     status: str,
-) -> Optional[OptimizationRecommendation]:
+) -> OptimizationRecommendation | None:
     """Update status of a recommendation (active, dismissed, applied)."""
     stmt = (
         update(OptimizationRecommendation)
@@ -326,7 +488,7 @@ async def update_recommendation_status(
             OptimizationRecommendation.id == recommendation_id,
             OptimizationRecommendation.user_id == user_id,
         )
-        .values(status=status, updated_at=datetime.now(timezone.utc))
+        .values(status=status, updated_at=datetime.now(UTC))
         .returning(OptimizationRecommendation)
     )
     res = await db.execute(stmt)

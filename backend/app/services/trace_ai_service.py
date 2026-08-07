@@ -4,7 +4,8 @@ latency bottlenecks, slowest services, and optimization recommendations.
 """
 
 import json
-from typing import Any, Dict, List
+from typing import Any
+
 import structlog
 
 from app.core.config import settings
@@ -45,7 +46,7 @@ Always return a valid JSON object matching EXACTLY this structure:
 """
 
 
-def _generate_fallback_trace_analysis(trace_id: str, root_service: str) -> Dict[str, Any]:
+def _generate_fallback_trace_analysis(trace_id: str, root_service: str) -> dict[str, Any]:
     """Fallback generator when Gemini API is unconfigured or offline."""
     return {
         "trace_id": trace_id,
@@ -79,7 +80,9 @@ def _generate_fallback_trace_analysis(trace_id: str, root_service: str) -> Dict[
     }
 
 
-async def analyze_trace_spans(trace_id: str, root_service: str, spans_summary: List[Dict[str, Any]]) -> Dict[str, Any]:
+async def analyze_trace_spans(
+    trace_id: str, root_service: str, spans_summary: list[dict[str, Any]]
+) -> dict[str, Any]:
     """Generates Gemini AI performance analysis for a trace."""
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
         log.info("gemini_key_missing_using_trace_fallback", trace_id=trace_id)

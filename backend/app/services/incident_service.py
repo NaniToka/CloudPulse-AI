@@ -4,20 +4,20 @@ Connects CRUD Repository, Gemini AI Service, and Real-time WebSocket Broadcaster
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_incident import crud_incident
 from app.models.incident import Incident
 from app.schemas.incident import (
     IncidentCreate,
-    IncidentUpdate,
     IncidentResolve,
     IncidentResponse,
     IncidentStatsResponse,
+    IncidentUpdate,
 )
 from app.services.incident_ai_service import analyze_incident_with_gemini
 from app.services.websocket_manager import incident_ws_manager
@@ -35,16 +35,16 @@ class IncidentService:
         self,
         db: AsyncSession,
         *,
-        status: Optional[str] = None,
-        severity: Optional[str] = None,
-        priority: Optional[str] = None,
-        service: Optional[str] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        severity: str | None = None,
+        priority: str | None = None,
+        service: str | None = None,
+        search: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[Incident], int, int]:
+    ) -> tuple[list[Incident], int, int]:
         return await self.crud.get_filtered(
             db,
             status=status,
@@ -58,23 +58,23 @@ class IncidentService:
             size=size,
         )
 
-    async def get_active(self, db: AsyncSession) -> List[Incident]:
+    async def get_active(self, db: AsyncSession) -> list[Incident]:
         return await self.crud.get_active(db)
 
     async def get_stats(self, db: AsyncSession) -> IncidentStatsResponse:
         return await self.crud.get_stats(db)
 
-    async def get_by_id(self, db: AsyncSession, incident_id: uuid.UUID) -> Optional[Incident]:
+    async def get_by_id(self, db: AsyncSession, incident_id: uuid.UUID) -> Incident | None:
         return await self.crud.get(db, incident_id)
 
     async def create(self, db: AsyncSession, payload: IncidentCreate) -> Incident:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         incident_data = payload.model_dump(exclude={"auto_analyze"})
-        
+
         # Ensure started_at default
         if not incident_data.get("started_at"):
             incident_data["started_at"] = now
-            
+
         # Ensure assigned_to and assigned_engineer synchronization
         if payload.assigned_engineer and not payload.assigned_to:
             incident_data["assigned_to"] = payload.assigned_engineer
@@ -110,15 +110,19 @@ class IncidentService:
         resp = IncidentResponse.model_validate(incident)
 
         # Broadcast WS event
-        await incident_ws_manager.broadcast({
-            "event": "incident_created",
-            "data": resp.model_dump(mode="json"),
-            "timestamp": now.isoformat(),
-        })
+        await incident_ws_manager.broadcast(
+            {
+                "event": "incident_created",
+                "data": resp.model_dump(mode="json"),
+                "timestamp": now.isoformat(),
+            }
+        )
 
         return incident
 
-    async def update(self, db: AsyncSession, incident_id: uuid.UUID, payload: IncidentUpdate) -> Optional[Incident]:
+    async def update(
+        self, db: AsyncSession, incident_id: uuid.UUID, payload: IncidentUpdate
+    ) -> Incident | None:
         incident = await self.crud.get(db, incident_id)
         if not incident:
             return None
@@ -135,49 +139,57 @@ class IncidentService:
             update_dict["assigned_to"] = update_dict["assigned_engineer"]
 
         if update_dict.get("status") in ["Resolved", "Closed"] and not incident.resolved_at:
-            update_dict["resolved_at"] = datetime.now(timezone.utc)
+            update_dict["resolved_at"] = datetime.now(UTC)
 
-        update_dict["updated_at"] = datetime.now(timezone.utc)
+        update_dict["updated_at"] = datetime.now(UTC)
 
         updated_obj = await self.crud.update(db, db_obj=incident, obj_in=update_dict)
         resp = IncidentResponse.model_validate(updated_obj)
 
         # Broadcast events
         if old_severity != updated_obj.severity:
-            await incident_ws_manager.broadcast({
-                "event": "severity_changed",
-                "incident_id": str(updated_obj.id),
-                "old_severity": old_severity,
-                "new_severity": updated_obj.severity,
-                "data": resp.model_dump(mode="json"),
-            })
+            await incident_ws_manager.broadcast(
+                {
+                    "event": "severity_changed",
+                    "incident_id": str(updated_obj.id),
+                    "old_severity": old_severity,
+                    "new_severity": updated_obj.severity,
+                    "data": resp.model_dump(mode="json"),
+                }
+            )
 
         if old_assigned != (updated_obj.assigned_engineer or updated_obj.assigned_to):
-            await incident_ws_manager.broadcast({
-                "event": "assignment_changed",
-                "incident_id": str(updated_obj.id),
-                "old_engineer": old_assigned,
-                "new_engineer": updated_obj.assigned_engineer or updated_obj.assigned_to,
-                "data": resp.model_dump(mode="json"),
-            })
+            await incident_ws_manager.broadcast(
+                {
+                    "event": "assignment_changed",
+                    "incident_id": str(updated_obj.id),
+                    "old_engineer": old_assigned,
+                    "new_engineer": updated_obj.assigned_engineer or updated_obj.assigned_to,
+                    "data": resp.model_dump(mode="json"),
+                }
+            )
 
         if old_status != updated_obj.status:
-            await incident_ws_manager.broadcast({
-                "event": "status_changed",
-                "incident_id": str(updated_obj.id),
-                "old_status": old_status,
-                "new_status": updated_obj.status,
-                "data": resp.model_dump(mode="json"),
-            })
+            await incident_ws_manager.broadcast(
+                {
+                    "event": "status_changed",
+                    "incident_id": str(updated_obj.id),
+                    "old_status": old_status,
+                    "new_status": updated_obj.status,
+                    "data": resp.model_dump(mode="json"),
+                }
+            )
 
         return updated_obj
 
-    async def resolve(self, db: AsyncSession, incident_id: uuid.UUID, payload: IncidentResolve) -> Optional[Incident]:
+    async def resolve(
+        self, db: AsyncSession, incident_id: uuid.UUID, payload: IncidentResolve
+    ) -> Incident | None:
         incident = await self.crud.get(db, incident_id)
         if not incident:
             return None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         update_data = {
             "status": "Resolved",
             "resolution_notes": payload.resolution_notes,
@@ -190,16 +202,18 @@ class IncidentService:
         resp = IncidentResponse.model_validate(updated_obj)
 
         # Broadcast resolution
-        await incident_ws_manager.broadcast({
-            "event": "incident_resolved",
-            "incident_id": str(updated_obj.id),
-            "resolution_notes": payload.resolution_notes,
-            "data": resp.model_dump(mode="json"),
-        })
+        await incident_ws_manager.broadcast(
+            {
+                "event": "incident_resolved",
+                "incident_id": str(updated_obj.id),
+                "resolution_notes": payload.resolution_notes,
+                "data": resp.model_dump(mode="json"),
+            }
+        )
 
         return updated_obj
 
-    async def analyze(self, db: AsyncSession, incident_id: uuid.UUID) -> Optional[Dict[str, Any]]:
+    async def analyze(self, db: AsyncSession, incident_id: uuid.UUID) -> dict[str, Any] | None:
         incident = await self.crud.get(db, incident_id)
         if not incident:
             return None
@@ -224,7 +238,7 @@ class IncidentService:
             "ai_similar_incidents": ai_data["ai_similar_incidents"],
             "ai_estimated_resolution_time": ai_data["ai_estimated_resolution_time"],
             "ai_confidence_score": ai_data.get("ai_confidence_score", 0.94),
-            "updated_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(UTC),
         }
 
         await self.crud.update(db, db_obj=incident, obj_in=update_dict)

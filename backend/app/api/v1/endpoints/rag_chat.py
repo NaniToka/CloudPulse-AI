@@ -3,21 +3,21 @@ RAG AI Infrastructure Chat Platform API Endpoints.
 """
 
 import uuid
-from typing import Optional
+
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
+from app.crud.crud_rag_chat import crud_rag_chat
 from app.schemas.rag_chat import (
+    RAGHistoryResponse,
     RAGQueryRequest,
     RAGQueryResponse,
     RAGUploadResponse,
-    RAGHistoryResponse,
 )
-from app.services.rag_service import rag_service, RAGService
+from app.services.rag_service import RAGService, rag_service
 from app.services.vector_store_service import vector_store_service
-from app.crud.crud_rag_chat import crud_rag_chat
 
 log = structlog.get_logger(__name__)
 
@@ -28,7 +28,12 @@ def get_rag_service() -> RAGService:
     return rag_service
 
 
-@router.post("/query", response_model=RAGQueryResponse, status_code=status.HTTP_200_OK, summary="Query RAG Infrastructure Chat")
+@router.post(
+    "/query",
+    response_model=RAGQueryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Query RAG Infrastructure Chat",
+)
 async def query_rag_chat(
     req: RAGQueryRequest,
     db: AsyncSession = Depends(get_db),
@@ -38,10 +43,18 @@ async def query_rag_chat(
     return await service.answer_question(req)
 
 
-@router.post("/upload", response_model=RAGUploadResponse, status_code=status.HTTP_201_CREATED, summary="Upload telemetry document into vector store")
+@router.post(
+    "/upload",
+    response_model=RAGUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload telemetry document into vector store",
+)
 async def upload_telemetry_document(
     file: UploadFile = File(...),
-    collection: str = Query("logs", description="Vector collection: logs, incidents, metrics, alerts, traces, ai_reports"),
+    collection: str = Query(
+        "logs",
+        description="Vector collection: logs, incidents, metrics, alerts, traces, ai_reports",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload custom log or telemetry file to index into ChromaDB vector store."""

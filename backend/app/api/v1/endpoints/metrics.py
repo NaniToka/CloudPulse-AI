@@ -3,14 +3,17 @@ Real-Time Observability Platform API Endpoints & WebSocket Router.
 """
 
 import asyncio
-import json
-from typing import Dict, Any, List
+
 import structlog
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
-from app.services.metrics_service import metrics_service, MetricsService, generate_live_telemetry_point
+from app.services.metrics_service import (
+    MetricsService,
+    generate_live_telemetry_point,
+    metrics_service,
+)
 from app.services.websocket_manager import ConnectionManager
 
 log = structlog.get_logger(__name__)
@@ -39,7 +42,9 @@ async def get_current_metrics(
 
 @router.get("/history", summary="Get telemetry history sliding window")
 async def get_metrics_history(
-    limit: int = Query(300, ge=10, le=1000, description="Max data points to return (sliding window)"),
+    limit: int = Query(
+        300, ge=10, le=1000, description="Max data points to return (sliding window)"
+    ),
     db: AsyncSession = Depends(get_db),
     service: MetricsService = Depends(get_metrics_service),
 ):

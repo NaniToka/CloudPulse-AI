@@ -33,17 +33,16 @@ Error handling
 
 from __future__ import annotations
 
-import json
 import uuid
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, require_active_user
 from app.core.config import settings
+from app.core.dependencies import get_db, require_active_user
 from app.crud import crud_chat
 from app.models.user import User
 from app.schemas.ai import (
@@ -53,7 +52,6 @@ from app.schemas.ai import (
     SessionSchema,
 )
 from app.services.ai_service import (
-    build_history,
     chat_completion,
     stream_chat_completion,
 )
@@ -69,10 +67,11 @@ _MAX_HISTORY_MESSAGES = 40
 # POST /ai/chat
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/chat",
     summary="Send a message to the AI Copilot",
-    response_model=None,   # varies: ChatResponse or StreamingResponse
+    response_model=None,  # varies: ChatResponse or StreamingResponse
 )
 async def chat(
     payload: ChatRequest,
@@ -96,9 +95,7 @@ async def chat(
 
     # ── 1. Resolve or create session ──────────────────────────────────────
     if payload.session_id:
-        session = await crud_chat.get_session(
-            db, session_id=payload.session_id, user_id=user_id
-        )
+        session = await crud_chat.get_session(db, session_id=payload.session_id, user_id=user_id)
         if session is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -114,9 +111,7 @@ async def chat(
     session_id: uuid.UUID = session.id
 
     # ── 2. Persist user message ────────────────────────────────────────────
-    await crud_chat.add_message(
-        db, session_id=session_id, role="user", content=payload.message
-    )
+    await crud_chat.add_message(db, session_id=session_id, role="user", content=payload.message)
 
     # ── 3. Build Gemini history (last N messages, excluding the one we just added) ──
     recent = await crud_chat.get_recent_messages(
@@ -142,7 +137,7 @@ async def chat(
             headers={
                 "Cache-Control": "no-cache",
                 "X-Accel-Buffering": "no",
-                "X-Session-Id": str(session_id),   # frontend reads this to track the session
+                "X-Session-Id": str(session_id),  # frontend reads this to track the session
             },
         )
 
@@ -167,9 +162,7 @@ async def chat(
         )
 
     # ── 5. Persist assistant reply ─────────────────────────────────────────
-    ai_msg = await crud_chat.add_message(
-        db, session_id=session_id, role="assistant", content=reply
-    )
+    ai_msg = await crud_chat.add_message(db, session_id=session_id, role="assistant", content=reply)
 
     log.info("ai_chat_success", user_id=str(user_id), session_id=str(session_id))
 
@@ -234,6 +227,7 @@ async def _sse_generator(
 # GET /ai/history
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/history",
     response_model=HistoryResponse,
@@ -253,6 +247,7 @@ async def get_history(
 # ---------------------------------------------------------------------------
 # DELETE /ai/history
 # ---------------------------------------------------------------------------
+
 
 @router.delete(
     "/history",

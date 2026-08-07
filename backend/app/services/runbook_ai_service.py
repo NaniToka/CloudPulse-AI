@@ -4,7 +4,8 @@ SRE remediation runbooks with executable CLI/K8s/Terraform commands.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import structlog
 
 from app.core.config import settings
@@ -70,7 +71,7 @@ Always return a valid JSON object matching EXACTLY this structure:
 """
 
 
-def _generate_fallback_runbook(service_name: str, severity: str) -> Dict[str, Any]:
+def _generate_fallback_runbook(service_name: str, severity: str) -> dict[str, Any]:
     """Fallback runbook generator when Gemini API is unconfigured or offline."""
     return {
         "title": f"Automated SRE Remediation Runbook: {service_name} Recovery",
@@ -126,7 +127,9 @@ def _generate_fallback_runbook(service_name: str, severity: str) -> Dict[str, An
     }
 
 
-async def generate_ai_runbook(service_name: str, severity: str, incident_details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def generate_ai_runbook(
+    service_name: str, severity: str, incident_details: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Generates automated SRE remediation runbook using Google Gemini API."""
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
         log.info("gemini_key_missing_using_runbook_fallback", service=service_name)

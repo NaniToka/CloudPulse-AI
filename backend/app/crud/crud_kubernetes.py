@@ -3,18 +3,19 @@ Repository for Kubernetes Clusters, Nodes, Pods, Deployments, and Events.
 """
 
 import uuid
-from typing import List, Optional, Any
-from sqlalchemy import select, or_
+from typing import Any
+
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.kubernetes import K8sCluster, K8sNode, K8sPod, K8sDeployment, K8sEvent
+from app.models.kubernetes import K8sCluster, K8sDeployment, K8sEvent, K8sNode, K8sPod
 
 
 class CRUDK8sCluster(CRUDBase[K8sCluster, Any, Any]):
     async def get_multi_by_user(
-        self, db: AsyncSession, user_id: uuid.UUID, provider: Optional[str] = None
-    ) -> List[K8sCluster]:
+        self, db: AsyncSession, user_id: uuid.UUID, provider: str | None = None
+    ) -> list[K8sCluster]:
         stmt = select(K8sCluster).where(K8sCluster.user_id == user_id)
         if provider and provider != "all":
             stmt = stmt.where(K8sCluster.provider == provider)
@@ -23,7 +24,7 @@ class CRUDK8sCluster(CRUDBase[K8sCluster, Any, Any]):
 
 
 class CRUDK8sNode(CRUDBase[K8sNode, Any, Any]):
-    async def get_by_cluster(self, db: AsyncSession, cluster_id: uuid.UUID) -> List[K8sNode]:
+    async def get_by_cluster(self, db: AsyncSession, cluster_id: uuid.UUID) -> list[K8sNode]:
         stmt = select(K8sNode).where(K8sNode.cluster_id == cluster_id).order_by(K8sNode.name.asc())
         res = await db.execute(stmt)
         return list(res.scalars().all())
@@ -33,12 +34,12 @@ class CRUDK8sPod(CRUDBase[K8sPod, Any, Any]):
     async def get_multi_filtered(
         self,
         db: AsyncSession,
-        cluster_id: Optional[uuid.UUID] = None,
-        namespace: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        cluster_id: uuid.UUID | None = None,
+        namespace: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         limit: int = 100,
-    ) -> List[K8sPod]:
+    ) -> list[K8sPod]:
         stmt = select(K8sPod)
         if cluster_id:
             stmt = stmt.where(K8sPod.cluster_id == cluster_id)
@@ -57,7 +58,7 @@ class CRUDK8sPod(CRUDBase[K8sPod, Any, Any]):
         res = await db.execute(stmt)
         return list(res.scalars().all())
 
-    async def get_by_name(self, db: AsyncSession, pod_name: str) -> Optional[K8sPod]:
+    async def get_by_name(self, db: AsyncSession, pod_name: str) -> K8sPod | None:
         stmt = select(K8sPod).where(K8sPod.name == pod_name)
         res = await db.execute(stmt)
         return res.scalar_one_or_none()
@@ -65,8 +66,8 @@ class CRUDK8sPod(CRUDBase[K8sPod, Any, Any]):
 
 class CRUDK8sDeployment(CRUDBase[K8sDeployment, Any, Any]):
     async def get_multi_filtered(
-        self, db: AsyncSession, cluster_id: Optional[uuid.UUID] = None, namespace: Optional[str] = None
-    ) -> List[K8sDeployment]:
+        self, db: AsyncSession, cluster_id: uuid.UUID | None = None, namespace: str | None = None
+    ) -> list[K8sDeployment]:
         stmt = select(K8sDeployment)
         if cluster_id:
             stmt = stmt.where(K8sDeployment.cluster_id == cluster_id)
@@ -78,8 +79,8 @@ class CRUDK8sDeployment(CRUDBase[K8sDeployment, Any, Any]):
 
 class CRUDK8sEvent(CRUDBase[K8sEvent, Any, Any]):
     async def get_multi_filtered(
-        self, db: AsyncSession, event_type: Optional[str] = None, limit: int = 50
-    ) -> List[K8sEvent]:
+        self, db: AsyncSession, event_type: str | None = None, limit: int = 50
+    ) -> list[K8sEvent]:
         stmt = select(K8sEvent)
         if event_type and event_type != "all":
             stmt = stmt.where(K8sEvent.event_type == event_type)

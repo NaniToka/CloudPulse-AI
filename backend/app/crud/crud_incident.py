@@ -3,22 +3,19 @@ CRUD operations (Repository Pattern) for Incidents.
 """
 
 import math
-import uuid
-from datetime import datetime, timezone
-from typing import List, Optional, Tuple
 
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.incident import Incident
-from app.schemas.incident import IncidentCreate, IncidentUpdate, IncidentStatsResponse
+from app.schemas.incident import IncidentCreate, IncidentStatsResponse, IncidentUpdate
 
 
 class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
     """Incident Repository implementing database access patterns."""
 
-    async def get_active(self, db: AsyncSession) -> List[Incident]:
+    async def get_active(self, db: AsyncSession) -> list[Incident]:
         """Fetch all active (non-resolved, non-closed) incidents."""
         stmt = (
             select(Incident)
@@ -69,7 +66,9 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
                     elif diff <= 240:
                         sla_met_count += 1
 
-        avg_resolution_time = round(total_diff_minutes / valid_count, 1) if valid_count > 0 else 24.5
+        avg_resolution_time = (
+            round(total_diff_minutes / valid_count, 1) if valid_count > 0 else 24.5
+        )
         sla_compliance = round((sla_met_count / valid_count) * 100, 1) if valid_count > 0 else 98.4
 
         return IncidentStatsResponse(
@@ -83,16 +82,16 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
         self,
         db: AsyncSession,
         *,
-        status: Optional[str] = None,
-        severity: Optional[str] = None,
-        priority: Optional[str] = None,
-        service: Optional[str] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        severity: str | None = None,
+        priority: str | None = None,
+        service: str | None = None,
+        search: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[Incident], int, int]:
+    ) -> tuple[list[Incident], int, int]:
         """Fetch filtered and paginated list of incidents with total count."""
         query = select(Incident)
 

@@ -9,10 +9,9 @@ AI service — wraps Google Gemini and provides:
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections import defaultdict
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import structlog
 
@@ -49,6 +48,7 @@ Constraints:
 # In-process rate limiter (token bucket per user UUID)
 # ---------------------------------------------------------------------------
 
+
 class _TokenBucket:
     """
     Simple token-bucket rate limiter.
@@ -83,7 +83,7 @@ class RateLimiter:
 
     def __init__(
         self,
-        capacity: int = 20,       # 20 requests burst
+        capacity: int = 20,  # 20 requests burst
         refill_rate: float = 0.5,  # 1 request every 2 seconds sustained
     ) -> None:
         self._buckets: dict[str, _TokenBucket] = defaultdict(
@@ -100,6 +100,7 @@ rate_limiter = RateLimiter()
 # ---------------------------------------------------------------------------
 # Gemini client factory (lazy initialisation)
 # ---------------------------------------------------------------------------
+
 
 def _get_model():
     """
@@ -133,6 +134,7 @@ def _get_model():
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def build_history(messages: list[dict]) -> list[dict]:
     """
     Convert our internal message dicts to the Gemini `contents` format.
@@ -161,7 +163,9 @@ async def chat_completion(
       - Exception     propagated from the Gemini SDK on API errors
     """
     if not rate_limiter.is_allowed(user_id):
-        raise ValueError("Rate limit exceeded. Please wait a moment before sending another message.")
+        raise ValueError(
+            "Rate limit exceeded. Please wait a moment before sending another message."
+        )
 
     model = _get_model()
     gemini_history = build_history(history)
@@ -198,7 +202,9 @@ async def stream_chat_completion(
     The caller is responsible for wrapping these chunks in SSE frames.
     """
     if not rate_limiter.is_allowed(user_id):
-        raise ValueError("Rate limit exceeded. Please wait a moment before sending another message.")
+        raise ValueError(
+            "Rate limit exceeded. Please wait a moment before sending another message."
+        )
 
     model = _get_model()
     gemini_history = build_history(history)

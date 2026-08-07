@@ -2,9 +2,9 @@
 MetricPoint model for Real-Time Observability Platform.
 """
 
-import uuid
 from datetime import datetime
-from sqlalchemy import Float, Integer, JSON, DateTime
+
+from sqlalchemy import JSON, DateTime, Float, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base_class import Base
@@ -17,7 +17,9 @@ class MetricPoint(UUIDMixin, Base):
     cpu_usage: Mapped[float] = mapped_column(Float, nullable=False, default=45.0)  # %
     memory_usage: Mapped[float] = mapped_column(Float, nullable=False, default=62.5)  # %
     disk_usage: Mapped[float] = mapped_column(Float, nullable=False, default=58.0)  # %
-    network_traffic_mbps: Mapped[float] = mapped_column(Float, nullable=False, default=1240.0)  # Mbps
+    network_traffic_mbps: Mapped[float] = mapped_column(
+        Float, nullable=False, default=1240.0
+    )  # Mbps
     active_users: Mapped[int] = mapped_column(Integer, nullable=False, default=8450)
     requests_per_second: Mapped[int] = mapped_column(Integer, nullable=False, default=1420)
     error_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.25)  # %

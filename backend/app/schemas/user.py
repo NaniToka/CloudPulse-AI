@@ -10,49 +10,49 @@ Separation of concerns:
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
-from pydantic import BaseModel, EmailStr, model_validator
-
+from pydantic import BaseModel, EmailStr
 
 # ---------------------------------------------------------------------------
 # Input schemas
 # ---------------------------------------------------------------------------
+
 
 class UserCreate(BaseModel):
     """Internal schema used by CRUDUser.create — never exposed via API."""
 
     email: EmailStr
     password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     role: str = "member"
 
 
 class UserUpdate(BaseModel):
     """Partial update — all fields optional."""
 
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
 
 
 # ---------------------------------------------------------------------------
 # Output schemas
 # ---------------------------------------------------------------------------
 
+
 class UserResponse(BaseModel):
     """Safe user representation returned from API endpoints."""
 
     id: uuid.UUID
     email: EmailStr
-    first_name: Optional[str]
-    last_name: Optional[str]
+    first_name: str | None
+    last_name: str | None
     role: str
-    avatar_url: Optional[str]
+    avatar_url: str | None
     is_active: bool
     is_verified: bool
-    organization_id: Optional[uuid.UUID]
+    organization_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -67,6 +67,6 @@ class UserProfile(UserResponse):
     endpoint after eagerly loading the relationship.
     """
 
-    organization_name: Optional[str] = None
+    organization_name: str | None = None
 
     model_config = {"from_attributes": True}

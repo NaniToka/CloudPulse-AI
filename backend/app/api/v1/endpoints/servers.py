@@ -3,23 +3,27 @@ Server Infrastructure REST API Endpoints.
 """
 
 import uuid
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_active_user
 from app.models.user import User
-from app.schemas.infrastructure import ServerCreate, ServerUpdate, ServerResponse
-from app.services.server_service import server_service, ServerService
+from app.schemas.infrastructure import ServerCreate, ServerResponse, ServerUpdate
+from app.services.server_service import ServerService, server_service
 
 router = APIRouter()
 
 
-@router.get("", response_model=List[ServerResponse], summary="List Monitored Servers")
+@router.get("", response_model=list[ServerResponse], summary="List Monitored Servers")
 async def list_servers(
-    provider: Optional[str] = Query(None, description="Filter by cloud provider (AWS, GCP, Azure, on-prem)"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (healthy, degraded, down, offline)"),
-    search: Optional[str] = Query(None, description="Search server name, IP, hostname"),
+    provider: str | None = Query(
+        None, description="Filter by cloud provider (AWS, GCP, Azure, on-prem)"
+    ),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status (healthy, degraded, down, offline)"
+    ),
+    search: str | None = Query(None, description="Search server name, IP, hostname"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: ServerService = Depends(lambda: server_service),
@@ -31,7 +35,12 @@ async def list_servers(
     return [ServerResponse.model_validate(s) for s in servers]
 
 
-@router.post("", response_model=ServerResponse, status_code=status.HTTP_201_CREATED, summary="Register Server")
+@router.post(
+    "",
+    response_model=ServerResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register Server",
+)
 async def create_server(
     payload: ServerCreate,
     db: AsyncSession = Depends(get_db),

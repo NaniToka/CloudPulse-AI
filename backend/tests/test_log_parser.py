@@ -3,6 +3,7 @@ Unit tests for the log parser service.
 """
 
 import pytest
+
 from app.services.log_parser import (
     LogValidationError,
     format_entries_for_prompt,
@@ -83,8 +84,20 @@ def test_parse_ndjson_log():
 
 def test_format_entries_for_prompt():
     entries = [
-        {"line_number": 1, "timestamp": "10:00", "level": "INFO", "service": "app", "message": "Normal operation"},
-        {"line_number": 2, "timestamp": "10:01", "level": "ERROR", "service": "db", "message": "Connection refused"},
+        {
+            "line_number": 1,
+            "timestamp": "10:00",
+            "level": "INFO",
+            "service": "app",
+            "message": "Normal operation",
+        },
+        {
+            "line_number": 2,
+            "timestamp": "10:01",
+            "level": "ERROR",
+            "service": "db",
+            "message": "Connection refused",
+        },
     ]
     prompt_text = format_entries_for_prompt(entries)
     assert "ERROR" in prompt_text

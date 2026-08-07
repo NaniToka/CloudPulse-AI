@@ -3,13 +3,13 @@ CRUD Repository for Security Scans, Findings, & Compliance Reports.
 """
 
 import math
-import uuid
-from typing import List, Optional, Tuple, Any, Dict
-from sqlalchemy import select, func, or_, and_
+from typing import Any
+
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.security import SecurityScan, ComplianceReport
+from app.models.security import ComplianceReport, SecurityScan
 
 
 class CRUDSecurity(CRUDBase[SecurityScan, Any, Any]):
@@ -19,15 +19,15 @@ class CRUDSecurity(CRUDBase[SecurityScan, Any, Any]):
         self,
         db: AsyncSession,
         *,
-        severity: Optional[str] = None,
-        category: Optional[str] = None,
-        provider: Optional[str] = None,
-        framework: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        severity: str | None = None,
+        category: str | None = None,
+        provider: str | None = None,
+        framework: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[SecurityScan], int, int]:
+    ) -> tuple[list[SecurityScan], int, int]:
         """Filter security findings with pagination and search."""
         query = select(SecurityScan)
 
@@ -72,16 +72,18 @@ class CRUDSecurity(CRUDBase[SecurityScan, Any, Any]):
 
         return items, total, pages
 
-    async def get_compliance_reports(self, db: AsyncSession) -> List[ComplianceReport]:
+    async def get_compliance_reports(self, db: AsyncSession) -> list[ComplianceReport]:
         """Fetch all compliance framework scorecards."""
         stmt = select(ComplianceReport).order_by(ComplianceReport.overall_score.desc())
         res = await db.execute(stmt)
         return list(res.scalars().all())
 
-    async def get_risk_score_summary(self, db: AsyncSession) -> Dict[str, Any]:
+    async def get_risk_score_summary(self, db: AsyncSession) -> dict[str, Any]:
         """Compute aggregated security posture metrics and risk scores."""
         # Get count per severity
-        stmt = select(SecurityScan.severity, func.count(SecurityScan.id)).group_by(SecurityScan.severity)
+        stmt = select(SecurityScan.severity, func.count(SecurityScan.id)).group_by(
+            SecurityScan.severity
+        )
         res = await db.execute(stmt)
         counts = dict(res.all())
 

@@ -3,6 +3,7 @@ API tests for the Log Analyzer endpoints (/api/v1/logs).
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -29,9 +30,9 @@ async def test_upload_log_success(client: AsyncClient):
     headers = await get_auth_headers(client)
 
     log_content = (
-        "2026-08-03T10:00:00Z [INFO] [app] App started\n"
-        "2026-08-03T10:01:00Z [ERROR] [auth] Invalid credentials\n"
-    ).encode("utf-8")
+        b"2026-08-03T10:00:00Z [INFO] [app] App started\n"
+        b"2026-08-03T10:01:00Z [ERROR] [auth] Invalid credentials\n"
+    )
 
     files = {"file": ("test.log", log_content, "text/plain")}
 
@@ -72,7 +73,7 @@ async def test_get_log_history_and_detail(client: AsyncClient):
     headers = await get_auth_headers(client)
 
     # 1. Upload a file
-    log_content = "2026-08-03 [WARNING] High memory usage\n".encode("utf-8")
+    log_content = b"2026-08-03 [WARNING] High memory usage\n"
     files = {"file": ("sys.log", log_content, "text/plain")}
     upload_resp = await client.post("/api/v1/logs/upload", files=files, headers=headers)
     assert upload_resp.status_code == 201
@@ -100,7 +101,7 @@ async def test_get_log_history_and_detail(client: AsyncClient):
 async def test_delete_log_analysis(client: AsyncClient):
     headers = await get_auth_headers(client)
 
-    log_content = "2026-08-03 [INFO] System ok\n".encode("utf-8")
+    log_content = b"2026-08-03 [INFO] System ok\n"
     files = {"file": ("to_delete.log", log_content, "text/plain")}
     upload_resp = await client.post("/api/v1/logs/upload", files=files, headers=headers)
     log_id = upload_resp.json()["id"]

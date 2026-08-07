@@ -3,7 +3,8 @@ Gemini AI Autonomous AIOps Agent Engine — Cross-correlates system telemetry an
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import structlog
 
 from app.core.config import settings
@@ -37,7 +38,7 @@ Always return a valid JSON object matching EXACTLY this structure:
 """
 
 
-def _generate_fallback_aiops_recommendation(target_system: str = "All") -> Dict[str, Any]:
+def _generate_fallback_aiops_recommendation(target_system: str = "All") -> dict[str, Any]:
     """Fallback AIOps recommendation when Gemini API is unconfigured or offline."""
     return {
         "title": f"Autonomous Remediation: Mitigate Latency Anomaly & Resource Bottleneck in {target_system}",
@@ -61,7 +62,9 @@ def _generate_fallback_aiops_recommendation(target_system: str = "All") -> Dict[
     }
 
 
-async def generate_aiops_analysis(target_system: str = "All", telemetry_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def generate_aiops_analysis(
+    target_system: str = "All", telemetry_context: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Generates Autonomous AIOps Agent recommendation using Google Gemini API."""
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
         log.info("gemini_key_missing_using_aiops_fallback", target=target_system)

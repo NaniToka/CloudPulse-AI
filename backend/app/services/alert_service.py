@@ -3,14 +3,14 @@ Alert Monitoring Service with auto-seeding.
 """
 
 import uuid
-from typing import List, Optional
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime
+
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_alert import crud_alert
 from app.models.alert import Alert
-from app.schemas.alert import AlertCreate, AlertUpdate
+from app.schemas.alert import AlertCreate
 
 log = structlog.get_logger(__name__)
 
@@ -81,10 +81,10 @@ class AlertService:
     async def get_alerts(
         self,
         db: AsyncSession,
-        status: Optional[str] = None,
-        severity: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[Alert]:
+        status: str | None = None,
+        severity: str | None = None,
+        search: str | None = None,
+    ) -> list[Alert]:
         alerts = await self.crud.get_multi_filtered(
             db, status=status, severity=severity, search=search
         )
@@ -92,9 +92,9 @@ class AlertService:
             alerts = await self.seed_default_alerts(db)
         return alerts
 
-    async def seed_default_alerts(self, db: AsyncSession) -> List[Alert]:
+    async def seed_default_alerts(self, db: AsyncSession) -> list[Alert]:
         created = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for data in DEFAULT_ALERTS:
             alert = Alert(
                 id=uuid.uuid4(),
@@ -116,7 +116,7 @@ class AlertService:
         return created
 
     async def create_alert(self, db: AsyncSession, payload: AlertCreate) -> Alert:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         alert = Alert(
             id=uuid.uuid4(),
             title=payload.title,
@@ -134,12 +134,14 @@ class AlertService:
         await db.refresh(alert)
         return alert
 
-    async def update_alert_status(self, db: AsyncSession, alert_id: uuid.UUID, new_status: str) -> Optional[Alert]:
+    async def update_alert_status(
+        self, db: AsyncSession, alert_id: uuid.UUID, new_status: str
+    ) -> Alert | None:
         alert = await self.crud.get(db, id=alert_id)
         if not alert:
             return None
         alert.status = new_status
-        alert.updated_at = datetime.now(timezone.utc)
+        alert.updated_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(alert)
         return alert

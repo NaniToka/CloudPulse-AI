@@ -8,7 +8,7 @@ Queries are always scoped to user_id to prevent cross-user data access.
 from __future__ import annotations
 
 import uuid
-from typing import Any, List, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +55,7 @@ async def get(
     *,
     record_id: uuid.UUID,
     user_id: uuid.UUID,
-) -> Optional[LogAnalysis]:
+) -> LogAnalysis | None:
     """Fetch a single record owned by user_id."""
     result = await db.execute(
         select(LogAnalysis).where(
@@ -72,7 +72,7 @@ async def list_by_user(
     user_id: uuid.UUID,
     skip: int = 0,
     limit: int = 50,
-) -> List[LogAnalysis]:
+) -> list[LogAnalysis]:
     """List all analyses for a user, newest first."""
     result = await db.execute(
         select(LogAnalysis)
@@ -86,11 +86,11 @@ async def list_by_user(
 
 async def count_by_user(db: AsyncSession, *, user_id: uuid.UUID) -> int:
     """Count total analyses for a user."""
-    from sqlalchemy import func, select as _select
+    from sqlalchemy import func
+    from sqlalchemy import select as _select
+
     result = await db.execute(
-        _select(func.count()).select_from(LogAnalysis).where(
-            LogAnalysis.user_id == user_id
-        )
+        _select(func.count()).select_from(LogAnalysis).where(LogAnalysis.user_id == user_id)
     )
     return result.scalar_one()
 
@@ -100,13 +100,13 @@ async def update_analysis_result(
     *,
     record: LogAnalysis,
     status: str,
-    executive_summary: Optional[str] = None,
-    root_cause: Optional[str] = None,
-    severity: Optional[str] = None,
-    recommended_fixes: Optional[str] = None,
-    preventive_measures: Optional[str] = None,
-    confidence_score: Optional[float] = None,
-    ai_error: Optional[str] = None,
+    executive_summary: str | None = None,
+    root_cause: str | None = None,
+    severity: str | None = None,
+    recommended_fixes: str | None = None,
+    preventive_measures: str | None = None,
+    confidence_score: float | None = None,
+    ai_error: str | None = None,
 ) -> LogAnalysis:
     """Patch the AI analysis fields once Gemini has responded."""
     record.status = status
@@ -136,7 +136,7 @@ async def delete(
     *,
     record_id: uuid.UUID,
     user_id: uuid.UUID,
-) -> Optional[LogAnalysis]:
+) -> LogAnalysis | None:
     """Delete a record owned by user_id. Returns deleted record or None."""
     record = await get(db, record_id=record_id, user_id=user_id)
     if record:

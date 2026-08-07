@@ -10,8 +10,8 @@ Design decisions
   reusing it avoids repeated bcrypt work-factor lookups.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from jose import jwt
 from passlib.context import CryptContext
@@ -39,9 +39,10 @@ def verify_password(plain: str, hashed: str) -> bool:
 # JWT helpers
 # ---------------------------------------------------------------------------
 
+
 def _build_token(subject: Any, token_type: str, expires_delta: timedelta) -> str:
     """Internal: encode a signed JWT with standard claims."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": str(subject),
         "iat": now,
@@ -53,7 +54,7 @@ def _build_token(subject: Any, token_type: str, expires_delta: timedelta) -> str
 
 def create_access_token(
     subject: Any,
-    expires_delta: Optional[timedelta] = None,
+    expires_delta: timedelta | None = None,
 ) -> str:
     """Return a signed JWT access token for *subject* (typically a user UUID)."""
     delta = expires_delta or timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)

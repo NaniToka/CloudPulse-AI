@@ -3,6 +3,7 @@ API Unit tests for Enterprise Workflow Automation endpoints.
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -39,7 +40,6 @@ async def test_workflows_full_lifecycle_api(client: AsyncClient):
     assert res_list.status_code == 200, res_list.text
     workflows = res_list.json()
     assert len(workflows) > 0
-    sample_wf = workflows[0]
 
     # 3. Create Custom Workflow
     new_wf_payload = {
@@ -80,7 +80,9 @@ async def test_workflows_full_lifecycle_api(client: AsyncClient):
         "decision": "approved",
         "reason": "Verified off-peak traffic by SRE Lead",
     }
-    res_appr = await client.post(f"/api/v1/workflows/{created_id}/approve", json=approval_payload, headers=headers)
+    res_appr = await client.post(
+        f"/api/v1/workflows/{created_id}/approve", json=approval_payload, headers=headers
+    )
     assert res_appr.status_code == 200, res_appr.text
     appr_result = res_appr.json()
     assert appr_result["status"] == "completed"
@@ -93,7 +95,9 @@ async def test_workflows_full_lifecycle_api(client: AsyncClient):
     ai_prompt_payload = {
         "prompt": "When high CPU alert fires on production VM, restart container, run Gemini diagnosis, and notify Slack."
     }
-    res_ai = await client.post("/api/v1/workflows/generate-ai", json=ai_prompt_payload, headers=headers)
+    res_ai = await client.post(
+        "/api/v1/workflows/generate-ai", json=ai_prompt_payload, headers=headers
+    )
     assert res_ai.status_code == 200, res_ai.text
     ai_wf = res_ai.json()
     assert "nodes" in ai_wf

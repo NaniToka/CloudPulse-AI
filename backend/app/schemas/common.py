@@ -1,6 +1,7 @@
 """Shared Pydantic schema primitives."""
 
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel
 
 DataT = TypeVar("DataT")
@@ -14,7 +15,7 @@ class PaginationMeta(BaseModel):
 
 
 class PaginatedResponse(BaseModel, Generic[DataT]):
-    data: List[DataT]
+    data: list[DataT]
     meta: PaginationMeta
 
 
@@ -23,10 +24,10 @@ class MessageResponse(BaseModel):
 
 
 class ErrorDetail(BaseModel):
-    field: Optional[str] = None
+    field: str | None = None
     message: str
 
 
 class ErrorResponse(BaseModel):
     error: str
-    details: Optional[List[ErrorDetail]] = None
+    details: list[ErrorDetail] | None = None

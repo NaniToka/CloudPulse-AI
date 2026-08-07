@@ -4,7 +4,8 @@ detect anomaly patterns, and generate predictive failure forecasts.
 """
 
 import json
-from typing import Any, Dict, List
+from typing import Any
+
 import structlog
 
 from app.core.config import settings
@@ -53,7 +54,7 @@ Always return a valid JSON object matching EXACTLY this structure:
 """
 
 
-def _generate_fallback_prediction(service: str, region: str) -> Dict[str, Any]:
+def _generate_fallback_prediction(service: str, region: str) -> dict[str, Any]:
     """Fallback predictive analysis generator when Gemini API is unconfigured or offline."""
     return {
         "title": f"Predicted OOM & Thread Exhaustion Outage on {service}",
@@ -104,8 +105,8 @@ def _generate_fallback_prediction(service: str, region: str) -> Dict[str, Any]:
 async def generate_predictive_analysis(
     service: str,
     region: str,
-    metrics_summary: Dict[str, Any],
-) -> Dict[str, Any]:
+    metrics_summary: dict[str, Any],
+) -> dict[str, Any]:
     """Generates predictive failure analysis using Google Gemini."""
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
         log.info("gemini_key_missing_using_prediction_fallback", service=service)
@@ -144,10 +145,18 @@ async def generate_predictive_analysis(
             "confidence_score": float(data.get("confidence_score", 0.94)),
             "ai_explanation": data.get("ai_explanation", "Predictive telemetry indicates anomaly."),
             "ai_metrics_of_concern": data.get("ai_metrics_of_concern", []),
-            "ai_historical_pattern_comparison": data.get("ai_historical_pattern_comparison", "Matches previous latency spike pattern."),
-            "ai_possible_impact": data.get("ai_possible_impact", "Potential degraded SLO for active sessions."),
-            "ai_immediate_preventive_actions": data.get("ai_immediate_preventive_actions", ["Scale service instances"]),
-            "ai_long_term_recommendations": data.get("ai_long_term_recommendations", ["Optimize database queries"]),
+            "ai_historical_pattern_comparison": data.get(
+                "ai_historical_pattern_comparison", "Matches previous latency spike pattern."
+            ),
+            "ai_possible_impact": data.get(
+                "ai_possible_impact", "Potential degraded SLO for active sessions."
+            ),
+            "ai_immediate_preventive_actions": data.get(
+                "ai_immediate_preventive_actions", ["Scale service instances"]
+            ),
+            "ai_long_term_recommendations": data.get(
+                "ai_long_term_recommendations", ["Optimize database queries"]
+            ),
         }
     except Exception as exc:
         log.error("gemini_prediction_analysis_failed", error=str(exc))

@@ -3,18 +3,15 @@ Service Layer for Auto Remediation Center & Runbook Generator.
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import List, Optional, Tuple, Dict, Any
+from datetime import UTC, datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_runbook import crud_runbook
-from app.models.runbook import Runbook, AutomationStep, RunbookExecution
+from app.models.runbook import AutomationStep, Runbook, RunbookExecution
 from app.schemas.runbook import (
     RunbookCreatePayload,
-    RunbookApprovePayload,
-    RunbookResponse,
 )
 from app.services.runbook_ai_service import generate_ai_runbook
 
@@ -31,13 +28,13 @@ class RunbookService:
         self,
         db: AsyncSession,
         *,
-        service: Optional[str] = None,
-        severity: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        service: str | None = None,
+        severity: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[Runbook], int, int]:
+    ) -> tuple[list[Runbook], int, int]:
         return await self.crud.get_filtered(
             db,
             service=service,
@@ -48,12 +45,12 @@ class RunbookService:
             size=size,
         )
 
-    async def get_by_id(self, db: AsyncSession, runbook_id: uuid.UUID) -> Optional[Runbook]:
+    async def get_by_id(self, db: AsyncSession, runbook_id: uuid.UUID) -> Runbook | None:
         return await self.crud.get_by_id_with_steps(db, runbook_id)
 
     async def generate_runbook(self, db: AsyncSession, payload: RunbookCreatePayload) -> Runbook:
         """Generates AI SRE remediation runbook with executable CLI/K8s commands."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ai_res = await generate_ai_runbook(payload.service_name, payload.severity)
 
         runbook = Runbook(
@@ -99,45 +96,54 @@ class RunbookService:
         await db.refresh(runbook)
         return await self.get_by_id(db, runbook.id) or runbook
 
-    async def approve_runbook(self, db: AsyncSession, runbook_id: uuid.UUID, approved_by: str) -> Optional[Runbook]:
+    async def approve_runbook(
+        self, db: AsyncSession, runbook_id: uuid.UUID, approved_by: str
+    ) -> Runbook | None:
         """Approves a runbook for automated execution."""
         runbook = await self.get_by_id(db, runbook_id)
         if not runbook:
             return None
 
         runbook.status = "Approved"
-        runbook.updated_at = datetime.now(timezone.utc)
+        runbook.updated_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(runbook)
         return runbook
 
-    async def execute_runbook(self, db: AsyncSession, runbook_id: uuid.UUID, executed_by: str = "CloudPulse AI Auto-Remediator") -> Optional[RunbookExecution]:
+    async def execute_runbook(
+        self,
+        db: AsyncSession,
+        runbook_id: uuid.UUID,
+        executed_by: str = "CloudPulse AI Auto-Remediator",
+    ) -> RunbookExecution | None:
         """Executes automation steps for an approved runbook."""
         runbook = await self.get_by_id(db, runbook_id)
         if not runbook:
             return None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         runbook.status = "Executing"
 
         # Update step statuses to completed
         logs = []
         for s in runbook.steps:
             s.status = "Completed"
-            logs.append(f"[{datetime.now(timezone.utc).isoformat()}] Step {s.step_number} '{s.title}' executed successfully.")
+            logs.append(
+                f"[{datetime.now(UTC).isoformat()}] Step {s.step_number} '{s.title}' executed successfully."
+            )
 
         execution = RunbookExecution(
             id=uuid.uuid4(),
             runbook_id=runbook.id,
             executed_by=executed_by,
             started_at=now,
-            completed_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(UTC),
             status="Completed",
             logs_json=logs,
         )
 
         runbook.status = "Completed"
-        runbook.updated_at = datetime.now(timezone.utc)
+        runbook.updated_at = datetime.now(UTC)
         db.add(execution)
         await db.commit()
         await db.refresh(execution)

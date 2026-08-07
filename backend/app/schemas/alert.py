@@ -4,17 +4,18 @@ Pydantic schemas for Monitoring Alerts.
 
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class AlertCreate(BaseModel):
     title: str
-    message: Optional[str] = None
+    message: str | None = None
     severity: str = Field("medium", description="critical | high | medium | low")
-    metric_name: Optional[str] = None
-    metric_value: Optional[float] = None
-    threshold: Optional[float] = None
+    metric_name: str | None = None
+    metric_value: float | None = None
+    threshold: float | None = None
 
 
 class AlertUpdate(BaseModel):
@@ -26,14 +27,14 @@ class AlertResponse(BaseModel):
 
     id: uuid.UUID
     title: str
-    message: Optional[str] = None
+    message: str | None = None
     severity: str
     status: str
-    metric_name: Optional[str] = None
-    metric_value: Optional[float] = None
-    threshold: Optional[float] = None
-    tags: Dict[str, Any] = Field(default_factory=dict)
-    resource_id: Optional[uuid.UUID] = None
-    incident_id: Optional[uuid.UUID] = None
+    metric_name: str | None = None
+    metric_value: float | None = None
+    threshold: float | None = None
+    tags: dict[str, Any] = Field(default_factory=dict)
+    resource_id: uuid.UUID | None = None
+    incident_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime

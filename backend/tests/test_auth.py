@@ -11,10 +11,10 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def unique_payload(**overrides) -> dict:
     """Return a register payload with a guaranteed-unique email."""
@@ -39,6 +39,7 @@ async def register_and_get_tokens(client: AsyncClient, **overrides) -> dict:
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_register_returns_tokens(client: AsyncClient):
@@ -116,6 +117,7 @@ async def test_register_invalid_email_returns_422(client: AsyncClient):
 # Login
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_login_success(client: AsyncClient):
     _, payload = await register_and_get_tokens(client)
@@ -160,6 +162,7 @@ async def test_login_invalid_email_format_returns_422(client: AsyncClient):
 # ---------------------------------------------------------------------------
 # GET /auth/me
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_me_returns_user(client: AsyncClient):
@@ -206,6 +209,7 @@ async def test_get_me_refresh_token_rejected(client: AsyncClient):
 # Token refresh
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_refresh_returns_new_access_token(client: AsyncClient):
     data, _ = await register_and_get_tokens(client)
@@ -245,6 +249,7 @@ async def test_refresh_with_garbage_returns_401(client: AsyncClient):
 # Logout
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_logout_returns_204(client: AsyncClient):
     data, _ = await register_and_get_tokens(client)
@@ -269,6 +274,7 @@ async def test_logout_without_token_returns_403(client: AsyncClient):
 # ---------------------------------------------------------------------------
 # Users endpoints
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_users_me_returns_profile(client: AsyncClient):
@@ -300,6 +306,7 @@ async def test_users_me_patch_updates_name(client: AsyncClient):
 # ---------------------------------------------------------------------------
 # Health check (sanity)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_health_check(client: AsyncClient):

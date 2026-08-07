@@ -3,8 +3,9 @@ Repository for User Notifications.
 """
 
 import uuid
-from typing import List, Optional, Any
-from sqlalchemy import select, update
+from typing import Any
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -19,12 +20,12 @@ class CRUDNotification(CRUDBase[Notification, Any, Any]):
         db: AsyncSession,
         user_id: uuid.UUID,
         unread_only: bool = False,
-        category: Optional[str] = None,
+        category: str | None = None,
         limit: int = 50,
-    ) -> List[Notification]:
+    ) -> list[Notification]:
         stmt = select(Notification).where(Notification.user_id == user_id)
         if unread_only:
-            stmt = stmt.where(Notification.is_read == False)
+            stmt = stmt.where(Notification.is_read.is_(False))
         if category and category != "all":
             stmt = stmt.where(Notification.category == category)
         stmt = stmt.order_by(Notification.created_at.desc()).limit(limit)
@@ -33,7 +34,7 @@ class CRUDNotification(CRUDBase[Notification, Any, Any]):
 
     async def mark_all_read(self, db: AsyncSession, user_id: uuid.UUID) -> int:
         stmt = select(Notification).where(
-            Notification.user_id == user_id, Notification.is_read == False
+            Notification.user_id == user_id, Notification.is_read.is_(False)
         )
         res = await db.execute(stmt)
         unread = list(res.scalars().all())

@@ -7,14 +7,13 @@ All validators are class-methods decorated with ``@field_validator``
 """
 
 import re
-from typing import Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
-
 
 # ---------------------------------------------------------------------------
 # Request schemas
 # ---------------------------------------------------------------------------
+
 
 class RegisterRequest(BaseModel):
     """Payload for POST /auth/register."""
@@ -23,7 +22,7 @@ class RegisterRequest(BaseModel):
     password: str
     first_name: str
     last_name: str
-    organization_name: Optional[str] = None
+    organization_name: str | None = None
 
     @field_validator("password")
     @classmethod
@@ -48,7 +47,7 @@ class RegisterRequest(BaseModel):
 
     @field_validator("organization_name")
     @classmethod
-    def _org_name_optional_strip(cls, v: Optional[str]) -> Optional[str]:
+    def _org_name_optional_strip(cls, v: str | None) -> str | None:
         if v is not None:
             v = v.strip()
             return v if v else None
@@ -71,6 +70,7 @@ class RefreshRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Response schemas
 # ---------------------------------------------------------------------------
+
 
 class TokenResponse(BaseModel):
     """Returned on successful register or login."""

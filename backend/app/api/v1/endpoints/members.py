@@ -3,20 +3,25 @@ Members, Invitations, & RBAC Permissions REST API Endpoints.
 """
 
 import uuid
-from typing import List, Dict
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, get_current_user
+from app.core.dependencies import get_current_user, get_db
 from app.core.rbac import get_all_permissions_matrix
 from app.models.user import User
-from app.schemas.tenant import MemberInvitePayload, InvitationResponse, MemberResponse
-from app.services.tenant_service import tenant_service, TenantService
+from app.schemas.tenant import InvitationResponse, MemberInvitePayload, MemberResponse
+from app.services.tenant_service import TenantService, tenant_service
 
 router = APIRouter()
 
 
-@router.post("/invite", response_model=InvitationResponse, status_code=status.HTTP_201_CREATED, summary="Invite User to Organization")
+@router.post(
+    "/invite",
+    response_model=InvitationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Invite User to Organization",
+)
 async def invite_member(
     payload: MemberInvitePayload,
     db: AsyncSession = Depends(get_db),
@@ -28,7 +33,7 @@ async def invite_member(
     return InvitationResponse.model_validate(invitation)
 
 
-@router.get("", response_model=List[MemberResponse], summary="List Organization Members")
+@router.get("", response_model=list[MemberResponse], summary="List Organization Members")
 async def list_members(
     organization_id: uuid.UUID = Query(..., description="Organization ID"),
     db: AsyncSession = Depends(get_db),

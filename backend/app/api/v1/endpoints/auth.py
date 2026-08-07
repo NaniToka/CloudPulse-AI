@@ -15,9 +15,8 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dependencies import get_current_user, get_db
@@ -46,6 +45,7 @@ router = APIRouter()
 # POST /register
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/register",
     response_model=TokenResponse,
@@ -61,7 +61,9 @@ async def register(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    log.info("register_attempt", email=payload.email, ip=request.client.host if request.client else None)
+    log.info(
+        "register_attempt", email=payload.email, ip=request.client.host if request.client else None
+    )
 
     existing = await crud_user.get_by_email(db, email=payload.email)
     if existing:
@@ -72,9 +74,7 @@ async def register(
 
     org = None
     if payload.organization_name:
-        org = await crud_organization.create_with_unique_slug(
-            db, name=payload.organization_name
-        )
+        org = await crud_organization.create_with_unique_slug(db, name=payload.organization_name)
 
     user = await crud_user.create(
         db,
@@ -87,9 +87,7 @@ async def register(
     )
 
     if org:
-        user = await crud_user.set_organization(
-            db, user=user, organization_id=org.id
-        )
+        user = await crud_user.set_organization(db, user=user, organization_id=org.id)
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
@@ -106,6 +104,7 @@ async def register(
 # POST /login
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/login",
     response_model=TokenResponse,
@@ -117,11 +116,11 @@ async def login(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    log.info("login_attempt", email=payload.email, ip=request.client.host if request.client else None)
-
-    user = await crud_user.authenticate(
-        db, email=payload.email, password=payload.password
+    log.info(
+        "login_attempt", email=payload.email, ip=request.client.host if request.client else None
     )
+
+    user = await crud_user.authenticate(db, email=payload.email, password=payload.password)
 
     # Use a single generic message to avoid user enumeration
     if user is None:
@@ -150,6 +149,7 @@ async def login(
 # ---------------------------------------------------------------------------
 # POST /refresh
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/refresh",
@@ -204,6 +204,7 @@ async def refresh(
 # POST /logout
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/logout",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -222,6 +223,7 @@ async def logout(
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
         from app.services.cache_service import cache_service
+
         await cache_service.blocklist_token(token)
     log.info("logout", user_id=str(current_user.id))
     return None
@@ -230,6 +232,7 @@ async def logout(
 # ---------------------------------------------------------------------------
 # GET /me
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/me",

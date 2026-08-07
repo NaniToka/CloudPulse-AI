@@ -4,7 +4,7 @@ Pydantic v2 schemas for Real-Time Observability Platform.
 
 import uuid
 from datetime import datetime
-from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -31,7 +31,7 @@ class MetricPointBase(BaseModel):
     response_time_ms: float = Field(..., ge=0.0)
     db_connections_active: int = Field(..., ge=0)
     db_connections_max: int = Field(..., ge=0)
-    k8s_pods: List[K8sPodStatus] = Field(default_factory=list)
+    k8s_pods: list[K8sPodStatus] = Field(default_factory=list)
     timestamp: datetime
 
 
@@ -52,6 +52,6 @@ class MetricCurrentResponse(BaseModel):
 
 
 class MetricHistoryResponse(BaseModel):
-    history: List[MetricPointResponse]
+    history: list[MetricPointResponse]
     total_points: int
     buffer_size: int = 300

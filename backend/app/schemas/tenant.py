@@ -4,22 +4,23 @@ Pydantic v2 schemas for Multi-Tenant SaaS Architecture.
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class OrganizationCreate(BaseModel):
     name: str = Field(..., description="Organization name")
-    slug: Optional[str] = Field(None, description="URL slug (auto-generated if omitted)")
-    logo: Optional[str] = None
+    slug: str | None = Field(None, description="URL slug (auto-generated if omitted)")
+    logo: str | None = None
     plan: str = Field("Enterprise", description="Free, Pro, Enterprise")
 
 
 class OrganizationUpdate(BaseModel):
-    name: Optional[str] = None
-    logo: Optional[str] = None
-    plan: Optional[str] = None
-    status: Optional[str] = None
+    name: str | None = None
+    logo: str | None = None
+    plan: str | None = None
+    status: str | None = None
 
 
 class OrganizationResponse(BaseModel):
@@ -28,11 +29,11 @@ class OrganizationResponse(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
-    logo: Optional[str] = None
-    logo_url: Optional[str] = None
+    logo: str | None = None
+    logo_url: str | None = None
     plan: str
     status: str
-    owner_id: Optional[uuid.UUID] = None
+    owner_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -40,12 +41,12 @@ class OrganizationResponse(BaseModel):
 class TeamCreate(BaseModel):
     organization_id: uuid.UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class TeamUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
 
 class TeamResponse(BaseModel):
@@ -54,13 +55,13 @@ class TeamResponse(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     created_at: datetime
 
 
 class ProjectCreate(BaseModel):
     organization_id: uuid.UUID
-    team_id: Optional[uuid.UUID] = None
+    team_id: uuid.UUID | None = None
     name: str
     cloud_provider: str = "AWS"
     environment: str = "Production"
@@ -68,11 +69,11 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    cloud_provider: Optional[str] = None
-    environment: Optional[str] = None
-    region: Optional[str] = None
-    team_id: Optional[uuid.UUID] = None
+    name: str | None = None
+    cloud_provider: str | None = None
+    environment: str | None = None
+    region: str | None = None
+    team_id: uuid.UUID | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -80,7 +81,7 @@ class ProjectResponse(BaseModel):
 
     id: uuid.UUID
     organization_id: uuid.UUID
-    team_id: Optional[uuid.UUID] = None
+    team_id: uuid.UUID | None = None
     name: str
     cloud_provider: str
     environment: str
@@ -100,9 +101,9 @@ class MemberResponse(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
     user_id: uuid.UUID
-    email: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     role: str
     created_at: datetime
 
@@ -124,7 +125,7 @@ class AuditLogResponse(BaseModel):
 
     id: uuid.UUID
     organization_id: uuid.UUID
-    user_id: Optional[uuid.UUID] = None
+    user_id: uuid.UUID | None = None
     action: str
-    details: Dict[str, Any] = Field(default_factory=dict)
+    details: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime

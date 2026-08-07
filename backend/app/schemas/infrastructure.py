@@ -4,26 +4,26 @@ Pydantic schemas for Server Infrastructure.
 
 import uuid
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class ServerCreate(BaseModel):
     name: str = Field(..., description="Server name")
-    hostname: Optional[str] = None
-    ip_address: Optional[str] = None
+    hostname: str | None = None
+    ip_address: str | None = None
     server_type: str = Field("linux", description="linux | windows | container | vm")
     provider: str = Field("AWS", description="AWS | GCP | Azure | on-prem")
-    region: Optional[str] = "us-east-1"
+    region: str | None = "us-east-1"
     environment: str = Field("production", description="production | staging | dev")
 
 
 class ServerUpdate(BaseModel):
-    name: Optional[str] = None
-    status: Optional[str] = None
-    cpu_percent: Optional[float] = None
-    memory_percent: Optional[float] = None
-    disk_percent: Optional[float] = None
+    name: str | None = None
+    status: str | None = None
+    cpu_percent: float | None = None
+    memory_percent: float | None = None
+    disk_percent: float | None = None
 
 
 class ServerResponse(BaseModel):
@@ -33,17 +33,17 @@ class ServerResponse(BaseModel):
     user_id: uuid.UUID
     name: str
     hostname: str
-    ip_address: Optional[str] = None
+    ip_address: str | None = None
     server_type: str
     provider: str
-    region: Optional[str] = None
+    region: str | None = None
     environment: str
     status: str
-    cpu_percent: Optional[float] = None
-    memory_percent: Optional[float] = None
-    disk_percent: Optional[float] = None
-    network_in_mbps: Optional[float] = None
-    network_out_mbps: Optional[float] = None
-    uptime_seconds: Optional[int] = None
+    cpu_percent: float | None = None
+    memory_percent: float | None = None
+    disk_percent: float | None = None
+    network_in_mbps: float | None = None
+    network_out_mbps: float | None = None
+    uptime_seconds: int | None = None
     created_at: datetime
     updated_at: datetime

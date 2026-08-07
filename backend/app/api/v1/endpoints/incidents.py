@@ -3,30 +3,28 @@ Incident Management Center API endpoints & WebSockets.
 Refactored with Service Layer and Repository Pattern.
 """
 
-import math
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, List, Any
+from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.models.incident import Incident
 from app.schemas.incident import (
+    IncidentAIAnalysisResponse,
+    IncidentAnalyticsResponse,
     IncidentCreate,
-    IncidentUpdate,
+    IncidentListResponse,
     IncidentResolve,
     IncidentResponse,
-    IncidentListResponse,
     IncidentStatsResponse,
-    IncidentAnalyticsResponse,
-    SeverityCount,
+    IncidentUpdate,
     MonthlyTrendPoint,
-    IncidentAIAnalysisResponse,
+    SeverityCount,
 )
-from app.services.incident_service import incident_service, IncidentService
+from app.services.incident_service import IncidentService, incident_service
 from app.services.websocket_manager import incident_ws_manager
 
 log = structlog.get_logger(__name__)
@@ -60,17 +58,25 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 assigned_engineer="Sarah Chen (SRE Lead)",
                 assigned_to="Sarah Chen (SRE Lead)",
                 created_by="AlertManager Bot",
-                started_at=datetime(2026, 8, 5, 21, 30, tzinfo=timezone.utc),
-                created_at=datetime(2026, 8, 5, 21, 30, tzinfo=timezone.utc),
+                started_at=datetime(2026, 8, 5, 21, 30, tzinfo=UTC),
+                created_at=datetime(2026, 8, 5, 21, 30, tzinfo=UTC),
                 ai_summary="Payment Gateway latency breached SLO. Redis cache eviction rates increased by 320%.",
                 root_cause="Redis memory limit reached maxmemory threshold (2GB), evicting session tokens.",
                 ai_root_cause="Redis memory limit reached maxmemory threshold (2GB), evicting session tokens.",
                 ai_business_impact="Checkout conversion rate dropped by 8.4% during peak window.",
                 ai_immediate_mitigation="1. Scale Redis instance to 8GB.\n2. Evict orphan telemetry keys.\n3. Increase timeout limit.",
                 ai_suggested_resolution="1. Scale Redis instance to 8GB.\n2. Evict orphan telemetry keys.",
-                ai_long_term_prevention=["Enable Memory Autoscaling", "Implement Key TTL audit policy"],
-                ai_preventive_actions=["Enable Memory Autoscaling", "Implement Key TTL audit policy"],
-                ai_similar_incidents=[{"id": "INC-402", "title": "Cache memory exhaustion", "similarity": "91%"}],
+                ai_long_term_prevention=[
+                    "Enable Memory Autoscaling",
+                    "Implement Key TTL audit policy",
+                ],
+                ai_preventive_actions=[
+                    "Enable Memory Autoscaling",
+                    "Implement Key TTL audit policy",
+                ],
+                ai_similar_incidents=[
+                    {"id": "INC-402", "title": "Cache memory exhaustion", "similarity": "91%"}
+                ],
                 ai_estimated_resolution_time="15-25 mins",
                 ai_confidence_score=0.96,
             ),
@@ -85,17 +91,25 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 assigned_engineer="Alex Rivera (DevOps)",
                 assigned_to="Alex Rivera (DevOps)",
                 created_by="Datadog Webhook",
-                started_at=datetime(2026, 8, 5, 20, 15, tzinfo=timezone.utc),
-                created_at=datetime(2026, 8, 5, 20, 15, tzinfo=timezone.utc),
+                started_at=datetime(2026, 8, 5, 20, 15, tzinfo=UTC),
+                created_at=datetime(2026, 8, 5, 20, 15, tzinfo=UTC),
                 ai_summary="Auth Service worker node CPU throttled due to JWT verification thread pool lock contention.",
                 root_cause="Unbounded bcrypt hashing thread pool blocking Node event loop under load burst.",
                 ai_root_cause="Unbounded bcrypt hashing thread pool blocking Node event loop under load burst.",
                 ai_business_impact="Login duration increased from 120ms to 850ms.",
                 ai_immediate_mitigation="Scale auth-service replicas from 4 to 10 instances.",
                 ai_suggested_resolution="Scale auth-service replicas from 4 to 10 instances.",
-                ai_long_term_prevention=["Migrate password hashing to worker pool", "Add HPA target at 70% CPU"],
-                ai_preventive_actions=["Migrate password hashing to worker pool", "Add HPA target at 70% CPU"],
-                ai_similar_incidents=[{"id": "INC-388", "title": "Bcrypt worker bottleneck", "similarity": "86%"}],
+                ai_long_term_prevention=[
+                    "Migrate password hashing to worker pool",
+                    "Add HPA target at 70% CPU",
+                ],
+                ai_preventive_actions=[
+                    "Migrate password hashing to worker pool",
+                    "Add HPA target at 70% CPU",
+                ],
+                ai_similar_incidents=[
+                    {"id": "INC-388", "title": "Bcrypt worker bottleneck", "similarity": "86%"}
+                ],
                 ai_estimated_resolution_time="20 mins",
                 ai_confidence_score=0.92,
             ),
@@ -110,17 +124,25 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 assigned_engineer="Marcus Vance (DBA)",
                 assigned_to="Marcus Vance (DBA)",
                 created_by="CloudPulse Monitor",
-                started_at=datetime(2026, 8, 5, 22, 45, tzinfo=timezone.utc),
-                created_at=datetime(2026, 8, 5, 22, 45, tzinfo=timezone.utc),
+                started_at=datetime(2026, 8, 5, 22, 45, tzinfo=UTC),
+                created_at=datetime(2026, 8, 5, 22, 45, tzinfo=UTC),
                 ai_summary="DB Connection Pool exhausted by leaked idle connections from microservice worker pods.",
                 root_cause="Unclosed DB session instances in background retry loop during network micro-outage.",
                 ai_root_cause="Unclosed DB session instances in background retry loop during network micro-outage.",
                 ai_business_impact="Write requests failing across 3 downstream services.",
                 ai_immediate_mitigation="Execute PgBouncer connection reset and restart leaking worker deployments.",
                 ai_suggested_resolution="Execute PgBouncer connection reset and restart leaking worker deployments.",
-                ai_long_term_prevention=["Configure PgBouncer transaction pooling mode", "Set max_db_idle_time=30s"],
-                ai_preventive_actions=["Configure PgBouncer transaction pooling mode", "Set max_db_idle_time=30s"],
-                ai_similar_incidents=[{"id": "INC-290", "title": "PgBouncer pool exhaustion", "similarity": "95%"}],
+                ai_long_term_prevention=[
+                    "Configure PgBouncer transaction pooling mode",
+                    "Set max_db_idle_time=30s",
+                ],
+                ai_preventive_actions=[
+                    "Configure PgBouncer transaction pooling mode",
+                    "Set max_db_idle_time=30s",
+                ],
+                ai_similar_incidents=[
+                    {"id": "INC-290", "title": "PgBouncer pool exhaustion", "similarity": "95%"}
+                ],
                 ai_estimated_resolution_time="10-15 mins",
                 ai_confidence_score=0.95,
             ),
@@ -135,9 +157,9 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 assigned_engineer="Elena Rostova (Cloud Eng)",
                 assigned_to="Elena Rostova (Cloud Eng)",
                 created_by="System User",
-                started_at=datetime(2026, 8, 4, 14, 0, tzinfo=timezone.utc),
-                created_at=datetime(2026, 8, 4, 14, 0, tzinfo=timezone.utc),
-                resolved_at=datetime(2026, 8, 4, 14, 35, tzinfo=timezone.utc),
+                started_at=datetime(2026, 8, 4, 14, 0, tzinfo=UTC),
+                created_at=datetime(2026, 8, 4, 14, 0, tzinfo=UTC),
+                resolved_at=datetime(2026, 8, 4, 14, 35, tzinfo=UTC),
                 resolution_notes="Partitioned S3 key prefixes with hash prefixing to distribute request partitions.",
                 resolved_by="Elena Rostova",
                 ai_summary="S3 prefix partition limit hit (3,500 GET req/s limit per prefix).",
@@ -162,6 +184,7 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
 # WebSocket Endpoint
 # ---------------------------------------------------------------------------
 
+
 @router.websocket("/ws")
 async def incident_websocket_endpoint(websocket: WebSocket):
     """Real-time WebSocket endpoint for incident broadcasts."""
@@ -182,7 +205,8 @@ async def incident_websocket_endpoint(websocket: WebSocket):
 # REST Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("/active", response_model=List[IncidentResponse], summary="Get active incidents")
+
+@router.get("/active", response_model=list[IncidentResponse], summary="Get active incidents")
 async def get_active_incidents(
     db: AsyncSession = Depends(get_db),
     service: IncidentService = Depends(get_incident_service),
@@ -205,12 +229,18 @@ async def get_incident_stats(
 
 @router.get("", response_model=IncidentListResponse, summary="List incidents")
 async def list_incidents(
-    status: Optional[str] = Query(None, description="Filter by status (Open, Investigating, Monitoring, Resolved, Closed)"),
-    severity: Optional[str] = Query(None, description="Filter by severity (P0, P1, P2, P3)"),
-    priority: Optional[str] = Query(None, description="Filter by priority (Critical, High, Medium, Low)"),
-    service: Optional[str] = Query(None, description="Filter by affected service"),
-    search: Optional[str] = Query(None, description="Search term in title or description"),
-    sort_by: str = Query("created_at", description="Sort field (created_at, severity, priority, status)"),
+    status: str | None = Query(
+        None, description="Filter by status (Open, Investigating, Monitoring, Resolved, Closed)"
+    ),
+    severity: str | None = Query(None, description="Filter by severity (P0, P1, P2, P3)"),
+    priority: str | None = Query(
+        None, description="Filter by priority (Critical, High, Medium, Low)"
+    ),
+    service: str | None = Query(None, description="Filter by affected service"),
+    search: str | None = Query(None, description="Search term in title or description"),
+    sort_by: str = Query(
+        "created_at", description="Sort field (created_at, severity, priority, status)"
+    ),
     sort_dir: str = Query("desc", description="Sort direction (asc, desc)"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
@@ -242,7 +272,9 @@ async def list_incidents(
     )
 
 
-@router.get("/analytics", response_model=IncidentAnalyticsResponse, summary="Incident analytics & charts")
+@router.get(
+    "/analytics", response_model=IncidentAnalyticsResponse, summary="Incident analytics & charts"
+)
 async def get_incident_analytics(
     db: AsyncSession = Depends(get_db),
     service_layer: IncidentService = Depends(get_incident_service),
@@ -262,12 +294,12 @@ async def get_incident_analytics(
         if inc.status in ["Resolved", "Closed"]:
             resolved_count += 1
 
-    incidents_by_severity = [
-        SeverityCount(severity=s, count=c) for s, c in sev_counts.items()
-    ]
+    incidents_by_severity = [SeverityCount(severity=s, count=c) for s, c in sev_counts.items()]
 
     active_incidents = total_incidents - resolved_count
-    resolution_rate = round((resolved_count / total_incidents) * 100, 1) if total_incidents > 0 else 0.0
+    resolution_rate = (
+        round((resolved_count / total_incidents) * 100, 1) if total_incidents > 0 else 0.0
+    )
 
     monthly_trend = [
         MonthlyTrendPoint(month="Mar", count=14, resolved_count=12),
@@ -290,7 +322,12 @@ async def get_incident_analytics(
     )
 
 
-@router.post("", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED, summary="Create incident")
+@router.post(
+    "",
+    response_model=IncidentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create incident",
+)
 async def create_incident(
     payload: IncidentCreate,
     db: AsyncSession = Depends(get_db),
@@ -345,7 +382,11 @@ async def resolve_incident(
     return IncidentResponse.model_validate(resolved)
 
 
-@router.post("/{incident_id}/analyze", response_model=IncidentAIAnalysisResponse, summary="Re-run Gemini AI analysis")
+@router.post(
+    "/{incident_id}/analyze",
+    response_model=IncidentAIAnalysisResponse,
+    summary="Re-run Gemini AI analysis",
+)
 async def reanalyze_incident(
     incident_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

@@ -3,6 +3,7 @@ API tests for Cost Optimizer endpoints (/api/v1/cost).
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 

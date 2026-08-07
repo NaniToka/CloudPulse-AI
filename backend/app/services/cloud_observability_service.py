@@ -4,17 +4,16 @@ Provides auto-discovery, telemetry aggregation, regional mapping, and Gemini AI 
 """
 
 import uuid
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from datetime import UTC, datetime
+from typing import Any
+
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_cloud_account import crud_cloud_account
 from app.crud.crud_cloud_resource import crud_cloud_resource
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_resource import CloudResource
-from app.models.cloud_region import CloudRegion
 
 log = structlog.get_logger(__name__)
 
@@ -34,7 +33,9 @@ DEFAULT_CLOUD_ACCOUNTS = [
         "provider": "GCP",
         "account_id": "cloudpulse-gcp-prod-8812",
         "credentials_type": "service_account_key",
-        "credentials_meta": {"service_account": "cloudpulse-sa@cloudpulse-gcp-prod.iam.gserviceaccount.com"},
+        "credentials_meta": {
+            "service_account": "cloudpulse-sa@cloudpulse-gcp-prod.iam.gserviceaccount.com"
+        },
         "default_region": "us-central1",
         "environment": "production",
         "status": "connected",
@@ -205,16 +206,24 @@ class CloudObservabilityService:
         self.resource_crud = resource_repo
 
     async def get_accounts(
-        self, db: AsyncSession, user_id: uuid.UUID, provider: Optional[str] = None, status: Optional[str] = None
-    ) -> List[CloudAccount]:
-        accounts = await self.account_crud.get_multi_by_user(db, user_id=user_id, provider=provider, status=status)
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        provider: str | None = None,
+        status: str | None = None,
+    ) -> list[CloudAccount]:
+        accounts = await self.account_crud.get_multi_by_user(
+            db, user_id=user_id, provider=provider, status=status
+        )
         if not accounts:
             accounts = await self.seed_default_accounts(db, user_id)
         return accounts
 
-    async def seed_default_accounts(self, db: AsyncSession, user_id: uuid.UUID) -> List[CloudAccount]:
+    async def seed_default_accounts(
+        self, db: AsyncSession, user_id: uuid.UUID
+    ) -> list[CloudAccount]:
         created_accounts = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for data in DEFAULT_CLOUD_ACCOUNTS:
             acc = CloudAccount(
                 id=uuid.uuid4(),
@@ -275,11 +284,11 @@ class CloudObservabilityService:
         provider: str,
         account_id: str,
         credentials_type: str,
-        credentials_meta: Dict[str, Any],
+        credentials_meta: dict[str, Any],
         default_region: str = "us-east-1",
         environment: str = "production",
     ) -> CloudAccount:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         acc = CloudAccount(
             id=uuid.uuid4(),
             user_id=user_id,
@@ -306,20 +315,27 @@ class CloudObservabilityService:
     async def get_resources(
         self,
         db: AsyncSession,
-        provider: Optional[str] = None,
-        resource_type: Optional[str] = None,
-        region: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[CloudResource]:
+        provider: str | None = None,
+        resource_type: str | None = None,
+        region: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[CloudResource]:
         resources = await self.resource_crud.get_multi_filtered(
-            db, provider=provider, resource_type=resource_type, region=region, status=status, search=search
+            db,
+            provider=provider,
+            resource_type=resource_type,
+            region=region,
+            status=status,
+            search=search,
         )
         return resources
 
-    async def trigger_sync(self, db: AsyncSession, account_id: Optional[uuid.UUID] = None) -> Dict[str, Any]:
+    async def trigger_sync(
+        self, db: AsyncSession, account_id: uuid.UUID | None = None
+    ) -> dict[str, Any]:
         """Perform simulated auto-discovery across cloud providers."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if account_id:
             acc = await self.account_crud.get(db, id=account_id)
             if acc:
@@ -333,7 +349,7 @@ class CloudObservabilityService:
             "providers": ["AWS", "Azure", "GCP"],
         }
 
-    async def get_cost_summary(self, db: AsyncSession) -> Dict[str, Any]:
+    async def get_cost_summary(self, db: AsyncSession) -> dict[str, Any]:
         resources = await self.get_resources(db)
         total_monthly = sum(r.monthly_cost for r in resources)
         by_provider = {"AWS": 0.0, "GCP": 0.0, "Azure": 0.0}
@@ -348,7 +364,7 @@ class CloudObservabilityService:
             "idle_resource_savings": 1280.0,
         }
 
-    async def get_security_summary(self, db: AsyncSession) -> Dict[str, Any]:
+    async def get_security_summary(self, db: AsyncSession) -> dict[str, Any]:
         resources = await self.get_resources(db)
         high_risk = [r for r in resources if r.risk_score >= 30]
         compliance_score = max(50, 100 - (len(high_risk) * 12))
@@ -357,12 +373,17 @@ class CloudObservabilityService:
             "high_risk_resources_count": len(high_risk),
             "open_vulnerabilities": len(high_risk) + 2,
             "high_risk_list": [
-                {"id": str(r.id), "name": r.name, "provider": r.provider, "risk_score": r.risk_score}
+                {
+                    "id": str(r.id),
+                    "name": r.name,
+                    "provider": r.provider,
+                    "risk_score": r.risk_score,
+                }
                 for r in high_risk
             ],
         }
 
-    async def get_health_summary(self, db: AsyncSession) -> Dict[str, Any]:
+    async def get_health_summary(self, db: AsyncSession) -> dict[str, Any]:
         resources = await self.get_resources(db)
         total = len(resources)
         healthy = len([r for r in resources if r.status == "healthy"])

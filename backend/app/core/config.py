@@ -7,7 +7,7 @@ CORS_ORIGINS accepts three formats in the .env file:
   - Single value:     http://localhost:5173
 """
 
-from typing import Any, List
+from typing import Any
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,8 +33,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = (
-        "postgresql+asyncpg://cloudpulse_user:cloudpulse_dev_password"
-        "@localhost:5432/cloudpulse"
+        "postgresql+asyncpg://cloudpulse_user:cloudpulse_dev_password" "@localhost:5432/cloudpulse"
     )
 
     # JWT
@@ -58,11 +57,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # CORS — stored as List[str] but the validator accepts all three env formats
-    CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v: Any) -> List[str]:
+    def parse_cors_origins(cls, v: Any) -> list[str]:
         """
         Accept three formats:
           1. Already a list (passed programmatically or by pydantic internally)
@@ -76,6 +75,7 @@ class Settings(BaseSettings):
             stripped = v.strip()
             if stripped.startswith("["):
                 import json
+
                 return json.loads(stripped)
             return [origin.strip() for origin in stripped.split(",") if origin.strip()]
         return v

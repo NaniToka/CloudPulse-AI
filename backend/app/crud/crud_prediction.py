@@ -3,19 +3,16 @@ CRUD operations (Repository Pattern) for Predictions.
 """
 
 import math
-import uuid
-from datetime import datetime, timezone
-from typing import List, Optional, Tuple, Dict, Any
 
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.prediction import Prediction
 from app.schemas.prediction import (
     PredictionCreate,
-    PredictionUpdate,
     PredictionStatsResponse,
+    PredictionUpdate,
     ServiceRiskItem,
 )
 
@@ -23,7 +20,7 @@ from app.schemas.prediction import (
 class CRUDPrediction(CRUDBase[Prediction, PredictionCreate, PredictionUpdate]):
     """Prediction Repository implementing database queries."""
 
-    async def get_active(self, db: AsyncSession) -> List[Prediction]:
+    async def get_active(self, db: AsyncSession) -> list[Prediction]:
         """Fetch active prediction alerts."""
         stmt = (
             select(Prediction)
@@ -75,7 +72,7 @@ class CRUDPrediction(CRUDBase[Prediction, PredictionCreate, PredictionUpdate]):
             prevented_downtime_hours=prevented_downtime_hours,
         )
 
-    async def get_risk_heatmap(self, db: AsyncSession) -> List[ServiceRiskItem]:
+    async def get_risk_heatmap(self, db: AsyncSession) -> list[ServiceRiskItem]:
         """Aggregate infrastructure risk heatmap dataset by service and region."""
         stmt = (
             select(
@@ -131,16 +128,16 @@ class CRUDPrediction(CRUDBase[Prediction, PredictionCreate, PredictionUpdate]):
         self,
         db: AsyncSession,
         *,
-        service: Optional[str] = None,
-        region: Optional[str] = None,
-        risk: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        service: str | None = None,
+        region: str | None = None,
+        risk: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[Prediction], int, int]:
+    ) -> tuple[list[Prediction], int, int]:
         query = select(Prediction)
 
         filters = []

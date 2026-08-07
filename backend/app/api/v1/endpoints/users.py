@@ -12,11 +12,10 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_db, require_active_user
+from app.core.dependencies import get_db, require_active_user
 from app.crud.crud_user import crud_user
 from app.models.user import User
 from app.schemas.user import UserProfile, UserResponse, UserUpdate

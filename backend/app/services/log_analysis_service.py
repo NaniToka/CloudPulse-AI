@@ -89,6 +89,7 @@ def _extract_json(text: str) -> dict[str, Any]:
 # Normalisation helpers
 # ---------------------------------------------------------------------------
 
+
 def _clamp(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 
@@ -107,6 +108,7 @@ def _normalise_severity(raw: str) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 async def analyse_logs(
     entries: list[dict[str, Any]],
@@ -130,16 +132,13 @@ async def analyse_logs(
                     recommended_fixes, preventive_measures, confidence_score
     """
     if not rate_limiter.is_allowed(user_id):
-        raise ValueError(
-            "Rate limit exceeded. Please wait before analysing another log."
-        )
+        raise ValueError("Rate limit exceeded. Please wait before analysing another log.")
 
     import google.generativeai as genai  # lazy import — no startup failure
 
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
         raise RuntimeError(
-            "GEMINI_API_KEY is not configured. "
-            "Set it in backend/.env to enable AI log analysis."
+            "GEMINI_API_KEY is not configured. " "Set it in backend/.env to enable AI log analysis."
         )
 
     genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -147,7 +146,7 @@ async def analyse_logs(
     model = genai.GenerativeModel(
         model_name=settings.GEMINI_MODEL,
         generation_config={
-            "temperature": 0.2,          # low temp for deterministic JSON
+            "temperature": 0.2,  # low temp for deterministic JSON
             "max_output_tokens": 2048,
             "top_p": 0.9,
         },

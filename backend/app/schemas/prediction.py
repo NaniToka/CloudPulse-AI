@@ -5,7 +5,8 @@ Pydantic v2 schemas for Predictive Incident Detection Engine.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -35,34 +36,40 @@ class PredictionBase(BaseModel):
     title: str = Field(..., min_length=3, max_length=500, description="Title of predicted incident")
     service: str = Field(default="api-gateway", description="Service at risk")
     region: str = Field(default="us-east-1", description="Cloud region")
-    prediction_score: float = Field(default=0.88, ge=0.0, le=1.0, description="Normalized prediction score 0-1")
-    failure_probability: float = Field(default=88.5, ge=0.0, le=100.0, description="Predicted probability %")
-    expected_failure_time: Optional[datetime] = Field(None, description="Estimated timestamp of predicted outage")
+    prediction_score: float = Field(
+        default=0.88, ge=0.0, le=1.0, description="Normalized prediction score 0-1"
+    )
+    failure_probability: float = Field(
+        default=88.5, ge=0.0, le=100.0, description="Predicted probability %"
+    )
+    expected_failure_time: datetime | None = Field(
+        None, description="Estimated timestamp of predicted outage"
+    )
     risk_level: RiskLevel = Field(default=RiskLevel.HIGH)
     status: PredictionStatus = Field(default=PredictionStatus.ACTIVE)
-    affected_services: List[str] = Field(default_factory=list)
-    likely_root_cause: Optional[str] = None
+    affected_services: list[str] = Field(default_factory=list)
+    likely_root_cause: str | None = None
     confidence_score: float = Field(default=0.94, ge=0.0, le=1.0)
-    recommended_preventive_actions: List[str] = Field(default_factory=list)
-    triggering_metrics: Dict[str, Any] = Field(default_factory=dict)
+    recommended_preventive_actions: list[str] = Field(default_factory=list)
+    triggering_metrics: dict[str, Any] = Field(default_factory=dict)
 
 
 class PredictionCreate(PredictionBase):
-    ai_explanation: Optional[str] = None
-    ai_metrics_of_concern: Optional[List[MetricConcern]] = Field(default_factory=list)
-    ai_historical_pattern_comparison: Optional[str] = None
-    ai_possible_impact: Optional[str] = None
-    ai_immediate_preventive_actions: Optional[List[str]] = Field(default_factory=list)
-    ai_long_term_recommendations: Optional[List[str]] = Field(default_factory=list)
+    ai_explanation: str | None = None
+    ai_metrics_of_concern: list[MetricConcern] | None = Field(default_factory=list)
+    ai_historical_pattern_comparison: str | None = None
+    ai_possible_impact: str | None = None
+    ai_immediate_preventive_actions: list[str] | None = Field(default_factory=list)
+    ai_long_term_recommendations: list[str] | None = Field(default_factory=list)
 
 
 class PredictionUpdate(BaseModel):
-    title: Optional[str] = None
-    service: Optional[str] = None
-    region: Optional[str] = None
-    risk_level: Optional[RiskLevel] = None
-    status: Optional[PredictionStatus] = None
-    recommended_preventive_actions: Optional[List[str]] = None
+    title: str | None = None
+    service: str | None = None
+    region: str | None = None
+    risk_level: RiskLevel | None = None
+    status: PredictionStatus | None = None
+    recommended_preventive_actions: list[str] | None = None
 
 
 class PredictionStatusUpdate(BaseModel):
@@ -77,16 +84,16 @@ class PredictionResponse(PredictionBase):
     updated_at: datetime
 
     # AI Detailed Explanation
-    ai_explanation: Optional[str] = None
-    ai_metrics_of_concern: Optional[List[MetricConcern]] = Field(default_factory=list)
-    ai_historical_pattern_comparison: Optional[str] = None
-    ai_possible_impact: Optional[str] = None
-    ai_immediate_preventive_actions: Optional[List[str]] = Field(default_factory=list)
-    ai_long_term_recommendations: Optional[List[str]] = Field(default_factory=list)
+    ai_explanation: str | None = None
+    ai_metrics_of_concern: list[MetricConcern] | None = Field(default_factory=list)
+    ai_historical_pattern_comparison: str | None = None
+    ai_possible_impact: str | None = None
+    ai_immediate_preventive_actions: list[str] | None = Field(default_factory=list)
+    ai_long_term_recommendations: list[str] | None = Field(default_factory=list)
 
 
 class PredictionListResponse(BaseModel):
-    items: List[PredictionResponse]
+    items: list[PredictionResponse]
     total: int
     page: int
     size: int
@@ -109,9 +116,13 @@ class ServiceRiskItem(BaseModel):
 
 
 class InfrastructureRiskHeatmapResponse(BaseModel):
-    items: List[ServiceRiskItem]
+    items: list[ServiceRiskItem]
 
 
 class PredictionAnalyzeRequest(BaseModel):
-    services: Optional[List[str]] = Field(default=None, description="Optional list of specific services to analyze")
-    lookback_hours: int = Field(default=24, ge=1, le=168, description="Telemetry lookback window in hours")
+    services: list[str] | None = Field(
+        default=None, description="Optional list of specific services to analyze"
+    )
+    lookback_hours: int = Field(
+        default=24, ge=1, le=168, description="Telemetry lookback window in hours"
+    )

@@ -3,9 +3,10 @@ Redis Cache & Token Blocklist Service.
 """
 
 import json
-from typing import Any, Optional
-import structlog
+from typing import Any
+
 import redis.asyncio as redis
+import structlog
 
 from app.core.config import settings
 
@@ -15,22 +16,20 @@ log = structlog.get_logger(__name__)
 class CacheService:
     """Redis Cache Service with JSON serialization and token revocation support."""
 
-    def __init__(self, redis_url: Optional[str] = None) -> None:
+    def __init__(self, redis_url: str | None = None) -> None:
         self.redis_url = redis_url or settings.REDIS_URL
-        self._redis_client: Optional[redis.Redis] = None
+        self._redis_client: redis.Redis | None = None
 
-    def _get_client(self) -> Optional[redis.Redis]:
+    def _get_client(self) -> redis.Redis | None:
         if self._redis_client is None:
             try:
-                self._redis_client = redis.from_url(
-                    self.redis_url, decode_responses=True
-                )
+                self._redis_client = redis.from_url(self.redis_url, decode_responses=True)
             except Exception as exc:
                 log.warning("redis_connection_failed", error=str(exc))
                 return None
         return self._redis_client
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         client = self._get_client()
         if not client:
             return None

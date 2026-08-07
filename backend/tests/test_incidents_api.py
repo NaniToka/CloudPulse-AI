@@ -3,6 +3,7 @@ API tests for Incident Management Center endpoints (/api/v1/incidents).
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -119,7 +120,9 @@ async def test_update_and_resolve_incident(client: AsyncClient):
         "assigned_engineer": "Senior DBA",
         "assigned_to": "Senior DBA",
     }
-    update_resp = await client.put(f"/api/v1/incidents/{inc_id}", json=update_payload, headers=headers)
+    update_resp = await client.put(
+        f"/api/v1/incidents/{inc_id}", json=update_payload, headers=headers
+    )
     assert update_resp.status_code == 200
     updated_data = update_resp.json()
     assert updated_data["status"] == "Investigating"
@@ -131,7 +134,9 @@ async def test_update_and_resolve_incident(client: AsyncClient):
         "resolution_notes": "Restarted read replica node and rebalanced connection pool.",
         "resolved_by": "Senior DBA",
     }
-    resolve_resp = await client.post(f"/api/v1/incidents/{inc_id}/resolve", json=resolve_payload, headers=headers)
+    resolve_resp = await client.post(
+        f"/api/v1/incidents/{inc_id}/resolve", json=resolve_payload, headers=headers
+    )
     assert resolve_resp.status_code == 200
     resolved_data = resolve_resp.json()
     assert resolved_data["status"] == "Resolved"

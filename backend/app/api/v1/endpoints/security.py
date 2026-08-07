@@ -2,21 +2,20 @@
 AI Security & Cloud Compliance Center REST API Endpoints.
 """
 
-from typing import Optional, List
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.schemas.security import (
-    SecurityScanPayload,
-    SecurityScanResponse,
-    SecurityFindingResponse,
     ComplianceReportResponse,
     RiskScoreResponse,
+    SecurityFindingResponse,
     SecurityListResponse,
+    SecurityScanPayload,
+    SecurityScanResponse,
 )
-from app.services.security_service import security_service, SecurityService
+from app.services.security_service import SecurityService, security_service
 
 log = structlog.get_logger(__name__)
 
@@ -34,7 +33,12 @@ async def _seed_initial_security_scans_if_empty(db: AsyncSession, service: Secur
         await service.run_security_scan(db, SecurityScanPayload(provider="AWS"))
 
 
-@router.post("/scan", response_model=SecurityScanResponse, status_code=status.HTTP_201_CREATED, summary="Trigger cloud security scan")
+@router.post(
+    "/scan",
+    response_model=SecurityScanResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Trigger cloud security scan",
+)
 async def trigger_security_scan(
     payload: SecurityScanPayload,
     db: AsyncSession = Depends(get_db),
@@ -46,12 +50,18 @@ async def trigger_security_scan(
 
 @router.get("/findings", response_model=SecurityListResponse, summary="List security findings")
 async def list_security_findings(
-    severity: Optional[str] = Query(None, description="Filter by severity (Critical, High, Medium, Low)"),
-    category: Optional[str] = Query(None, description="Filter by category (IAM, Network, Storage, Database, Secrets)"),
-    provider: Optional[str] = Query(None, description="Filter by provider (AWS, GCP, Azure)"),
-    framework: Optional[str] = Query(None, description="Filter by compliance framework"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (Open, Resolved)"),
-    search: Optional[str] = Query(None, description="Search in scan_name, resource, or description"),
+    severity: str | None = Query(
+        None, description="Filter by severity (Critical, High, Medium, Low)"
+    ),
+    category: str | None = Query(
+        None, description="Filter by category (IAM, Network, Storage, Database, Secrets)"
+    ),
+    provider: str | None = Query(None, description="Filter by provider (AWS, GCP, Azure)"),
+    framework: str | None = Query(None, description="Filter by compliance framework"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status (Open, Resolved)"
+    ),
+    search: str | None = Query(None, description="Search in scan_name, resource, or description"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -79,7 +89,11 @@ async def list_security_findings(
     )
 
 
-@router.get("/compliance", response_model=List[ComplianceReportResponse], summary="Get compliance scorecards")
+@router.get(
+    "/compliance",
+    response_model=list[ComplianceReportResponse],
+    summary="Get compliance scorecards",
+)
 async def get_compliance_scorecards(
     db: AsyncSession = Depends(get_db),
     service: SecurityService = Depends(get_security_service),
@@ -89,7 +103,9 @@ async def get_compliance_scorecards(
     return [ComplianceReportResponse.model_validate(r) for r in reports]
 
 
-@router.get("/risk-score", response_model=RiskScoreResponse, summary="Get security posture & risk metrics")
+@router.get(
+    "/risk-score", response_model=RiskScoreResponse, summary="Get security posture & risk metrics"
+)
 async def get_risk_score_summary(
     db: AsyncSession = Depends(get_db),
     service: SecurityService = Depends(get_security_service),
@@ -114,7 +130,12 @@ async def get_security_executive_report(
         "overall_security_score": risk_summary["overall_security_score"],
         "risk_level": "High" if risk_summary["overall_risk_score"] > 6.0 else "Medium",
         "compliance_summary": [
-            {"framework": r.framework, "score": r.overall_score, "passed": r.passed_controls, "failed": r.failed_controls}
+            {
+                "framework": r.framework,
+                "score": r.overall_score,
+                "passed": r.passed_controls,
+                "failed": r.failed_controls,
+            }
             for r in reports
         ],
         "top_recommendations": [

@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,14 +73,16 @@ async def analyze_cloud_costs_with_gemini(
     *,
     user_id: str,
     costs_overview: dict[str, Any],
-    resources: List[dict[str, Any]],
+    resources: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """
     Send aggregate cost data and resource inventory to Gemini, return FinOps AI analysis,
     and persist generated recommendations to PostgreSQL.
     """
     if not rate_limiter.is_allowed(user_id):
-        raise ValueError("Rate limit exceeded. Please wait before triggering another cost analysis.")
+        raise ValueError(
+            "Rate limit exceeded. Please wait before triggering another cost analysis."
+        )
 
     import google.generativeai as genai
 
@@ -133,6 +135,7 @@ async def analyze_cloud_costs_with_gemini(
 
         if recs_data:
             import uuid as uuid_pkg
+
             user_uuid = uuid_pkg.UUID(user_id)
             for rec in recs_data:
                 rec_obj = OptimizationRecommendation(
@@ -155,7 +158,7 @@ async def analyze_cloud_costs_with_gemini(
 
         result["recommendations"] = saved_recs
         result["efficiency_score"] = costs_overview.get("efficiency_score", 75)
-        result["analyzed_at"] = datetime.now(timezone.utc)
+        result["analyzed_at"] = datetime.now(UTC)
         return result
 
     except Exception as exc:
@@ -201,5 +204,5 @@ def _build_fallback_cost_analysis(costs_overview: dict[str, Any]) -> dict[str, A
         "estimated_monthly_savings": savings,
         "recommendations": [],
         "efficiency_score": costs_overview.get("efficiency_score", 73),
-        "analyzed_at": datetime.now(timezone.utc),
+        "analyzed_at": datetime.now(UTC),
     }

@@ -12,7 +12,6 @@ Design
 from __future__ import annotations
 
 import uuid
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,17 +20,17 @@ from sqlalchemy.orm import selectinload
 from app.models.chat_message import ChatMessage
 from app.models.chat_session import ChatSession
 
-
 # ---------------------------------------------------------------------------
 # Session helpers
 # ---------------------------------------------------------------------------
+
 
 async def get_session(
     db: AsyncSession,
     *,
     session_id: uuid.UUID,
     user_id: uuid.UUID,
-) -> Optional[ChatSession]:
+) -> ChatSession | None:
     """Return a session owned by user_id, with messages pre-loaded."""
     result = await db.execute(
         select(ChatSession)
@@ -45,7 +44,7 @@ async def create_session(
     db: AsyncSession,
     *,
     user_id: uuid.UUID,
-    title: Optional[str] = None,
+    title: str | None = None,
 ) -> ChatSession:
     """Create a new chat session for the given user."""
     session = ChatSession(user_id=user_id, title=title)
@@ -60,7 +59,7 @@ async def list_sessions(
     *,
     user_id: uuid.UUID,
     limit: int = 50,
-) -> List[ChatSession]:
+) -> list[ChatSession]:
     """Return the most recent sessions for user_id, newest first."""
     result = await db.execute(
         select(ChatSession)
@@ -81,9 +80,7 @@ async def delete_all_sessions(
     Delete all sessions (and their messages via cascade) for user_id.
     Returns the number of sessions deleted.
     """
-    result = await db.execute(
-        select(ChatSession).where(ChatSession.user_id == user_id)
-    )
+    result = await db.execute(select(ChatSession).where(ChatSession.user_id == user_id))
     sessions = list(result.scalars().all())
     for s in sessions:
         await db.delete(s)
@@ -109,6 +106,7 @@ async def update_session_title(
 # Message helpers
 # ---------------------------------------------------------------------------
 
+
 async def add_message(
     db: AsyncSession,
     *,
@@ -129,7 +127,7 @@ async def get_recent_messages(
     *,
     session_id: uuid.UUID,
     limit: int = 20,
-) -> List[ChatMessage]:
+) -> list[ChatMessage]:
     """
     Return the last *limit* messages for a session, oldest-first.
 

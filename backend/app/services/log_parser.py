@@ -32,17 +32,17 @@ log = structlog.get_logger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-MAX_FILE_BYTES: int = 10 * 1024 * 1024    # 10 MB
-MAX_ENTRIES: int = 500                     # rows stored in DB / sent to Gemini
+MAX_FILE_BYTES: int = 10 * 1024 * 1024  # 10 MB
+MAX_ENTRIES: int = 500  # rows stored in DB / sent to Gemini
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset({".log", ".txt", ".json"})
 
 # Common log level keywords (upper-cased comparison)
 _LEVEL_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("CRITICAL", re.compile(r"\b(critical|crit|fatal)\b", re.I)),
-    ("ERROR",    re.compile(r"\b(error|err|exception|traceback)\b", re.I)),
-    ("WARNING",  re.compile(r"\b(warn(?:ing)?)\b", re.I)),
-    ("INFO",     re.compile(r"\b(info(?:rmation)?)\b", re.I)),
-    ("DEBUG",    re.compile(r"\b(debug|trace|verbose)\b", re.I)),
+    ("ERROR", re.compile(r"\b(error|err|exception|traceback)\b", re.I)),
+    ("WARNING", re.compile(r"\b(warn(?:ing)?)\b", re.I)),
+    ("INFO", re.compile(r"\b(info(?:rmation)?)\b", re.I)),
+    ("DEBUG", re.compile(r"\b(debug|trace|verbose)\b", re.I)),
 ]
 
 # Timestamp patterns (ISO-8601, common log formats)
@@ -76,6 +76,7 @@ _STRUCTURED_RE = re.compile(
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
+
 
 class LogValidationError(ValueError):
     """Raised when the uploaded file fails validation."""
@@ -114,6 +115,7 @@ def validate_file(filename: str, content: bytes) -> str:
 # Parsers
 # ---------------------------------------------------------------------------
 
+
 def _detect_level_from_text(text: str) -> str:
     """Heuristically detect log level from arbitrary text."""
     for level, pattern in _LEVEL_PATTERNS:
@@ -126,7 +128,7 @@ def _parse_text_line(line: str, line_number: int) -> dict[str, Any]:
     """Parse a single plain-text / .log line."""
     stripped = line.rstrip("\r\n")
     if not stripped.strip():
-        return {}   # blank line — skip
+        return {}  # blank line — skip
 
     ts_match = _TS_RE.search(stripped)
     timestamp = ts_match.group(0) if ts_match else None
@@ -170,35 +172,18 @@ def _parse_json_entry(obj: Any, line_number: int) -> dict[str, Any]:
         }
 
     # Try common field names
-    level_raw = (
-        obj.get("level") or obj.get("severity") or obj.get("log_level") or ""
-    )
+    level_raw = obj.get("level") or obj.get("severity") or obj.get("log_level") or ""
     level = str(level_raw).upper()
     if level in ("WARN",):
         level = "WARNING"
     if level not in ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "TRACE"):
         level = _detect_level_from_text(json.dumps(obj))
 
-    timestamp = (
-        obj.get("timestamp")
-        or obj.get("time")
-        or obj.get("@timestamp")
-        or obj.get("ts")
-    )
+    timestamp = obj.get("timestamp") or obj.get("time") or obj.get("@timestamp") or obj.get("ts")
 
-    service = (
-        obj.get("service")
-        or obj.get("logger")
-        or obj.get("source")
-        or obj.get("component")
-    )
+    service = obj.get("service") or obj.get("logger") or obj.get("source") or obj.get("component")
 
-    message = (
-        obj.get("message")
-        or obj.get("msg")
-        or obj.get("text")
-        or json.dumps(obj)
-    )
+    message = obj.get("message") or obj.get("msg") or obj.get("text") or json.dumps(obj)
 
     return {
         "line_number": line_number,
@@ -213,6 +198,7 @@ def _parse_json_entry(obj: Any, line_number: int) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def parse_log_file(
     content: bytes,
@@ -273,8 +259,13 @@ def _parse_text(text: str) -> tuple[list[dict], dict[str, int]]:
 
 def _parse_json(text: str) -> tuple[list[dict], dict[str, int]]:
     entries: list[dict] = []
-    stats = {"total_lines": 0, "error_count": 0, "warning_count": 0,
-             "critical_count": 0, "info_count": 0}
+    stats = {
+        "total_lines": 0,
+        "error_count": 0,
+        "warning_count": 0,
+        "critical_count": 0,
+        "info_count": 0,
+    }
 
     # Try JSON array first
     stripped = text.strip()
@@ -292,7 +283,7 @@ def _parse_json(text: str) -> tuple[list[dict], dict[str, int]]:
             pass  # fall through to NDJSON
 
     # NDJSON / one object per line
-    lines = [l for l in text.splitlines() if l.strip()]
+    lines = [line for line in text.splitlines() if line.strip()]
     stats["total_lines"] = len(lines)
     for i, line in enumerate(lines, start=1):
         try:
@@ -320,6 +311,7 @@ def _update_stats(stats: dict[str, int], level: str) -> None:
 # ---------------------------------------------------------------------------
 # Prompt formatting helper (used by analysis service)
 # ---------------------------------------------------------------------------
+
 
 def format_entries_for_prompt(
     entries: list[dict[str, Any]],

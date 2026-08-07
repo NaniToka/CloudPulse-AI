@@ -4,7 +4,8 @@ Pydantic schemas for Kubernetes & Container Intelligence.
 
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -53,15 +54,15 @@ class K8sPodResponse(BaseModel):
 
     id: uuid.UUID
     cluster_id: uuid.UUID
-    node_id: Optional[uuid.UUID] = None
+    node_id: uuid.UUID | None = None
     name: str
     namespace: str
-    deployment_name: Optional[str] = None
+    deployment_name: str | None = None
     status: str
     restart_count: int
     cpu_usage_m: float
     memory_usage_mb: float
-    container_images: Dict[str, Any] = Field(default_factory=dict)
+    container_images: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
@@ -102,4 +103,4 @@ class K8sAnalysisResponse(BaseModel):
     total_pods_monitored: int
     failed_pods_count: int
     warning_events_count: int
-    root_cause_analysis: List[Dict[str, Any]]
+    root_cause_analysis: list[dict[str, Any]]

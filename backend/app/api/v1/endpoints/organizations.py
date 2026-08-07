@@ -3,24 +3,29 @@ Organizations REST API Endpoints.
 """
 
 import uuid
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, get_current_user
+from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.schemas.tenant import (
-    OrganizationCreate,
-    OrganizationUpdate,
-    OrganizationResponse,
     AuditLogResponse,
+    OrganizationCreate,
+    OrganizationResponse,
+    OrganizationUpdate,
 )
-from app.services.tenant_service import tenant_service, TenantService
+from app.services.tenant_service import TenantService, tenant_service
 
 router = APIRouter()
 
 
-@router.post("", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED, summary="Create Organization")
+@router.post(
+    "",
+    response_model=OrganizationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Organization",
+)
 async def create_organization(
     payload: OrganizationCreate,
     db: AsyncSession = Depends(get_db),
@@ -32,7 +37,7 @@ async def create_organization(
     return OrganizationResponse.model_validate(org)
 
 
-@router.get("", response_model=List[OrganizationResponse], summary="List User Organizations")
+@router.get("", response_model=list[OrganizationResponse], summary="List User Organizations")
 async def list_user_organizations(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -94,7 +99,11 @@ async def delete_organization(
     return None
 
 
-@router.get("/{org_id}/audit-logs", response_model=List[AuditLogResponse], summary="Get Organization Audit Trail")
+@router.get(
+    "/{org_id}/audit-logs",
+    response_model=list[AuditLogResponse],
+    summary="Get Organization Audit Trail",
+)
 async def get_audit_logs(
     org_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -103,4 +112,4 @@ async def get_audit_logs(
 ):
     """Retrieve security audit logs for an organization."""
     logs = await service.get_audit_logs(db, org_id)
-    return [AuditLogResponse.model_validate(l) for l in logs]
+    return [AuditLogResponse.model_validate(log_item) for log_item in logs]

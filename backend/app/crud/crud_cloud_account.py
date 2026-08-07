@@ -3,8 +3,9 @@ Repository for Multi-Cloud Accounts (AWS, Azure, GCP).
 """
 
 import uuid
-from typing import List, Optional, Any
-from sqlalchemy import select, or_
+from typing import Any
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -18,9 +19,9 @@ class CRUDCloudAccount(CRUDBase[CloudAccount, Any, Any]):
         self,
         db: AsyncSession,
         user_id: uuid.UUID,
-        provider: Optional[str] = None,
-        status: Optional[str] = None,
-    ) -> List[CloudAccount]:
+        provider: str | None = None,
+        status: str | None = None,
+    ) -> list[CloudAccount]:
         stmt = select(CloudAccount).where(CloudAccount.user_id == user_id)
         if provider and provider != "all":
             stmt = stmt.where(CloudAccount.provider == provider)

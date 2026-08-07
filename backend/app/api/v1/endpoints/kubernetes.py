@@ -3,28 +3,32 @@ Kubernetes & Container Intelligence REST API Endpoints.
 """
 
 import uuid
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_active_user
 from app.models.user import User
 from app.schemas.kubernetes_schemas import (
+    K8sAnalysisResponse,
     K8sClusterResponse,
-    K8sNodeResponse,
-    K8sPodResponse,
     K8sDeploymentResponse,
     K8sEventResponse,
-    K8sAnalysisResponse,
+    K8sNodeResponse,
+    K8sPodResponse,
 )
-from app.services.kubernetes_service import kubernetes_service, KubernetesService
+from app.services.kubernetes_service import KubernetesService, kubernetes_service
 
 router = APIRouter()
 
 
-@router.get("/clusters", response_model=List[K8sClusterResponse], summary="List Kubernetes Clusters")
+@router.get(
+    "/clusters", response_model=list[K8sClusterResponse], summary="List Kubernetes Clusters"
+)
 async def list_clusters(
-    provider: Optional[str] = Query(None, description="Filter by provider (GKE, EKS, AKS, Self-Hosted)"),
+    provider: str | None = Query(
+        None, description="Filter by provider (GKE, EKS, AKS, Self-Hosted)"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: KubernetesService = Depends(lambda: kubernetes_service),
@@ -34,9 +38,9 @@ async def list_clusters(
     return [K8sClusterResponse.model_validate(c) for c in clusters]
 
 
-@router.get("/nodes", response_model=List[K8sNodeResponse], summary="List Cluster Nodes")
+@router.get("/nodes", response_model=list[K8sNodeResponse], summary="List Cluster Nodes")
 async def list_nodes(
-    cluster_id: Optional[uuid.UUID] = Query(None, description="Filter by cluster ID"),
+    cluster_id: uuid.UUID | None = Query(None, description="Filter by cluster ID"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: KubernetesService = Depends(lambda: kubernetes_service),
@@ -46,25 +50,31 @@ async def list_nodes(
     return [K8sNodeResponse.model_validate(n) for n in nodes]
 
 
-@router.get("/pods", response_model=List[K8sPodResponse], summary="List Pod Telemetry")
+@router.get("/pods", response_model=list[K8sPodResponse], summary="List Pod Telemetry")
 async def list_pods(
-    cluster_id: Optional[uuid.UUID] = Query(None, description="Filter by cluster ID"),
-    namespace: Optional[str] = Query(None, description="Filter by namespace"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (Running, CrashLoopBackOff, OOMKilled, Pending)"),
-    search: Optional[str] = Query(None, description="Search pod name or deployment"),
+    cluster_id: uuid.UUID | None = Query(None, description="Filter by cluster ID"),
+    namespace: str | None = Query(None, description="Filter by namespace"),
+    status_filter: str | None = Query(
+        None,
+        alias="status",
+        description="Filter by status (Running, CrashLoopBackOff, OOMKilled, Pending)",
+    ),
+    search: str | None = Query(None, description="Search pod name or deployment"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: KubernetesService = Depends(lambda: kubernetes_service),
 ):
     """Retrieve Kubernetes Pods with status, restart counts, and resource usage."""
-    pods = await service.get_pods(db, cluster_id=cluster_id, namespace=namespace, status=status_filter, search=search)
+    pods = await service.get_pods(
+        db, cluster_id=cluster_id, namespace=namespace, status=status_filter, search=search
+    )
     return [K8sPodResponse.model_validate(p) for p in pods]
 
 
-@router.get("/deployments", response_model=List[K8sDeploymentResponse], summary="List Deployments")
+@router.get("/deployments", response_model=list[K8sDeploymentResponse], summary="List Deployments")
 async def list_deployments(
-    cluster_id: Optional[uuid.UUID] = Query(None, description="Filter by cluster ID"),
-    namespace: Optional[str] = Query(None, description="Filter by namespace"),
+    cluster_id: uuid.UUID | None = Query(None, description="Filter by cluster ID"),
+    namespace: str | None = Query(None, description="Filter by namespace"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: KubernetesService = Depends(lambda: kubernetes_service),
@@ -74,9 +84,9 @@ async def list_deployments(
     return [K8sDeploymentResponse.model_validate(d) for d in deployments]
 
 
-@router.get("/events", response_model=List[K8sEventResponse], summary="List Cluster Events")
+@router.get("/events", response_model=list[K8sEventResponse], summary="List Cluster Events")
 async def list_events(
-    event_type: Optional[str] = Query(None, description="Filter event type (Normal, Warning)"),
+    event_type: str | None = Query(None, description="Filter event type (Normal, Warning)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: KubernetesService = Depends(lambda: kubernetes_service),
@@ -99,9 +109,11 @@ async def get_pod_logs(
     return {"pod_name": pod_name, "logs": logs}
 
 
-@router.post("/analyze", response_model=K8sAnalysisResponse, summary="Trigger Gemini AI Cluster Analysis")
+@router.post(
+    "/analyze", response_model=K8sAnalysisResponse, summary="Trigger Gemini AI Cluster Analysis"
+)
 async def analyze_cluster(
-    cluster_id: Optional[uuid.UUID] = Query(None, description="Optional cluster ID"),
+    cluster_id: uuid.UUID | None = Query(None, description="Optional cluster ID"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: KubernetesService = Depends(lambda: kubernetes_service),

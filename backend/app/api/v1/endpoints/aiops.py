@@ -2,21 +2,19 @@
 Autonomous AIOps Agent REST API Endpoints.
 """
 
-import uuid
-from typing import Optional, List
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.schemas.aiops import (
-    AIOpsAgentStatusResponse,
-    AgentRecommendationResponse,
     AgentAnalyzePayload,
     AgentApprovePayload,
+    AgentRecommendationResponse,
+    AIOpsAgentStatusResponse,
     AIOpsListResponse,
 )
-from app.services.aiops_service import aiops_service, AIOpsService
+from app.services.aiops_service import AIOpsService, aiops_service
 
 log = structlog.get_logger(__name__)
 
@@ -36,7 +34,11 @@ async def _seed_initial_aiops_recommendations(db: AsyncSession, service: AIOpsSe
         await service.trigger_agent_loop(db, AgentAnalyzePayload(target_system="Security"))
 
 
-@router.get("/status", response_model=AIOpsAgentStatusResponse, summary="Get live Autonomous AIOps Agent status")
+@router.get(
+    "/status",
+    response_model=AIOpsAgentStatusResponse,
+    summary="Get live Autonomous AIOps Agent status",
+)
 async def get_agent_status(
     db: AsyncSession = Depends(get_db),
     service: AIOpsService = Depends(get_aiops_service),
@@ -55,10 +57,15 @@ async def get_agent_status(
 
 @router.get("/recommendations", response_model=AIOpsListResponse, summary="List AI recommendations")
 async def list_recommendations(
-    category: Optional[str] = Query(None, description="Filter by category (Root_Cause, Anomaly_Detection, Performance, Cost_Optimization)"),
-    priority: Optional[str] = Query(None, description="Filter by priority (P0, P1, P2, P3)"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (Pending_Approval, Approved, Executed)"),
-    search: Optional[str] = Query(None, description="Search in title or root cause"),
+    category: str | None = Query(
+        None,
+        description="Filter by category (Root_Cause, Anomaly_Detection, Performance, Cost_Optimization)",
+    ),
+    priority: str | None = Query(None, description="Filter by priority (P0, P1, P2, P3)"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status (Pending_Approval, Approved, Executed)"
+    ),
+    search: str | None = Query(None, description="Search in title or root cause"),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -84,7 +91,12 @@ async def list_recommendations(
     )
 
 
-@router.post("/analyze", response_model=AgentRecommendationResponse, status_code=status.HTTP_201_CREATED, summary="Trigger autonomous agent loop")
+@router.post(
+    "/analyze",
+    response_model=AgentRecommendationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Trigger autonomous agent loop",
+)
 async def trigger_autonomous_analysis(
     payload: AgentAnalyzePayload,
     db: AsyncSession = Depends(get_db),
@@ -95,7 +107,11 @@ async def trigger_autonomous_analysis(
     return AgentRecommendationResponse.model_validate(rec)
 
 
-@router.post("/approve", response_model=AgentRecommendationResponse, summary="Approve or Reject recommendation")
+@router.post(
+    "/approve",
+    response_model=AgentRecommendationResponse,
+    summary="Approve or Reject recommendation",
+)
 async def approve_recommendation(
     payload: AgentApprovePayload,
     db: AsyncSession = Depends(get_db),
@@ -104,7 +120,9 @@ async def approve_recommendation(
     """Approve or Reject an AIOps recommendation for automated execution."""
     updated = await service.approve_or_reject_recommendation(db, payload)
     if not updated:
-        raise HTTPException(status_code=404, detail=f"Recommendation '{payload.recommendation_id}' not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Recommendation '{payload.recommendation_id}' not found."
+        )
     return AgentRecommendationResponse.model_validate(updated)
 
 

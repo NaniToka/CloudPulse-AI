@@ -19,7 +19,6 @@ SQLite compatibility notes
 - ``sa.true() / sa.false()`` server defaults are handled correctly.
 """
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
@@ -39,6 +38,7 @@ _TEST_DB_URL = "sqlite+aiosqlite:///:memory:?check_same_thread=false"
 # Engine — one per test session
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
     engine = create_async_engine(_TEST_DB_URL, echo=False)
@@ -53,6 +53,7 @@ async def test_engine():
 # ---------------------------------------------------------------------------
 # Session — fresh per test, rolled back after
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture
 async def db_session(test_engine):
@@ -69,6 +70,7 @@ async def db_session(test_engine):
 # ---------------------------------------------------------------------------
 # HTTPX async client — shares the test session
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession):

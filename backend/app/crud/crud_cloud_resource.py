@@ -2,9 +2,9 @@
 Repository for Auto-Discovered Multi-Cloud Infrastructure Resources.
 """
 
-import uuid
-from typing import List, Optional, Any
-from sqlalchemy import select, or_, func
+from typing import Any
+
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -19,12 +19,12 @@ class CRUDCloudResource(CRUDBase[CloudResource, Any, Any]):
         db: AsyncSession,
         skip: int = 0,
         limit: int = 100,
-        provider: Optional[str] = None,
-        resource_type: Optional[str] = None,
-        region: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[CloudResource]:
+        provider: str | None = None,
+        resource_type: str | None = None,
+        region: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[CloudResource]:
         stmt = select(CloudResource)
         if provider and provider != "all":
             stmt = stmt.where(CloudResource.provider == provider)

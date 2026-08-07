@@ -3,10 +3,10 @@ User Notification Service with auto-seeding.
 """
 
 import uuid
-from typing import List, Optional
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime
+
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_notification import crud_notification
 from app.models.notification import Notification
@@ -57,8 +57,8 @@ class NotificationService:
         db: AsyncSession,
         user_id: uuid.UUID,
         unread_only: bool = False,
-        category: Optional[str] = None,
-    ) -> List[Notification]:
+        category: str | None = None,
+    ) -> list[Notification]:
         notifs = await self.crud.get_multi_by_user(
             db, user_id=user_id, unread_only=unread_only, category=category
         )
@@ -66,9 +66,11 @@ class NotificationService:
             notifs = await self.seed_default_notifications(db, user_id)
         return notifs
 
-    async def seed_default_notifications(self, db: AsyncSession, user_id: uuid.UUID) -> List[Notification]:
+    async def seed_default_notifications(
+        self, db: AsyncSession, user_id: uuid.UUID
+    ) -> list[Notification]:
         created = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for data in DEFAULT_NOTIFICATIONS:
             n = Notification(
                 id=uuid.uuid4(),
@@ -89,8 +91,10 @@ class NotificationService:
             await db.refresh(item)
         return created
 
-    async def create_notification(self, db: AsyncSession, user_id: uuid.UUID, payload: NotificationCreate) -> Notification:
-        now = datetime.now(timezone.utc)
+    async def create_notification(
+        self, db: AsyncSession, user_id: uuid.UUID, payload: NotificationCreate
+    ) -> Notification:
+        now = datetime.now(UTC)
         n = Notification(
             id=uuid.uuid4(),
             user_id=user_id,
@@ -108,12 +112,12 @@ class NotificationService:
         await db.refresh(n)
         return n
 
-    async def mark_read(self, db: AsyncSession, notif_id: uuid.UUID) -> Optional[Notification]:
+    async def mark_read(self, db: AsyncSession, notif_id: uuid.UUID) -> Notification | None:
         n = await self.crud.get(db, id=notif_id)
         if not n:
             return None
         n.is_read = True
-        n.updated_at = datetime.now(timezone.utc)
+        n.updated_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(n)
         return n

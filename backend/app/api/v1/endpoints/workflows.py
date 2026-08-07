@@ -3,36 +3,34 @@ Workflow Automation REST API Endpoints.
 """
 
 import uuid
-from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_active_user
+from app.crud.crud_workflow import crud_workflow, crud_workflow_execution
 from app.models.user import User
 from app.models.workflow import Workflow
 from app.schemas.workflow_schemas import (
-    WorkflowResponse,
-    WorkflowCreate,
-    WorkflowUpdate,
-    WorkflowExecutionResponse,
-    WorkflowStepLogResponse,
-    WorkflowApprovalResponse,
-    WorkflowApprovalDecision,
-    WorkflowTemplateResponse,
     WorkflowAIGenerateRequest,
+    WorkflowApprovalDecision,
+    WorkflowCreate,
+    WorkflowExecutionResponse,
+    WorkflowResponse,
+    WorkflowTemplateResponse,
+    WorkflowUpdate,
 )
-from app.crud.crud_workflow import crud_workflow, crud_workflow_execution, crud_workflow_step_log
-from app.services.workflow_engine_service import workflow_engine_service, WorkflowEngineService
+from app.services.workflow_engine_service import WorkflowEngineService, workflow_engine_service
 
 router = APIRouter()
 
 
-@router.get("", response_model=List[WorkflowResponse], summary="List Workflows")
+@router.get("", response_model=list[WorkflowResponse], summary="List Workflows")
 async def list_workflows(
-    status: Optional[str] = Query(None, description="Filter by status (active, paused, draft)"),
-    trigger_type: Optional[str] = Query(None, description="Filter by trigger type"),
-    search: Optional[str] = Query(None, description="Search workflow name"),
+    status: str | None = Query(None, description="Filter by status (active, paused, draft)"),
+    trigger_type: str | None = Query(None, description="Filter by trigger type"),
+    search: str | None = Query(None, description="Search workflow name"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: WorkflowEngineService = Depends(lambda: workflow_engine_service),
@@ -44,9 +42,13 @@ async def list_workflows(
     return [WorkflowResponse.model_validate(w) for w in workflows]
 
 
-@router.get("/templates", response_model=List[WorkflowTemplateResponse], summary="List Workflow Templates")
+@router.get(
+    "/templates", response_model=list[WorkflowTemplateResponse], summary="List Workflow Templates"
+)
 async def list_templates(
-    category: Optional[str] = Query(None, description="Filter by category (Kubernetes, Security, Incident, Cost)"),
+    category: str | None = Query(
+        None, description="Filter by category (Kubernetes, Security, Incident, Cost)"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: WorkflowEngineService = Depends(lambda: workflow_engine_service),
@@ -56,10 +58,12 @@ async def list_templates(
     return [WorkflowTemplateResponse.model_validate(t) for t in templates]
 
 
-@router.get("/history", response_model=List[WorkflowExecutionResponse], summary="List Execution History")
+@router.get(
+    "/history", response_model=list[WorkflowExecutionResponse], summary="List Execution History"
+)
 async def list_history(
-    workflow_id: Optional[uuid.UUID] = Query(None, description="Filter by workflow ID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    workflow_id: uuid.UUID | None = Query(None, description="Filter by workflow ID"),
+    status: str | None = Query(None, description="Filter by status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
 ):
@@ -70,14 +74,19 @@ async def list_history(
     return [WorkflowExecutionResponse.model_validate(e) for e in executions]
 
 
-@router.post("", response_model=WorkflowResponse, status_code=status.HTTP_201_CREATED, summary="Create Workflow")
+@router.post(
+    "",
+    response_model=WorkflowResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Workflow",
+)
 async def create_workflow(
     payload: WorkflowCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
 ):
     """Create a new automation workflow definition."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     wf = Workflow(
         id=uuid.uuid4(),
         user_id=current_user.id,
@@ -125,7 +134,7 @@ async def update_workflow(
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     update_dict = payload.model_dump(exclude_unset=True)
-    update_dict["updated_at"] = datetime.now(timezone.utc)
+    update_dict["updated_at"] = datetime.now(UTC)
     update_dict["version"] = wf.version + 1
     updated = await crud_workflow.update(db, db_obj=wf, obj_in=update_dict)
     return WorkflowResponse.model_validate(updated)
@@ -144,7 +153,11 @@ async def delete_workflow(
     await crud_workflow.remove(db, id=workflow_id)
 
 
-@router.post("/{workflow_id}/execute", response_model=WorkflowExecutionResponse, summary="Trigger Workflow Execution")
+@router.post(
+    "/{workflow_id}/execute",
+    response_model=WorkflowExecutionResponse,
+    summary="Trigger Workflow Execution",
+)
 async def execute_workflow(
     workflow_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -160,7 +173,11 @@ async def execute_workflow(
     return WorkflowExecutionResponse.model_validate(execution)
 
 
-@router.post("/{workflow_id}/approve", response_model=WorkflowExecutionResponse, summary="Decide Approval Gate")
+@router.post(
+    "/{workflow_id}/approve",
+    response_model=WorkflowExecutionResponse,
+    summary="Decide Approval Gate",
+)
 async def approve_workflow(
     workflow_id: uuid.UUID,
     payload: WorkflowApprovalDecision,
@@ -170,13 +187,19 @@ async def approve_workflow(
 ):
     """Approve or reject a paused workflow execution gate."""
     # Find execution with this approval
-    executions = await crud_workflow_execution.get_multi_by_user(db, user_id=current_user.id, workflow_id=workflow_id)
+    executions = await crud_workflow_execution.get_multi_by_user(
+        db, user_id=current_user.id, workflow_id=workflow_id
+    )
     if not executions:
         raise HTTPException(status_code=404, detail="Execution not found")
 
     exec_target = executions[0]
     result = await service.decide_approval(
-        db, execution_id=exec_target.id, approval_id=payload.approval_id, decision=payload.decision, reason=payload.reason
+        db,
+        execution_id=exec_target.id,
+        approval_id=payload.approval_id,
+        decision=payload.decision,
+        reason=payload.reason,
     )
     return WorkflowExecutionResponse.model_validate(result)
 

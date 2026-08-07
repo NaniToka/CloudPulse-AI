@@ -3,6 +3,7 @@ API tests for Real-Time Observability Platform (/api/v1/metrics).
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 

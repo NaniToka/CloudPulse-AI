@@ -3,22 +3,24 @@ User Notifications REST API Endpoints.
 """
 
 import uuid
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_active_user
 from app.models.user import User
 from app.schemas.notification import NotificationCreate, NotificationResponse
-from app.services.notification_service import notification_service, NotificationService
+from app.services.notification_service import NotificationService, notification_service
 
 router = APIRouter()
 
 
-@router.get("", response_model=List[NotificationResponse], summary="List Notifications")
+@router.get("", response_model=list[NotificationResponse], summary="List Notifications")
 async def list_notifications(
     unread_only: bool = Query(False, description="Filter unread notifications only"),
-    category: Optional[str] = Query(None, description="Filter category (incident, alert, cost, ai, system)"),
+    category: str | None = Query(
+        None, description="Filter category (incident, alert, cost, ai, system)"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: NotificationService = Depends(lambda: notification_service),
@@ -30,7 +32,12 @@ async def list_notifications(
     return [NotificationResponse.model_validate(n) for n in notifs]
 
 
-@router.post("", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED, summary="Create Notification")
+@router.post(
+    "",
+    response_model=NotificationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Notification",
+)
 async def create_notification(
     payload: NotificationCreate,
     db: AsyncSession = Depends(get_db),
@@ -42,7 +49,9 @@ async def create_notification(
     return NotificationResponse.model_validate(notif)
 
 
-@router.patch("/{notif_id}/read", response_model=NotificationResponse, summary="Mark Notification Read")
+@router.patch(
+    "/{notif_id}/read", response_model=NotificationResponse, summary="Mark Notification Read"
+)
 async def mark_notification_read(
     notif_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

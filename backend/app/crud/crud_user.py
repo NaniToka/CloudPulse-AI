@@ -5,7 +5,6 @@ The ``create`` method hashes passwords before persisting.  The ``authenticate``
 method performs constant-time password verification to resist timing attacks.
 """
 
-from typing import Optional
 from uuid import UUID
 
 import structlog
@@ -21,15 +20,10 @@ log = structlog.get_logger(__name__)
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-
-    async def get_by_email(
-        self, db: AsyncSession, *, email: str
-    ) -> Optional[User]:
+    async def get_by_email(self, db: AsyncSession, *, email: str) -> User | None:
         """Fetch a user by email (case-insensitive, trimmed)."""
         canonical = email.lower().strip()
-        result = await db.execute(
-            select(User).where(User.email == canonical)
-        )
+        result = await db.execute(select(User).where(User.email == canonical))
         return result.scalar_one_or_none()
 
     async def create(  # type: ignore[override]
@@ -53,9 +47,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         log.info("user_created", user_id=str(user.id), email=user.email)
         return user
 
-    async def authenticate(
-        self, db: AsyncSession, *, email: str, password: str
-    ) -> Optional[User]:
+    async def authenticate(self, db: AsyncSession, *, email: str, password: str) -> User | None:
         """
         Verify *email* + *password* combo.
 

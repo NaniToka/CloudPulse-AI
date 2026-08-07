@@ -3,6 +3,7 @@ API tests for Distributed Tracing Platform (/api/v1/traces and /api/v1/services)
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 

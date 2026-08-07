@@ -373,6 +373,15 @@ npm run dev
 | `GEMINI_MODEL` | Gemini LLM model name | `gemini-1.5-flash` |
 | `ENVIRONMENT` | Environment mode | `production` |
 
+## 🛡️ CI/CD Quality Engineering
+
+CloudPulse AI maintains a strict zero-compromise CI/CD quality gate policy across both backend and frontend repositories:
+
+- **Automated Python Quality Gates**: Verified with [Ruff](https://astral.sh/ruff) enforcing PEP 604 union types (`X | None`), modern Python 3.11+ builtins (`list`, `dict`, `tuple`), sorted imports, and strict datetime standards (`datetime.UTC`).
+- **Full Async Test Suite**: 95+ asynchronous integration and unit tests running against live PostgreSQL, Redis, and ChromaDB via pytest & AnyIO.
+- **Frontend Type Safety**: Strict TypeScript compiler checks (`tsc --noEmit`) and optimized production bundling via Vite.
+- **Container Health Verification**: Docker Compose services run continuous healthcheck probes ensuring all infrastructure dependencies are fully operational before API exposure.
+
 ---
 
 ## 🔒 Security, Performance & Benchmarks

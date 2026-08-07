@@ -3,6 +3,7 @@ Unit tests for log analysis service (Gemini response extraction & prompt logic).
 """
 
 import pytest
+
 from app.services.log_analysis_service import (
     _clamp,
     _extract_json,

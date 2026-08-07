@@ -3,6 +3,7 @@ API Unit tests for Digital Twin Infrastructure Platform endpoints.
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -49,7 +50,9 @@ async def test_digital_twin_full_lifecycle_api(client: AsyncClient):
     sample_scenario = scenarios[0]
 
     # 4. Run Simulation & calculate blast radius
-    res_run = await client.post(f"/api/v1/twin/simulations/{sample_scenario['id']}/run", headers=headers)
+    res_run = await client.post(
+        f"/api/v1/twin/simulations/{sample_scenario['id']}/run", headers=headers
+    )
     assert res_run.status_code == 200, res_run.text
     execution = res_run.json()
     assert execution["status"] == "completed"
@@ -62,7 +65,9 @@ async def test_digital_twin_full_lifecycle_api(client: AsyncClient):
     assert len(res_hist.json()) > 0
 
     # 6. Get Blast Radius detail
-    res_blast = await client.get(f"/api/v1/twin/blast-radius/{sample_scenario['id']}", headers=headers)
+    res_blast = await client.get(
+        f"/api/v1/twin/blast-radius/{sample_scenario['id']}", headers=headers
+    )
     assert res_blast.status_code == 200, res_blast.text
     blast_data = res_blast.json()
     assert "financial_impact_usd" in blast_data

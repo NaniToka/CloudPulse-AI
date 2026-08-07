@@ -3,6 +3,7 @@ API tests for Multi-Tenant SaaS Architecture (Organizations, Teams, Projects, Me
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -58,7 +59,11 @@ async def test_teams_and_projects(client: AsyncClient):
     org_id = list_resp.json()[0]["id"]
 
     # Create Team
-    team_payload = {"organization_id": org_id, "name": "Security Ops Team", "description": "CSPM response team"}
+    team_payload = {
+        "organization_id": org_id,
+        "name": "Security Ops Team",
+        "description": "CSPM response team",
+    }
     t_resp = await client.post("/api/v1/teams", json=team_payload, headers=headers)
     assert t_resp.status_code == 201, t_resp.text
     team = t_resp.json()

@@ -3,25 +3,22 @@ Metrics Streaming Service — Generates real-time telemetry updates every 2 seco
 and manages WebSocket stream broadcasting.
 """
 
-import asyncio
 import random
 import uuid
-from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_metric import crud_metric
-from app.models.metric import MetricPoint
-from app.schemas.metric import MetricPointResponse, K8sPodStatus
 
 log = structlog.get_logger(__name__)
 
 
-def generate_live_telemetry_point() -> Dict[str, Any]:
+def generate_live_telemetry_point() -> dict[str, Any]:
     """Generates realistic live infrastructure metrics with organic noise and subtle trend spikes."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Base values with organic fluctuations
     cpu = round(max(15.0, min(99.0, 48.0 + random.uniform(-12.0, 18.0))), 1)
@@ -30,8 +27,12 @@ def generate_live_telemetry_point() -> Dict[str, Any]:
     network = round(max(100.0, 1280.0 + random.uniform(-150.0, 280.0)), 1)
     active_users = int(max(1000, 8420 + random.randint(-250, 480)))
     rps = int(max(100, 1450 + random.randint(-180, 320)))
-    error_rate = round(max(0.01, min(15.0, 0.22 + (0.8 if cpu > 85.0 else 0.0) + random.uniform(-0.08, 0.15))), 2)
-    response_time = round(max(20.0, 118.0 + (180.0 if cpu > 85.0 else 0.0) + random.uniform(-15.0, 35.0)), 1)
+    error_rate = round(
+        max(0.01, min(15.0, 0.22 + (0.8 if cpu > 85.0 else 0.0) + random.uniform(-0.08, 0.15))), 2
+    )
+    response_time = round(
+        max(20.0, 118.0 + (180.0 if cpu > 85.0 else 0.0) + random.uniform(-15.0, 35.0)), 1
+    )
     db_active = int(max(10, min(200, 86 + random.randint(-12, 18))))
 
     pods = [
@@ -115,7 +116,7 @@ class MetricsService:
     def __init__(self, crud_repo=crud_metric) -> None:
         self.crud = crud_repo
 
-    async def get_current(self, db: AsyncSession) -> Dict[str, Any]:
+    async def get_current(self, db: AsyncSession) -> dict[str, Any]:
         """Fetch current telemetry metric point."""
         db_point = await self.crud.get_current(db)
         if db_point:
@@ -136,33 +137,34 @@ class MetricsService:
             }
         return generate_live_telemetry_point()
 
-    async def get_history(self, db: AsyncSession, limit: int = 300) -> List[Dict[str, Any]]:
+    async def get_history(self, db: AsyncSession, limit: int = 300) -> list[dict[str, Any]]:
         """Fetch sliding window history (up to limit points)."""
         db_points = await self.crud.get_history(db, limit=limit)
         if db_points and len(db_points) > 0:
             res = []
             for p in db_points:
-                res.append({
-                    "id": str(p.id),
-                    "cpu_usage": p.cpu_usage,
-                    "memory_usage": p.memory_usage,
-                    "disk_usage": p.disk_usage,
-                    "network_traffic_mbps": p.network_traffic_mbps,
-                    "active_users": p.active_users,
-                    "requests_per_second": p.requests_per_second,
-                    "error_rate": p.error_rate,
-                    "response_time_ms": p.response_time_ms,
-                    "db_connections_active": p.db_connections_active,
-                    "db_connections_max": p.db_connections_max,
-                    "k8s_pods": p.k8s_pods_json or [],
-                    "timestamp": p.timestamp.isoformat(),
-                })
+                res.append(
+                    {
+                        "id": str(p.id),
+                        "cpu_usage": p.cpu_usage,
+                        "memory_usage": p.memory_usage,
+                        "disk_usage": p.disk_usage,
+                        "network_traffic_mbps": p.network_traffic_mbps,
+                        "active_users": p.active_users,
+                        "requests_per_second": p.requests_per_second,
+                        "error_rate": p.error_rate,
+                        "response_time_ms": p.response_time_ms,
+                        "db_connections_active": p.db_connections_active,
+                        "db_connections_max": p.db_connections_max,
+                        "k8s_pods": p.k8s_pods_json or [],
+                        "timestamp": p.timestamp.isoformat(),
+                    }
+                )
             return res
 
         # Generate seed sliding window if DB is empty
-        now = datetime.now(timezone.utc)
         items = []
-        for i in range(30, 0, -1):
+        for _ in range(30, 0, -1):
             pt = generate_live_telemetry_point()
             items.append(pt)
         return items

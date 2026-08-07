@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
-
 # ── Shared Sub-Schemas ────────────────────────────────────────────────────────
+
 
 class DailyCostItem(BaseModel):
     date: str
@@ -22,7 +22,7 @@ class ServiceCostItem(BaseModel):
     cost: float
     percentage: float
     resource_count: int
-    fill: Optional[str] = None
+    fill: str | None = None
 
 
 class RegionCostItem(BaseModel):
@@ -33,6 +33,7 @@ class RegionCostItem(BaseModel):
 
 
 # ── Cloud Cost Resource Item ──────────────────────────────────────────────────
+
 
 class CloudCostItem(BaseModel):
     id: uuid.UUID
@@ -46,45 +47,49 @@ class CloudCostItem(BaseModel):
     usage_unit: str
     environment: str
     status: str
-    tags: Dict[str, str] = Field(default_factory=dict)
+    tags: dict[str, str] = Field(default_factory=dict)
     timestamp: datetime
 
     model_config = {"from_attributes": True}
 
 
 class CloudCostListResponse(BaseModel):
-    items: List[CloudCostItem]
+    items: list[CloudCostItem]
     total: int
 
 
 # ── Optimization Recommendation Item ─────────────────────────────────────────
 
+
 class RecommendationItem(BaseModel):
     id: uuid.UUID
-    resource_id: Optional[uuid.UUID] = None
+    resource_id: uuid.UUID | None = None
     resource_name: str
     service: str
-    recommendation_type: str  # idle_resource | wasted_resource | rightsizing | reserved_instance | auto_scaling
+    recommendation_type: (
+        str  # idle_resource | wasted_resource | rightsizing | reserved_instance | auto_scaling
+    )
     title: str
     description: str
     current_cost: float
     estimated_savings: float
-    effort_level: str         # low | medium | high
-    risk_level: str           # low | medium | high
-    status: str               # active | dismissed | applied
-    ai_summary: Optional[str] = None
+    effort_level: str  # low | medium | high
+    risk_level: str  # low | medium | high
+    status: str  # active | dismissed | applied
+    ai_summary: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class RecommendationsResponse(BaseModel):
-    items: List[RecommendationItem]
+    items: list[RecommendationItem]
     total: int
     total_savings: float
 
 
 # ── Cost Overview Response ────────────────────────────────────────────────────
+
 
 class CostOverviewResponse(BaseModel):
     monthly_cost: float
@@ -95,29 +100,31 @@ class CostOverviewResponse(BaseModel):
     efficiency_score: int
     active_resources_count: int
     idle_resources_count: int
-    daily_trend: List[DailyCostItem]
-    service_breakdown: List[ServiceCostItem]
-    region_breakdown: List[RegionCostItem]
+    daily_trend: list[DailyCostItem]
+    service_breakdown: list[ServiceCostItem]
+    region_breakdown: list[RegionCostItem]
 
 
 # ── Service-wise Costs Response ───────────────────────────────────────────────
 
+
 class ServiceCostsResponse(BaseModel):
-    services: List[ServiceCostItem]
+    services: list[ServiceCostItem]
     total_cost: float
 
 
 # ── AI Cost Analysis Response ─────────────────────────────────────────────────
 
+
 class CostAnalyzeResponse(BaseModel):
     cost_summary: str
-    highest_cost_services: List[str]
-    idle_resources: List[str]
-    wasted_resources: List[str]
-    optimization_suggestions: List[str]
-    reserved_instance_recommendations: List[str]
-    auto_scaling_recommendations: List[str]
+    highest_cost_services: list[str]
+    idle_resources: list[str]
+    wasted_resources: list[str]
+    optimization_suggestions: list[str]
+    reserved_instance_recommendations: list[str]
+    auto_scaling_recommendations: list[str]
     estimated_monthly_savings: float
-    recommendations: List[RecommendationItem]
+    recommendations: list[RecommendationItem]
     efficiency_score: int
     analyzed_at: datetime

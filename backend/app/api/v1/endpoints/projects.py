@@ -3,19 +3,24 @@ Workspace Projects REST API Endpoints.
 """
 
 import uuid
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, get_current_user
+from app.core.dependencies import get_current_user, get_db
 from app.models.user import User
-from app.schemas.tenant import ProjectCreate, ProjectUpdate, ProjectResponse
-from app.services.tenant_service import tenant_service, TenantService
+from app.schemas.tenant import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.services.tenant_service import TenantService, tenant_service
 
 router = APIRouter()
 
 
-@router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED, summary="Create Workspace Project")
+@router.post(
+    "",
+    response_model=ProjectResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Workspace Project",
+)
 async def create_project(
     payload: ProjectCreate,
     db: AsyncSession = Depends(get_db),
@@ -27,7 +32,7 @@ async def create_project(
     return ProjectResponse.model_validate(project)
 
 
-@router.get("", response_model=List[ProjectResponse], summary="List Workspace Projects")
+@router.get("", response_model=list[ProjectResponse], summary="List Workspace Projects")
 async def list_projects(
     organization_id: uuid.UUID = Query(..., description="Organization ID"),
     db: AsyncSession = Depends(get_db),
@@ -76,7 +81,9 @@ async def update_project(
     return ProjectResponse.model_validate(project)
 
 
-@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete Workspace Project")
+@router.delete(
+    "/{project_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete Workspace Project"
+)
 async def delete_project(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

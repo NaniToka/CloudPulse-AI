@@ -6,7 +6,6 @@ appends an integer suffix when collisions occur.
 """
 
 import re
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -27,13 +26,8 @@ def _slugify(name: str) -> str:
 
 
 class CRUDOrganization(CRUDBase[Organization, OrganizationCreate, OrganizationResponse]):
-
-    async def get_by_slug(
-        self, db: AsyncSession, *, slug: str
-    ) -> Optional[Organization]:
-        result = await db.execute(
-            select(Organization).where(Organization.slug == slug)
-        )
+    async def get_by_slug(self, db: AsyncSession, *, slug: str) -> Organization | None:
+        result = await db.execute(select(Organization).where(Organization.slug == slug))
         return result.scalar_one_or_none()
 
     async def create_with_unique_slug(
@@ -41,8 +35,8 @@ class CRUDOrganization(CRUDBase[Organization, OrganizationCreate, OrganizationRe
         db: AsyncSession,
         *,
         name: str,
-        team_size: Optional[str] = None,
-        industry: Optional[str] = None,
+        team_size: str | None = None,
+        industry: str | None = None,
     ) -> Organization:
         """
         Create an organization ensuring its slug is unique.

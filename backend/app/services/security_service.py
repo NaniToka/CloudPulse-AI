@@ -3,17 +3,17 @@ Service Layer for AI Security & Cloud Compliance Center.
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import List, Optional, Tuple, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_security import crud_security
-from app.models.security import SecurityScan, ComplianceReport
+from app.models.security import ComplianceReport, SecurityScan
 from app.schemas.security import SecurityScanPayload, SecurityScanResponse
-from app.services.security_scanners import run_cloud_security_scanners
 from app.services.security_ai_service import analyze_security_finding
+from app.services.security_scanners import run_cloud_security_scanners
 
 log = structlog.get_logger(__name__)
 
@@ -28,15 +28,15 @@ class SecurityService:
         self,
         db: AsyncSession,
         *,
-        severity: Optional[str] = None,
-        category: Optional[str] = None,
-        provider: Optional[str] = None,
-        framework: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        severity: str | None = None,
+        category: str | None = None,
+        provider: str | None = None,
+        framework: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[SecurityScan], int, int]:
+    ) -> tuple[list[SecurityScan], int, int]:
         return await self.crud.get_filtered_findings(
             db,
             severity=severity,
@@ -49,23 +49,25 @@ class SecurityService:
             size=size,
         )
 
-    async def get_compliance_reports(self, db: AsyncSession) -> List[ComplianceReport]:
+    async def get_compliance_reports(self, db: AsyncSession) -> list[ComplianceReport]:
         """Retrieve or seed compliance framework scorecards."""
         reports = await self.crud.get_compliance_reports(db)
         if not reports:
             reports = await self._seed_compliance_reports(db)
         return reports
 
-    async def get_risk_score(self, db: AsyncSession) -> Dict[str, Any]:
+    async def get_risk_score(self, db: AsyncSession) -> dict[str, Any]:
         """Compute aggregate cloud security risk score metrics."""
         return await self.crud.get_risk_score_summary(db)
 
-    async def run_security_scan(self, db: AsyncSession, payload: SecurityScanPayload) -> SecurityScanResponse:
+    async def run_security_scan(
+        self, db: AsyncSession, payload: SecurityScanPayload
+    ) -> SecurityScanResponse:
         """Executes automated security scan across simulated cloud infrastructure."""
         provider = payload.provider or "AWS"
         raw_scans = run_cloud_security_scanners(provider)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         crit_cnt = 0
         high_cnt = 0
         med_cnt = 0
@@ -117,9 +119,9 @@ class SecurityService:
             message=f"Cloud security scan completed successfully across {provider} infrastructure.",
         )
 
-    async def _seed_compliance_reports(self, db: AsyncSession) -> List[ComplianceReport]:
+    async def _seed_compliance_reports(self, db: AsyncSession) -> list[ComplianceReport]:
         """Seed default compliance framework scorecards."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         frameworks = [
             {"framework": "CIS Benchmarks", "score": 92.5, "passed": 37, "failed": 3, "total": 40},
             {"framework": "ISO 27001", "score": 88.0, "passed": 44, "failed": 6, "total": 50},

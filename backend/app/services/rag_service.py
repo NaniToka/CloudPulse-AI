@@ -4,16 +4,15 @@ RAG Pipeline Service — Manages RAG telemetry indexing, retrieval, and Gemini A
 
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.core.config import settings
 from app.schemas.rag_chat import (
     RAGQueryRequest,
     RAGQueryResponse,
-    SourceCitation,
     RelatedItem,
+    SourceCitation,
 )
 from app.services.vector_store_service import vector_store_service
 
@@ -105,14 +104,22 @@ def seed_infrastructure_rag_data() -> None:
             "collection": "traces",
             "id": "doc-tr-301",
             "text": "Trace tr-94821a0b (POST /api/v1/checkout) total duration 654.5ms with status ERROR. Bottleneck: external Stripe API call taking 420ms (64% of request duration).",
-            "metadata": {"trace_id": "tr-94821a0b", "slowest_service": "external-payment-api", "duration_ms": 654.5},
+            "metadata": {
+                "trace_id": "tr-94821a0b",
+                "slowest_service": "external-payment-api",
+                "duration_ms": 654.5,
+            },
         },
         # Costs collection
         {
             "collection": "ai_reports",
             "id": "doc-cost-401",
             "text": "FinOps Cloud Cost Summary: Total monthly cloud spend $14,250. Highest cost resource: db.r6g.4xlarge PostgreSQL Aurora Cluster ($4,820/mo, 33.8% of total bill). Optimization potential: $3,180/mo savings.",
-            "metadata": {"domain": "cloud_cost", "highest_cost_resource": "PostgreSQL Aurora Cluster", "monthly_spend": 14250},
+            "metadata": {
+                "domain": "cloud_cost",
+                "highest_cost_resource": "PostgreSQL Aurora Cluster",
+                "monthly_spend": 14250,
+            },
         },
         # Alerts collection
         {
@@ -150,7 +157,7 @@ class RAGService:
         )
 
         # Step 2: Build Evidence Sources
-        sources: List[SourceCitation] = []
+        sources: list[SourceCitation] = []
         context_snippets = []
 
         for doc in retrieved_docs:
@@ -192,7 +199,10 @@ class RAGService:
                 res = RAGQueryResponse(
                     conversation_id=conv_id,
                     question=req.question,
-                    answer=data.get("answer", "Based on telemetry context, CPU saturation is caused by memory heap leak on api-gateway."),
+                    answer=data.get(
+                        "answer",
+                        "Based on telemetry context, CPU saturation is caused by memory heap leak on api-gateway.",
+                    ),
                     evidence_sources=sources,
                     confidence_score=float(data.get("confidence_score", 0.95)),
                     related_alerts=[RelatedItem(**a) for a in data.get("related_alerts", [])],
@@ -202,7 +212,10 @@ class RAGService:
                     suggested_followup_questions=data.get("suggested_followup_questions", []),
                 )
                 from app.crud.crud_rag_chat import crud_rag_chat
-                await crud_rag_chat.add_message(conv_id, res.question, res.answer, res.confidence_score)
+
+                await crud_rag_chat.add_message(
+                    conv_id, res.question, res.answer, res.confidence_score
+                )
                 return res
             except Exception as exc:
                 log.error("gemini_rag_query_failed", error=str(exc))
@@ -210,11 +223,12 @@ class RAGService:
         # Fallback RAG synthesis if Gemini API unconfigured or offline
         res = self._generate_fallback_rag_response(conv_id, req.question, sources)
         from app.crud.crud_rag_chat import crud_rag_chat
+
         await crud_rag_chat.add_message(conv_id, res.question, res.answer, res.confidence_score)
         return res
 
     def _generate_fallback_rag_response(
-        self, conversation_id: str, question: str, sources: List[SourceCitation]
+        self, conversation_id: str, question: str, sources: list[SourceCitation]
     ) -> RAGQueryResponse:
         q_lower = question.lower()
 
@@ -229,11 +243,35 @@ class RAGService:
                 "1. Scale container replicas for `api-gateway` from 4 to 12 instances.\n"
                 "2. Flush stale session memory cache entries in Redis."
             )
-            rel_alerts = [RelatedItem(type="alert", id="ALT-9482", title="Critical CPU Saturation on api-gateway", severity="Critical")]
-            rel_traces = [RelatedItem(type="trace", id="tr-94821a0b", title="POST /api/v1/checkout", status="error")]
-            rel_incidents = [RelatedItem(type="incident", id="INC-4029", title="Database Connection Pool Exhaustion on auth-service", status="Investigating")]
-            actions = ["Scale api-gateway pod replicas from 4 to 12", "Flush stale session memory cache in Redis"]
-            followups = ["Which service is consuming the most memory right now?", "Show me the latency waterfall for the slowest trace."]
+            rel_alerts = [
+                RelatedItem(
+                    type="alert",
+                    id="ALT-9482",
+                    title="Critical CPU Saturation on api-gateway",
+                    severity="Critical",
+                )
+            ]
+            rel_traces = [
+                RelatedItem(
+                    type="trace", id="tr-94821a0b", title="POST /api/v1/checkout", status="error"
+                )
+            ]
+            rel_incidents = [
+                RelatedItem(
+                    type="incident",
+                    id="INC-4029",
+                    title="Database Connection Pool Exhaustion on auth-service",
+                    status="Investigating",
+                )
+            ]
+            actions = [
+                "Scale api-gateway pod replicas from 4 to 12",
+                "Flush stale session memory cache in Redis",
+            ]
+            followups = [
+                "Which service is consuming the most memory right now?",
+                "Show me the latency waterfall for the slowest trace.",
+            ]
 
         elif "cost" in q_lower or "spend" in q_lower or "resource" in q_lower:
             answer = (
@@ -247,8 +285,14 @@ class RAGService:
             rel_alerts = []
             rel_traces = []
             rel_incidents = []
-            actions = ["Purchase 1-Year Savings Plan for Aurora Cluster", "Delete 14 unattached EBS volumes"]
-            followups = ["How much can we save by purchasing Reserved Instances?", "Show all idle EC2 instances."]
+            actions = [
+                "Purchase 1-Year Savings Plan for Aurora Cluster",
+                "Delete 14 unattached EBS volumes",
+            ]
+            followups = [
+                "How much can we save by purchasing Reserved Instances?",
+                "Show all idle EC2 instances.",
+            ]
 
         elif "latency" in q_lower or "slow" in q_lower or "trace" in q_lower:
             answer = (
@@ -262,10 +306,20 @@ class RAGService:
                 "Offload synchronous payment verification to an asynchronous Kafka event queue."
             )
             rel_alerts = []
-            rel_traces = [RelatedItem(type="trace", id="tr-94821a0b", title="POST /api/v1/checkout", status="error")]
+            rel_traces = [
+                RelatedItem(
+                    type="trace", id="tr-94821a0b", title="POST /api/v1/checkout", status="error"
+                )
+            ]
             rel_incidents = []
-            actions = ["Wrap Stripe API HTTP calls in async background queue", "Add Redis caching for user tokens"]
-            followups = ["Why is the Stripe API taking 420ms?", "Show me the service dependency map."]
+            actions = [
+                "Wrap Stripe API HTTP calls in async background queue",
+                "Add Redis caching for user tokens",
+            ]
+            followups = [
+                "Why is the Stripe API taking 420ms?",
+                "Show me the service dependency map.",
+            ]
 
         else:
             answer = (
@@ -276,10 +330,27 @@ class RAGService:
                 "- **Active User Sessions**: 8,450 concurrent users\n"
                 "- **System SLA Availability**: 99.94%"
             )
-            rel_alerts = [RelatedItem(type="alert", id="ALT-9482", title="High CPU Saturation Warning on api-gateway", severity="Warning")]
+            rel_alerts = [
+                RelatedItem(
+                    type="alert",
+                    id="ALT-9482",
+                    title="High CPU Saturation Warning on api-gateway",
+                    severity="Warning",
+                )
+            ]
             rel_traces = []
-            rel_incidents = [RelatedItem(type="incident", id="INC-4029", title="Database Connection Pool Exhaustion", status="Investigating")]
-            actions = ["Review active P0 incident INC-4029", "Check Horizontal Pod Autoscaler targets"]
+            rel_incidents = [
+                RelatedItem(
+                    type="incident",
+                    id="INC-4029",
+                    title="Database Connection Pool Exhaustion",
+                    status="Investigating",
+                )
+            ]
+            actions = [
+                "Review active P0 incident INC-4029",
+                "Check Horizontal Pod Autoscaler targets",
+            ]
             followups = ["Show all incidents this week.", "Why is CPU high on api-gateway?"]
 
         return RAGQueryResponse(

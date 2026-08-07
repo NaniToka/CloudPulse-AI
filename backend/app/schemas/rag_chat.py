@@ -4,8 +4,9 @@ Pydantic v2 schemas for RAG AI Infrastructure Chat Platform.
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class SourceCitation(BaseModel):
@@ -13,7 +14,7 @@ class SourceCitation(BaseModel):
     title: str
     snippet: str
     relevance_score: float = 0.92
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RelatedItem(BaseModel):
@@ -21,13 +22,17 @@ class RelatedItem(BaseModel):
     id: str
     title: str
     status: str = "open"
-    severity: Optional[str] = None
+    severity: str | None = None
 
 
 class RAGQueryRequest(BaseModel):
-    question: str = Field(..., min_length=2, max_length=2000, description="User question about infrastructure")
-    collection_filter: Optional[List[str]] = Field(default=None, description="Optional vector collections filter")
-    conversation_id: Optional[str] = Field(None, description="Optional conversation session ID")
+    question: str = Field(
+        ..., min_length=2, max_length=2000, description="User question about infrastructure"
+    )
+    collection_filter: list[str] | None = Field(
+        default=None, description="Optional vector collections filter"
+    )
+    conversation_id: str | None = Field(None, description="Optional conversation session ID")
 
 
 class RAGQueryResponse(BaseModel):
@@ -35,13 +40,13 @@ class RAGQueryResponse(BaseModel):
     conversation_id: str
     question: str
     answer: str
-    evidence_sources: List[SourceCitation] = Field(default_factory=list)
+    evidence_sources: list[SourceCitation] = Field(default_factory=list)
     confidence_score: float = Field(default=0.94, ge=0.0, le=1.0)
-    related_alerts: List[RelatedItem] = Field(default_factory=list)
-    related_traces: List[RelatedItem] = Field(default_factory=list)
-    related_incidents: List[RelatedItem] = Field(default_factory=list)
-    recommended_actions: List[str] = Field(default_factory=list)
-    suggested_followup_questions: List[str] = Field(default_factory=list)
+    related_alerts: list[RelatedItem] = Field(default_factory=list)
+    related_traces: list[RelatedItem] = Field(default_factory=list)
+    related_incidents: list[RelatedItem] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    suggested_followup_questions: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -64,5 +69,5 @@ class RAGHistoryItem(BaseModel):
 
 class RAGHistoryResponse(BaseModel):
     conversation_id: str
-    messages: List[RAGHistoryItem]
+    messages: list[RAGHistoryItem]
     total_messages: int

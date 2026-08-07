@@ -3,17 +3,17 @@ Repository for Workflows, Executions, Steps, Approvals, and Templates.
 """
 
 import uuid
-from typing import List, Optional, Any, Dict
-from datetime import datetime, timezone
-from sqlalchemy import select, and_, or_
+from typing import Any
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.workflow import (
     Workflow,
+    WorkflowApproval,
     WorkflowExecution,
     WorkflowStepLog,
-    WorkflowApproval,
     WorkflowTemplate,
 )
 
@@ -23,10 +23,10 @@ class CRUDWorkflow(CRUDBase[Workflow, Any, Any]):
         self,
         db: AsyncSession,
         user_id: uuid.UUID,
-        status: Optional[str] = None,
-        trigger_type: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[Workflow]:
+        status: str | None = None,
+        trigger_type: str | None = None,
+        search: str | None = None,
+    ) -> list[Workflow]:
         stmt = select(Workflow).where(Workflow.user_id == user_id)
         if status and status != "all":
             stmt = stmt.where(Workflow.status == status)
@@ -43,10 +43,10 @@ class CRUDWorkflowExecution(CRUDBase[WorkflowExecution, Any, Any]):
         self,
         db: AsyncSession,
         user_id: uuid.UUID,
-        workflow_id: Optional[uuid.UUID] = None,
-        status: Optional[str] = None,
+        workflow_id: uuid.UUID | None = None,
+        status: str | None = None,
         limit: int = 50,
-    ) -> List[WorkflowExecution]:
+    ) -> list[WorkflowExecution]:
         stmt = (
             select(WorkflowExecution)
             .join(Workflow, Workflow.id == WorkflowExecution.workflow_id)
@@ -61,7 +61,9 @@ class CRUDWorkflowExecution(CRUDBase[WorkflowExecution, Any, Any]):
 
 
 class CRUDWorkflowStepLog(CRUDBase[WorkflowStepLog, Any, Any]):
-    async def get_by_execution(self, db: AsyncSession, execution_id: uuid.UUID) -> List[WorkflowStepLog]:
+    async def get_by_execution(
+        self, db: AsyncSession, execution_id: uuid.UUID
+    ) -> list[WorkflowStepLog]:
         stmt = (
             select(WorkflowStepLog)
             .where(WorkflowStepLog.execution_id == execution_id)
@@ -72,7 +74,9 @@ class CRUDWorkflowStepLog(CRUDBase[WorkflowStepLog, Any, Any]):
 
 
 class CRUDWorkflowApproval(CRUDBase[WorkflowApproval, Any, Any]):
-    async def get_pending_by_user(self, db: AsyncSession, user_id: uuid.UUID) -> List[WorkflowApproval]:
+    async def get_pending_by_user(
+        self, db: AsyncSession, user_id: uuid.UUID
+    ) -> list[WorkflowApproval]:
         stmt = (
             select(WorkflowApproval)
             .join(WorkflowExecution, WorkflowExecution.id == WorkflowApproval.execution_id)
@@ -86,8 +90,8 @@ class CRUDWorkflowApproval(CRUDBase[WorkflowApproval, Any, Any]):
 
 class CRUDWorkflowTemplate(CRUDBase[WorkflowTemplate, Any, Any]):
     async def get_all_templates(
-        self, db: AsyncSession, category: Optional[str] = None
-    ) -> List[WorkflowTemplate]:
+        self, db: AsyncSession, category: str | None = None
+    ) -> list[WorkflowTemplate]:
         stmt = select(WorkflowTemplate)
         if category and category != "all":
             stmt = stmt.where(WorkflowTemplate.category == category)

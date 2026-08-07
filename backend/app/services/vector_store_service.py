@@ -4,8 +4,8 @@ logs, incidents, metrics, alerts, traces, ai_reports.
 """
 
 import os
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import structlog
 
 log = structlog.get_logger(__name__)
@@ -25,8 +25,8 @@ class VectorStoreService:
 
     def __init__(self) -> None:
         self.chroma_client = None
-        self.collections: Dict[str, Any] = {}
-        self.in_memory_docs: Dict[str, List[Dict[str, Any]]] = {c: [] for c in COLLECTION_NAMES}
+        self.collections: dict[str, Any] = {}
+        self.in_memory_docs: dict[str, list[dict[str, Any]]] = {c: [] for c in COLLECTION_NAMES}
         self._initialize_chromadb()
 
     def _initialize_chromadb(self) -> None:
@@ -48,7 +48,9 @@ class VectorStoreService:
         except Exception as exc:
             log.warning("chromadb_init_fallback_in_memory", error=str(exc))
 
-    def add_document(self, collection_name: str, doc_id: str, text: str, metadata: Dict[str, Any]) -> None:
+    def add_document(
+        self, collection_name: str, doc_id: str, text: str, metadata: dict[str, Any]
+    ) -> None:
         """Adds a document to a specific vector collection."""
         if collection_name not in COLLECTION_NAMES:
             collection_name = "logs"
@@ -77,9 +79,9 @@ class VectorStoreService:
     def query_similarity(
         self,
         query: str,
-        collection_filter: Optional[List[str]] = None,
+        collection_filter: list[str] | None = None,
         top_k: int = 4,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Queries across ChromaDB collections for relevant context documents."""
         target_collections = collection_filter or COLLECTION_NAMES
         results = []
@@ -102,13 +104,15 @@ class VectorStoreService:
                         metas = res.get("metadatas", [[]])[0]
                         ids = res.get("ids", [[]])[0]
                         for idx, d_text in enumerate(docs):
-                            results.append({
-                                "collection": col_name,
-                                "id": ids[idx] if idx < len(ids) else f"{col_name}-{idx}",
-                                "text": d_text,
-                                "metadata": metas[idx] if idx < len(metas) else {},
-                                "score": 0.95,
-                            })
+                            results.append(
+                                {
+                                    "collection": col_name,
+                                    "id": ids[idx] if idx < len(ids) else f"{col_name}-{idx}",
+                                    "text": d_text,
+                                    "metadata": metas[idx] if idx < len(metas) else {},
+                                    "score": 0.95,
+                                }
+                            )
                 except Exception as exc:
                     log.debug("chromadb_query_failed", collection=col_name, error=str(exc))
 
@@ -117,13 +121,15 @@ class VectorStoreService:
                 doc_text_lower = doc["text"].lower()
                 matches = sum(1 for term in query_terms if term in doc_text_lower)
                 if matches > 0:
-                    results.append({
-                        "collection": col_name,
-                        "id": doc["id"],
-                        "text": doc["text"],
-                        "metadata": doc["metadata"],
-                        "score": round(0.7 + min(0.28, matches * 0.08), 2),
-                    })
+                    results.append(
+                        {
+                            "collection": col_name,
+                            "id": doc["id"],
+                            "text": doc["text"],
+                            "metadata": doc["metadata"],
+                            "score": round(0.7 + min(0.28, matches * 0.08), 2),
+                        }
+                    )
 
         # Sort by relevance score desc
         results.sort(key=lambda x: x["score"], reverse=True)

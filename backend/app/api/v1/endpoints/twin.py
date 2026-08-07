@@ -3,25 +3,25 @@ Digital Twin Infrastructure REST API Endpoints.
 """
 
 import uuid
-from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_active_user
+from app.crud.crud_digital_twin import crud_execution, crud_scenario
+from app.models.digital_twin import SimulationScenario
 from app.models.user import User
-from app.models.digital_twin import InfrastructureTwin, SimulationScenario, SimulationExecution
 from app.schemas.digital_twin_schemas import (
+    BlastRadiusDetailResponse,
     InfrastructureTwinResponse,
-    SimulationScenarioResponse,
-    SimulationScenarioCreate,
     SimulationExecutionResponse,
+    SimulationScenarioCreate,
+    SimulationScenarioResponse,
     WhatIfQueryRequest,
     WhatIfQueryResponse,
-    BlastRadiusDetailResponse,
 )
-from app.crud.crud_digital_twin import crud_twin, crud_scenario, crud_execution, crud_what_if
-from app.services.digital_twin_service import digital_twin_service, DigitalTwinService
+from app.services.digital_twin_service import DigitalTwinService, digital_twin_service
 
 router = APIRouter()
 
@@ -48,9 +48,13 @@ async def get_twin_resources(
     return twin.virtual_resources
 
 
-@router.get("/simulations", response_model=List[SimulationScenarioResponse], summary="List Simulation Scenarios")
+@router.get(
+    "/simulations",
+    response_model=list[SimulationScenarioResponse],
+    summary="List Simulation Scenarios",
+)
 async def list_scenarios(
-    category: Optional[str] = Query(None, description="Filter by category"),
+    category: str | None = Query(None, description="Filter by category"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
     service: DigitalTwinService = Depends(lambda: digital_twin_service),
@@ -61,7 +65,12 @@ async def list_scenarios(
     return [SimulationScenarioResponse.model_validate(s) for s in scenarios]
 
 
-@router.post("/simulations", response_model=SimulationScenarioResponse, status_code=status.HTTP_201_CREATED, summary="Create Scenario")
+@router.post(
+    "/simulations",
+    response_model=SimulationScenarioResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Scenario",
+)
 async def create_scenario(
     payload: SimulationScenarioCreate,
     db: AsyncSession = Depends(get_db),
@@ -70,7 +79,7 @@ async def create_scenario(
 ):
     """Create a new custom chaos failure scenario."""
     twin = await service.get_or_create_twin(db, user_id=current_user.id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sc = SimulationScenario(
         id=uuid.uuid4(),
         twin_id=twin.id,
@@ -90,7 +99,11 @@ async def create_scenario(
     return SimulationScenarioResponse.model_validate(sc)
 
 
-@router.post("/simulations/{scenario_id}/run", response_model=SimulationExecutionResponse, summary="Run Simulation")
+@router.post(
+    "/simulations/{scenario_id}/run",
+    response_model=SimulationExecutionResponse,
+    summary="Run Simulation",
+)
 async def run_simulation(
     scenario_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -107,7 +120,9 @@ async def run_simulation(
     return SimulationExecutionResponse.model_validate(execution)
 
 
-@router.get("/simulations/history", response_model=List[SimulationExecutionResponse], summary="List History")
+@router.get(
+    "/simulations/history", response_model=list[SimulationExecutionResponse], summary="List History"
+)
 async def list_simulation_history(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
@@ -119,7 +134,11 @@ async def list_simulation_history(
     return [SimulationExecutionResponse.model_validate(e) for e in executions]
 
 
-@router.get("/blast-radius/{scenario_id}", response_model=BlastRadiusDetailResponse, summary="Get Blast Radius")
+@router.get(
+    "/blast-radius/{scenario_id}",
+    response_model=BlastRadiusDetailResponse,
+    summary="Get Blast Radius",
+)
 async def get_blast_radius(
     scenario_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

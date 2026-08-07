@@ -4,19 +4,20 @@ CRUD Repository for Auto Remediation Runbooks & Execution Steps.
 
 import math
 import uuid
-from typing import List, Optional, Tuple, Any
-from sqlalchemy import select, func, or_, and_
+from typing import Any
+
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
-from app.models.runbook import Runbook, AutomationStep, RunbookExecution
+from app.models.runbook import Runbook
 
 
 class CRUDRunbook(CRUDBase[Runbook, Any, Any]):
     """Runbook Repository implementing search, filtering, and execution tracking."""
 
-    async def get_by_id_with_steps(self, db: AsyncSession, runbook_id: uuid.UUID) -> Optional[Runbook]:
+    async def get_by_id_with_steps(self, db: AsyncSession, runbook_id: uuid.UUID) -> Runbook | None:
         """Fetch single runbook with loaded steps and execution logs."""
         stmt = (
             select(Runbook)
@@ -33,13 +34,13 @@ class CRUDRunbook(CRUDBase[Runbook, Any, Any]):
         self,
         db: AsyncSession,
         *,
-        service: Optional[str] = None,
-        severity: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        service: str | None = None,
+        severity: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[Runbook], int, int]:
+    ) -> tuple[list[Runbook], int, int]:
         """Filter runbooks with pagination and search."""
         query = select(Runbook).options(
             selectinload(Runbook.steps),

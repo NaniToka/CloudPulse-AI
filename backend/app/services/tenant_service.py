@@ -2,33 +2,31 @@
 Service Layer for Multi-Tenant Enterprise SaaS Architecture.
 """
 
-import uuid
 import re
-from datetime import datetime, timezone
-from typing import List, Optional, Tuple, Dict, Any
+import uuid
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.db.base  # noqa: F401
 from app.crud.crud_tenant import crud_tenant
 from app.models.tenant import (
-    Organization,
-    Team,
-    Project,
-    OrganizationMember,
-    TeamMember,
-    Invitation,
     AuditLog,
+    Invitation,
+    Organization,
+    OrganizationMember,
+    Project,
+    Team,
 )
-from app.models.user import User
 from app.schemas.tenant import (
+    MemberInvitePayload,
     OrganizationCreate,
     OrganizationUpdate,
-    TeamCreate,
     ProjectCreate,
-    MemberInvitePayload,
+    TeamCreate,
 )
 
 log = structlog.get_logger(__name__)
@@ -40,9 +38,11 @@ class TenantService:
     def __init__(self, crud_repo=crud_tenant) -> None:
         self.crud = crud_repo
 
-    async def create_organization(self, db: AsyncSession, payload: OrganizationCreate, owner_id: uuid.UUID) -> Organization:
+    async def create_organization(
+        self, db: AsyncSession, payload: OrganizationCreate, owner_id: uuid.UUID
+    ) -> Organization:
         """Create new Organization and assign Owner role."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         slug = payload.slug or re.sub(r"[^a-z0-9]", "-", payload.name.lower()).strip("-")
         slug = f"{slug}-{uuid.uuid4().hex[:4]}"
 
@@ -84,24 +84,42 @@ class TenantService:
         await db.refresh(org)
 
         # Seed default team and project
-        await self.create_team(db, TeamCreate(organization_id=org.id, name="Core SRE Team", description="Primary DevOps & Incident Response Team"))
-        await self.create_project(db, ProjectCreate(organization_id=org.id, name="Production Cloud Cluster", cloud_provider="AWS", environment="Production", region="us-east-1"))
+        await self.create_team(
+            db,
+            TeamCreate(
+                organization_id=org.id,
+                name="Core SRE Team",
+                description="Primary DevOps & Incident Response Team",
+            ),
+        )
+        await self.create_project(
+            db,
+            ProjectCreate(
+                organization_id=org.id,
+                name="Production Cloud Cluster",
+                cloud_provider="AWS",
+                environment="Production",
+                region="us-east-1",
+            ),
+        )
 
         return org
 
-    async def get_user_organizations(self, db: AsyncSession, user_id: uuid.UUID) -> List[Organization]:
+    async def get_user_organizations(
+        self, db: AsyncSession, user_id: uuid.UUID
+    ) -> list[Organization]:
         return await self.crud.get_user_organizations(db, user_id)
 
-    async def get_organization(self, db: AsyncSession, org_id: uuid.UUID) -> Optional[Organization]:
+    async def get_organization(self, db: AsyncSession, org_id: uuid.UUID) -> Organization | None:
         return await self.crud.get(db, id=org_id)
 
     async def update_organization(
         self, db: AsyncSession, org_id: uuid.UUID, payload: OrganizationUpdate
-    ) -> Optional[Organization]:
+    ) -> Organization | None:
         org = await self.get_organization(db, org_id)
         if not org:
             return None
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if payload.name is not None:
             org.name = payload.name
         if payload.logo is not None:
@@ -124,7 +142,7 @@ class TenantService:
         return True
 
     async def create_team(self, db: AsyncSession, payload: TeamCreate) -> Team:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         team = Team(
             id=uuid.uuid4(),
             organization_id=payload.organization_id,
@@ -137,14 +155,18 @@ class TenantService:
         await db.refresh(team)
         return team
 
-    async def get_team(self, db: AsyncSession, team_id: uuid.UUID) -> Optional[Team]:
+    async def get_team(self, db: AsyncSession, team_id: uuid.UUID) -> Team | None:
         stmt = select(Team).where(Team.id == team_id)
         res = await db.execute(stmt)
         return res.scalar_one_or_none()
 
     async def update_team(
-        self, db: AsyncSession, team_id: uuid.UUID, name: Optional[str] = None, description: Optional[str] = None
-    ) -> Optional[Team]:
+        self,
+        db: AsyncSession,
+        team_id: uuid.UUID,
+        name: str | None = None,
+        description: str | None = None,
+    ) -> Team | None:
         team = await self.get_team(db, team_id)
         if not team:
             return None
@@ -164,11 +186,11 @@ class TenantService:
         await db.commit()
         return True
 
-    async def get_teams(self, db: AsyncSession, org_id: uuid.UUID) -> List[Team]:
+    async def get_teams(self, db: AsyncSession, org_id: uuid.UUID) -> list[Team]:
         return await self.crud.get_teams(db, org_id)
 
     async def create_project(self, db: AsyncSession, payload: ProjectCreate) -> Project:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         project = Project(
             id=uuid.uuid4(),
             organization_id=payload.organization_id,
@@ -184,7 +206,7 @@ class TenantService:
         await db.refresh(project)
         return project
 
-    async def get_project(self, db: AsyncSession, project_id: uuid.UUID) -> Optional[Project]:
+    async def get_project(self, db: AsyncSession, project_id: uuid.UUID) -> Project | None:
         stmt = select(Project).where(Project.id == project_id)
         res = await db.execute(stmt)
         return res.scalar_one_or_none()
@@ -193,12 +215,12 @@ class TenantService:
         self,
         db: AsyncSession,
         project_id: uuid.UUID,
-        name: Optional[str] = None,
-        cloud_provider: Optional[str] = None,
-        environment: Optional[str] = None,
-        region: Optional[str] = None,
-        team_id: Optional[uuid.UUID] = None,
-    ) -> Optional[Project]:
+        name: str | None = None,
+        cloud_provider: str | None = None,
+        environment: str | None = None,
+        region: str | None = None,
+        team_id: uuid.UUID | None = None,
+    ) -> Project | None:
         project = await self.get_project(db, project_id)
         if not project:
             return None
@@ -224,11 +246,13 @@ class TenantService:
         await db.commit()
         return True
 
-    async def get_projects(self, db: AsyncSession, org_id: uuid.UUID) -> List[Project]:
+    async def get_projects(self, db: AsyncSession, org_id: uuid.UUID) -> list[Project]:
         return await self.crud.get_projects(db, org_id)
 
-    async def invite_member(self, db: AsyncSession, payload: MemberInvitePayload, invited_by: uuid.UUID) -> Invitation:
-        now = datetime.now(timezone.utc)
+    async def invite_member(
+        self, db: AsyncSession, payload: MemberInvitePayload, invited_by: uuid.UUID
+    ) -> Invitation:
+        now = datetime.now(UTC)
         token = f"inv-{uuid.uuid4().hex}"
 
         invitation = Invitation(
@@ -257,23 +281,25 @@ class TenantService:
         await db.refresh(invitation)
         return invitation
 
-    async def get_members(self, db: AsyncSession, org_id: uuid.UUID) -> List[Dict[str, Any]]:
+    async def get_members(self, db: AsyncSession, org_id: uuid.UUID) -> list[dict[str, Any]]:
         rows = await self.crud.get_organization_members(db, org_id)
         result = []
         for member, user in rows:
-            result.append({
-                "id": str(member.id),
-                "organization_id": str(member.organization_id),
-                "user_id": str(member.user_id),
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "role": member.role,
-                "created_at": member.created_at,
-            })
+            result.append(
+                {
+                    "id": str(member.id),
+                    "organization_id": str(member.organization_id),
+                    "user_id": str(member.user_id),
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": member.role,
+                    "created_at": member.created_at,
+                }
+            )
         return result
 
-    async def get_audit_logs(self, db: AsyncSession, org_id: uuid.UUID) -> List[AuditLog]:
+    async def get_audit_logs(self, db: AsyncSession, org_id: uuid.UUID) -> list[AuditLog]:
         return await self.crud.get_audit_logs(db, org_id)
 
 

@@ -1,12 +1,19 @@
 """Chat message model."""
 
+from __future__ import annotations
+
 import uuid
-from sqlalchemy import String, Text, ForeignKey, JSON
+from typing import TYPE_CHECKING
+
+from sqlalchemy import JSON, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
-from app.models.mixins import UUIDMixin, TimestampMixin
+from app.models.mixins import TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.chat_session import ChatSession
 
 
 class ChatMessage(UUIDMixin, TimestampMixin, Base):
@@ -23,4 +30,4 @@ class ChatMessage(UUIDMixin, TimestampMixin, Base):
     )
 
     # Relationships
-    session: Mapped["ChatSession"] = relationship("ChatSession", back_populates="messages")
+    session: Mapped[ChatSession] = relationship("ChatSession", back_populates="messages")

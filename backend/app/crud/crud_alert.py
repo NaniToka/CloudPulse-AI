@@ -2,9 +2,9 @@
 Repository for Monitoring Alerts.
 """
 
-import uuid
-from typing import List, Optional, Any
-from sqlalchemy import select, or_, and_
+from typing import Any
+
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -19,10 +19,10 @@ class CRUDAlert(CRUDBase[Alert, Any, Any]):
         db: AsyncSession,
         skip: int = 0,
         limit: int = 100,
-        status: Optional[str] = None,
-        severity: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[Alert]:
+        status: str | None = None,
+        severity: str | None = None,
+        search: str | None = None,
+    ) -> list[Alert]:
         stmt = select(Alert)
         if status and status != "all":
             stmt = stmt.where(Alert.status == status)

@@ -15,7 +15,7 @@ Dependency graph
     require_active_user   — same as above but asserts is_active == True
 """
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from uuid import UUID
 
 import structlog
@@ -39,6 +39,7 @@ _bearer = HTTPBearer(auto_error=True)
 # Database session
 # ---------------------------------------------------------------------------
 
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Yield a per-request async database session.
@@ -59,6 +60,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 # ---------------------------------------------------------------------------
 # JWT extraction
 # ---------------------------------------------------------------------------
+
 
 def _extract_user_id(token: str) -> str:
     """
@@ -94,6 +96,7 @@ async def get_current_user_id(
     """Return the authenticated user's UUID as a plain string."""
     token = credentials.credentials
     from app.services.cache_service import cache_service
+
     if await cache_service.is_token_blocklisted(token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,6 +109,7 @@ async def get_current_user_id(
 # ---------------------------------------------------------------------------
 # ORM-level user resolution
 # ---------------------------------------------------------------------------
+
 
 async def get_current_user(
     user_id: str = Depends(get_current_user_id),
@@ -132,9 +136,7 @@ async def get_current_user(
         ) from exc
 
     result = await db.execute(
-        select(User)
-        .where(User.id == uid)
-        .options(selectinload(User.organization))
+        select(User).where(User.id == uid).options(selectinload(User.organization))
     )
     user = result.scalar_one_or_none()
 

@@ -3,6 +3,7 @@ API tests for AI Predictive Incident Detection Engine (/api/v1/predictions).
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 

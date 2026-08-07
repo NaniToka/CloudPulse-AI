@@ -13,8 +13,8 @@ Startup sequence
    engine disposal on shutdown.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 from fastapi import FastAPI
@@ -38,6 +38,7 @@ log = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -90,7 +91,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Session-Id"],   # allow browser to read SSE session header
+    expose_headers=["X-Session-Id"],  # allow browser to read SSE session header
 )
 
 # ---------------------------------------------------------------------------
@@ -108,6 +109,7 @@ app.include_router(api_router, prefix="/api/v1")
 # ---------------------------------------------------------------------------
 # System routes
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health", tags=["System"], summary="Health check")
 async def health_check() -> dict:

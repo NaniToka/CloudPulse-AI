@@ -3,6 +3,7 @@ API Unit tests for Kubernetes & Container Intelligence endpoints.
 """
 
 import uuid
+
 import pytest
 from httpx import AsyncClient
 

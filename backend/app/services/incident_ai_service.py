@@ -12,8 +12,8 @@ Generates:
 """
 
 import json
-import re
-from typing import Any, Dict
+from typing import Any
+
 import structlog
 
 from app.core.config import settings
@@ -47,7 +47,9 @@ Always return a JSON object with EXACTLY the following keys:
 """
 
 
-def _generate_fallback_analysis(title: str, description: str, service: str, severity: str) -> Dict[str, Any]:
+def _generate_fallback_analysis(
+    title: str, description: str, service: str, severity: str
+) -> dict[str, Any]:
     """Fallback generator when Gemini is unconfigured or unavailable."""
     return {
         "ai_summary": f"Incident '{title}' affecting {service} detected at {severity} severity level. Anomalous error spikes and service latency degraded user workflows.",
@@ -59,18 +61,18 @@ def _generate_fallback_analysis(title: str, description: str, service: str, seve
         "ai_long_term_prevention": [
             f"Implement automated horizontal auto-scaling for {service}",
             "Add circuit breaker for upstream DB queries",
-            "Update alert threshold for connection pool saturation to 80%"
+            "Update alert threshold for connection pool saturation to 80%",
         ],
         "ai_preventive_actions": [
             f"Implement automated horizontal auto-scaling for {service}",
-            "Add circuit breaker for upstream DB queries"
+            "Add circuit breaker for upstream DB queries",
         ],
         "ai_similar_incidents": [
             {
                 "id": "INC-7412",
                 "title": f"High latency spike on {service}",
                 "similarity": "88%",
-                "resolution": "Restarted pod instances and cleared memory cache."
+                "resolution": "Restarted pod instances and cleared memory cache.",
             }
         ],
         "ai_estimated_resolution_time": "20-45 minutes",
@@ -84,7 +86,7 @@ async def analyze_incident_with_gemini(
     severity: str,
     priority: str,
     affected_service: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Analyzes an incident using Google Gemini API.
     Returns structured dict with AI findings.
@@ -122,12 +124,24 @@ async def analyze_incident_with_gemini(
         return {
             "ai_summary": data.get("ai_summary", f"Executive summary for {title}"),
             "root_cause": data.get("root_cause", f"Root cause in {affected_service}"),
-            "ai_root_cause": data.get("ai_root_cause", f"Root cause analysis for {affected_service}"),
-            "ai_business_impact": data.get("ai_business_impact", f"Impact assessment for {severity} incident"),
-            "ai_immediate_mitigation": data.get("ai_immediate_mitigation", "1. Check logs\n2. Scale deployment"),
-            "ai_suggested_resolution": data.get("ai_suggested_resolution", "1. Check logs\n2. Restart service"),
-            "ai_long_term_prevention": data.get("ai_long_term_prevention", ["Review metrics", "Update alerts"]),
-            "ai_preventive_actions": data.get("ai_preventive_actions", ["Review system metrics", "Update SLO alerts"]),
+            "ai_root_cause": data.get(
+                "ai_root_cause", f"Root cause analysis for {affected_service}"
+            ),
+            "ai_business_impact": data.get(
+                "ai_business_impact", f"Impact assessment for {severity} incident"
+            ),
+            "ai_immediate_mitigation": data.get(
+                "ai_immediate_mitigation", "1. Check logs\n2. Scale deployment"
+            ),
+            "ai_suggested_resolution": data.get(
+                "ai_suggested_resolution", "1. Check logs\n2. Restart service"
+            ),
+            "ai_long_term_prevention": data.get(
+                "ai_long_term_prevention", ["Review metrics", "Update alerts"]
+            ),
+            "ai_preventive_actions": data.get(
+                "ai_preventive_actions", ["Review system metrics", "Update SLO alerts"]
+            ),
             "ai_similar_incidents": data.get("ai_similar_incidents", []),
             "ai_estimated_resolution_time": data.get("ai_estimated_resolution_time", "30 minutes"),
             "ai_confidence_score": float(data.get("ai_confidence_score", 0.94)),

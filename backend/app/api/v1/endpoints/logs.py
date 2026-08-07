@@ -25,9 +25,7 @@ All routes require a valid Bearer JWT (require_active_user dependency).
 
 from __future__ import annotations
 
-import asyncio
 import uuid
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
@@ -40,9 +38,9 @@ from app.schemas.log_analysis import (
     AnalysisListItem,
     AnalysisResponse,
     HistoryResponse,
+    LogStats,
     ParsedLogEntry,
     UploadResponse,
-    LogStats,
 )
 from app.services.log_analysis_service import analyse_logs
 from app.services.log_parser import (
@@ -58,6 +56,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Background task: run Gemini analysis, update DB row
 # ---------------------------------------------------------------------------
+
 
 async def _run_analysis(
     record_id: uuid.UUID,
@@ -78,9 +77,7 @@ async def _run_analysis(
         try:
             await db.commit()  # ensure fresh transaction
 
-            record = await crud_log_analysis.get(
-                db, record_id=record_id, user_id=user_id
-            )
+            record = await crud_log_analysis.get(db, record_id=record_id, user_id=user_id)
             if not record:
                 log.warning("log_analysis_record_missing", record_id=str(record_id))
                 return
@@ -130,6 +127,7 @@ async def _run_analysis(
 # ---------------------------------------------------------------------------
 # POST /logs/upload
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/upload",
@@ -217,6 +215,7 @@ async def upload_log(
 # GET /logs/history
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/history",
     response_model=HistoryResponse,
@@ -242,6 +241,7 @@ async def list_history(
 # GET /logs/{id}
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/{record_id}",
     response_model=AnalysisResponse,
@@ -252,9 +252,7 @@ async def get_analysis(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> AnalysisResponse:
-    record = await crud_log_analysis.get(
-        db, record_id=record_id, user_id=current_user.id
-    )
+    record = await crud_log_analysis.get(db, record_id=record_id, user_id=current_user.id)
     if not record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -263,15 +261,14 @@ async def get_analysis(
 
     response = AnalysisResponse.model_validate(record)
     # Deserialise JSON → ParsedLogEntry objects
-    response.parsed_entries = [
-        ParsedLogEntry(**e) for e in (record.parsed_entries or [])
-    ]
+    response.parsed_entries = [ParsedLogEntry(**e) for e in (record.parsed_entries or [])]
     return response
 
 
 # ---------------------------------------------------------------------------
 # DELETE /logs/{id}
 # ---------------------------------------------------------------------------
+
 
 @router.delete(
     "/{record_id}",
@@ -283,9 +280,7 @@ async def delete_analysis(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    deleted = await crud_log_analysis.delete(
-        db, record_id=record_id, user_id=current_user.id
-    )
+    deleted = await crud_log_analysis.delete(db, record_id=record_id, user_id=current_user.id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

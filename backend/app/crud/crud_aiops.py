@@ -3,20 +3,20 @@ CRUD Repository for AIOps Agent, Recommendations, & Executions.
 """
 
 import math
-import uuid
-from typing import List, Optional, Tuple, Any
-from sqlalchemy import select, func, or_, and_
+from typing import Any
+
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
-from app.models.aiops import AIOpsAgent, AgentTask, AgentRecommendation, AgentExecution
+from app.models.aiops import AgentRecommendation, AIOpsAgent
 
 
 class CRUDAIOps(CRUDBase[AIOpsAgent, Any, Any]):
     """AIOps Repository implementing search, filtering, and approval state management."""
 
-    async def get_active_agent(self, db: AsyncSession) -> Optional[AIOpsAgent]:
+    async def get_active_agent(self, db: AsyncSession) -> AIOpsAgent | None:
         """Fetch active agent or load with tasks."""
         stmt = (
             select(AIOpsAgent)
@@ -33,13 +33,13 @@ class CRUDAIOps(CRUDBase[AIOpsAgent, Any, Any]):
         self,
         db: AsyncSession,
         *,
-        category: Optional[str] = None,
-        priority: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
+        category: str | None = None,
+        priority: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
         page: int = 1,
         size: int = 10,
-    ) -> Tuple[List[AgentRecommendation], int, int]:
+    ) -> tuple[list[AgentRecommendation], int, int]:
         """Filter agent recommendations with pagination and search."""
         query = select(AgentRecommendation).options(selectinload(AgentRecommendation.executions))
 

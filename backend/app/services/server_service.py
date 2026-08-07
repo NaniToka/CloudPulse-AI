@@ -3,13 +3,13 @@ Server & Infrastructure Management Service with auto-seeding.
 """
 
 import uuid
-from typing import List, Optional
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime
+
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_server import crud_server
-from app.models.infrastructure import Server, ServerMetric, InfraAlert
+from app.models.infrastructure import Server
 from app.schemas.infrastructure import ServerCreate, ServerUpdate
 
 log = structlog.get_logger(__name__)
@@ -124,10 +124,10 @@ class ServerService:
         self,
         db: AsyncSession,
         user_id: uuid.UUID,
-        provider: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[Server]:
+        provider: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[Server]:
         servers = await self.crud.get_multi_by_user(
             db, user_id=user_id, provider=provider, status=status, search=search
         )
@@ -136,9 +136,9 @@ class ServerService:
             servers = await self.seed_default_servers(db, user_id)
         return servers
 
-    async def seed_default_servers(self, db: AsyncSession, user_id: uuid.UUID) -> List[Server]:
+    async def seed_default_servers(self, db: AsyncSession, user_id: uuid.UUID) -> list[Server]:
         created = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for data in DEFAULT_SERVERS:
             server = Server(
                 id=uuid.uuid4(),
@@ -167,8 +167,10 @@ class ServerService:
             await db.refresh(s)
         return created
 
-    async def create_server(self, db: AsyncSession, user_id: uuid.UUID, payload: ServerCreate) -> Server:
-        now = datetime.now(timezone.utc)
+    async def create_server(
+        self, db: AsyncSession, user_id: uuid.UUID, payload: ServerCreate
+    ) -> Server:
+        now = datetime.now(UTC)
         server = Server(
             id=uuid.uuid4(),
             user_id=user_id,
@@ -194,14 +196,16 @@ class ServerService:
         await db.refresh(server)
         return server
 
-    async def get_server(self, db: AsyncSession, server_id: uuid.UUID) -> Optional[Server]:
+    async def get_server(self, db: AsyncSession, server_id: uuid.UUID) -> Server | None:
         return await self.crud.get(db, id=server_id)
 
-    async def update_server(self, db: AsyncSession, server_id: uuid.UUID, payload: ServerUpdate) -> Optional[Server]:
+    async def update_server(
+        self, db: AsyncSession, server_id: uuid.UUID, payload: ServerUpdate
+    ) -> Server | None:
         server = await self.get_server(db, server_id)
         if not server:
             return None
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if payload.name is not None:
             server.name = payload.name
         if payload.status is not None:

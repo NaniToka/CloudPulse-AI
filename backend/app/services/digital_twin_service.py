@@ -3,38 +3,97 @@ Digital Twin Infrastructure Simulation Engine & Gemini AI What-If Evaluator.
 """
 
 import uuid
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime
+
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_digital_twin import (
-    crud_twin,
-    crud_scenario,
     crud_execution,
+    crud_scenario,
+    crud_twin,
     crud_what_if,
 )
 from app.models.digital_twin import (
     InfrastructureTwin,
-    SimulationScenario,
     SimulationExecution,
+    SimulationScenario,
     WhatIfQuery,
 )
 
 log = structlog.get_logger(__name__)
 
 DEFAULT_TWIN_NODES = [
-    {"id": "cloud-aws-us-east-1", "name": "AWS us-east-1 (N. Virginia)", "type": "region", "status": "healthy", "provider": "AWS"},
-    {"id": "cloud-gcp-us-central1", "name": "GCP us-central1 (Iowa)", "type": "region", "status": "healthy", "provider": "GCP"},
-    {"id": "k8s-ingress-alb", "name": "Cloud Load Balancer (ALB)", "type": "load_balancer", "status": "healthy", "traffic_rps": 4500},
-    {"id": "api-gateway-mesh", "name": "API Gateway & Istio Mesh", "type": "gateway", "status": "healthy", "p99_latency_ms": 14},
-    {"id": "auth-service-pod", "name": "auth-service (4 Pods)", "type": "microservice", "status": "healthy", "cpu_pct": 34},
-    {"id": "checkout-svc-pod", "name": "checkout-svc (6 Pods)", "type": "microservice", "status": "healthy", "cpu_pct": 48},
-    {"id": "payment-api-pod", "name": "payment-api (3 Pods)", "type": "microservice", "status": "healthy", "cpu_pct": 28},
-    {"id": "redis-cluster-cache", "name": "Redis Primary Cache (v7.2)", "type": "cache", "status": "healthy", "hit_ratio": 94.2},
-    {"id": "postgres-primary-db", "name": "PostgreSQL Primary (Aurora DB)", "type": "database", "status": "healthy", "connections": 142},
-    {"id": "kafka-event-queue", "name": "Apache Kafka Events Queue", "type": "queue", "status": "healthy", "lag": 12},
+    {
+        "id": "cloud-aws-us-east-1",
+        "name": "AWS us-east-1 (N. Virginia)",
+        "type": "region",
+        "status": "healthy",
+        "provider": "AWS",
+    },
+    {
+        "id": "cloud-gcp-us-central1",
+        "name": "GCP us-central1 (Iowa)",
+        "type": "region",
+        "status": "healthy",
+        "provider": "GCP",
+    },
+    {
+        "id": "k8s-ingress-alb",
+        "name": "Cloud Load Balancer (ALB)",
+        "type": "load_balancer",
+        "status": "healthy",
+        "traffic_rps": 4500,
+    },
+    {
+        "id": "api-gateway-mesh",
+        "name": "API Gateway & Istio Mesh",
+        "type": "gateway",
+        "status": "healthy",
+        "p99_latency_ms": 14,
+    },
+    {
+        "id": "auth-service-pod",
+        "name": "auth-service (4 Pods)",
+        "type": "microservice",
+        "status": "healthy",
+        "cpu_pct": 34,
+    },
+    {
+        "id": "checkout-svc-pod",
+        "name": "checkout-svc (6 Pods)",
+        "type": "microservice",
+        "status": "healthy",
+        "cpu_pct": 48,
+    },
+    {
+        "id": "payment-api-pod",
+        "name": "payment-api (3 Pods)",
+        "type": "microservice",
+        "status": "healthy",
+        "cpu_pct": 28,
+    },
+    {
+        "id": "redis-cluster-cache",
+        "name": "Redis Primary Cache (v7.2)",
+        "type": "cache",
+        "status": "healthy",
+        "hit_ratio": 94.2,
+    },
+    {
+        "id": "postgres-primary-db",
+        "name": "PostgreSQL Primary (Aurora DB)",
+        "type": "database",
+        "status": "healthy",
+        "connections": 142,
+    },
+    {
+        "id": "kafka-event-queue",
+        "name": "Apache Kafka Events Queue",
+        "type": "queue",
+        "status": "healthy",
+        "lag": 12,
+    },
 ]
 
 DEFAULT_TWIN_EDGES = [
@@ -107,7 +166,7 @@ class DigitalTwinService:
     async def get_or_create_twin(self, db: AsyncSession, user_id: uuid.UUID) -> InfrastructureTwin:
         twin = await self.twin_crud.get_by_user(db, user_id=user_id)
         if not twin:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             twin = InfrastructureTwin(
                 id=uuid.uuid4(),
                 user_id=user_id,
@@ -146,18 +205,23 @@ class DigitalTwinService:
         return twin
 
     async def get_scenarios(
-        self, db: AsyncSession, twin_id: uuid.UUID, category: Optional[str] = None
-    ) -> List[SimulationScenario]:
+        self, db: AsyncSession, twin_id: uuid.UUID, category: str | None = None
+    ) -> list[SimulationScenario]:
         return await self.scenario_crud.get_multi_by_twin(db, twin_id=twin_id, category=category)
 
     async def run_simulation(
         self, db: AsyncSession, twin: InfrastructureTwin, scenario: SimulationScenario
     ) -> SimulationExecution:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         f_type = scenario.failure_type
 
         if f_type == "redis_outage":
-            affected = ["redis-cluster-cache", "checkout-svc-pod", "auth-service-pod", "postgres-primary-db"]
+            affected = [
+                "redis-cluster-cache",
+                "checkout-svc-pod",
+                "auth-service-pod",
+                "postgres-primary-db",
+            ]
             blast_radius = {
                 "direct_impact": ["redis-cluster-cache"],
                 "cascade_impact": ["checkout-svc-pod", "auth-service-pod", "postgres-primary-db"],
@@ -165,10 +229,22 @@ class DigitalTwinService:
                 "error_rate_spike_pct": 28.5,
             }
             timeline = [
-                {"minute": "00:00", "event": "Redis primary node terminated (Exit 137 OOM / Network Split)"},
-                {"minute": "00:02", "event": "Cache hit ratio drops from 94% to 0%. 100% of read traffic falls through to PostgreSQL."},
-                {"minute": "00:04", "event": "PostgreSQL connection pool maxes out at 500 connections. P99 latency spikes from 14ms to 620ms."},
-                {"minute": "00:08", "event": "checkout-svc timeouts trigger circuit breakers. 28% of cart checkouts fail with HTTP 504."},
+                {
+                    "minute": "00:00",
+                    "event": "Redis primary node terminated (Exit 137 OOM / Network Split)",
+                },
+                {
+                    "minute": "00:02",
+                    "event": "Cache hit ratio drops from 94% to 0%. 100% of read traffic falls through to PostgreSQL.",
+                },
+                {
+                    "minute": "00:04",
+                    "event": "PostgreSQL connection pool maxes out at 500 connections. P99 latency spikes from 14ms to 620ms.",
+                },
+                {
+                    "minute": "00:08",
+                    "event": "checkout-svc timeouts trigger circuit breakers. 28% of cart checkouts fail with HTTP 504.",
+                },
             ]
             recovery = [
                 "1. Trigger Redis Sentinel automatic replica failover.",
@@ -179,7 +255,12 @@ class DigitalTwinService:
             financial_impact = 18500.0
             rec_mins = 14
         elif f_type == "region_failure":
-            affected = ["cloud-aws-us-east-1", "k8s-ingress-alb", "checkout-svc-pod", "api-gateway-mesh"]
+            affected = [
+                "cloud-aws-us-east-1",
+                "k8s-ingress-alb",
+                "checkout-svc-pod",
+                "api-gateway-mesh",
+            ]
             blast_radius = {
                 "direct_impact": ["cloud-aws-us-east-1"],
                 "cascade_impact": ["k8s-ingress-alb", "checkout-svc-pod", "api-gateway-mesh"],
@@ -187,9 +268,18 @@ class DigitalTwinService:
                 "error_rate_spike_pct": 12.0,
             }
             timeline = [
-                {"minute": "00:00", "event": "AWS us-east-1 data center connection loss detected by health check probes."},
-                {"minute": "00:01", "event": "Route53 / Cloudflare DNS traffic shifts 100% load to GCP us-central1."},
-                {"minute": "00:03", "event": "GCP GKE cluster scales node pool from 4 to 8 instances to absorb shifted load."},
+                {
+                    "minute": "00:00",
+                    "event": "AWS us-east-1 data center connection loss detected by health check probes.",
+                },
+                {
+                    "minute": "00:01",
+                    "event": "Route53 / Cloudflare DNS traffic shifts 100% load to GCP us-central1.",
+                },
+                {
+                    "minute": "00:03",
+                    "event": "GCP GKE cluster scales node pool from 4 to 8 instances to absorb shifted load.",
+                },
             ]
             recovery = [
                 "1. Verify cross-region database replication lag < 500ms.",
@@ -207,11 +297,20 @@ class DigitalTwinService:
                 "error_rate_spike_pct": 8.5,
             }
             timeline = [
-                {"minute": "00:00", "event": "Incoming traffic surges 400% from 4.5k to 18.2k RPS."},
-                {"minute": "00:02", "event": "Horizontal Pod Autoscaler (HPA) spins up 8 additional pod replicas."},
+                {
+                    "minute": "00:00",
+                    "event": "Incoming traffic surges 400% from 4.5k to 18.2k RPS.",
+                },
+                {
+                    "minute": "00:02",
+                    "event": "Horizontal Pod Autoscaler (HPA) spins up 8 additional pod replicas.",
+                },
                 {"minute": "00:05", "event": "Traffic stabilizes with P95 latency at 42ms."},
             ]
-            recovery = ["1. Pre-warm ALB load balancer.", "2. Adjust HPA target CPU utilization to 60%."]
+            recovery = [
+                "1. Pre-warm ALB load balancer.",
+                "2. Adjust HPA target CPU utilization to 60%.",
+            ]
             risk_score = 55
             financial_impact = 3400.0
             rec_mins = 6
@@ -240,15 +339,22 @@ class DigitalTwinService:
         await db.refresh(exec_rec)
         return exec_rec
 
-    async def evaluate_what_if(self, db: AsyncSession, user_id: uuid.UUID, prompt: str) -> WhatIfQuery:
-        now = datetime.now(timezone.utc)
+    async def evaluate_what_if(
+        self, db: AsyncSession, user_id: uuid.UUID, prompt: str
+    ) -> WhatIfQuery:
+        now = datetime.now(UTC)
         p_lower = prompt.lower()
 
         if "redis" in p_lower:
             summary = "If Redis fails, all cached token sessions and cart items miss, causing a 350% database query surge. PostgreSQL connection pool will saturate within 4 minutes, causing 504 timeouts on checkout-svc."
             risk = "HIGH"
             cost = "$18,500 / hr"
-            affected = ["redis-cluster-cache", "checkout-svc", "auth-service", "postgres-primary-db"]
+            affected = [
+                "redis-cluster-cache",
+                "checkout-svc",
+                "auth-service",
+                "postgres-primary-db",
+            ]
             mitigations = [
                 "Enable Redis Sentinel automatic failover.",
                 "Implement circuit breakers with in-memory local cache fallbacks.",

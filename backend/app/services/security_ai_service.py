@@ -3,7 +3,8 @@ Gemini AI Security & Compliance Engine — Generates threat analysis, attack sce
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import structlog
 
 from app.core.config import settings
@@ -33,7 +34,9 @@ Always return a valid JSON object matching EXACTLY this structure:
 """
 
 
-def _generate_fallback_security_analysis(scan_name: str, resource: str, severity: str) -> Dict[str, Any]:
+def _generate_fallback_security_analysis(
+    scan_name: str, resource: str, severity: str
+) -> dict[str, Any]:
     """Fallback security threat analysis when Gemini API is unconfigured or offline."""
     return {
         "executive_summary": f"CloudPulse AI Security Engine identified a {severity} security risk on {resource} ({scan_name}). Potential unauthorized access vector.",
@@ -48,12 +51,12 @@ def _generate_fallback_security_analysis(scan_name: str, resource: str, severity
         ],
         "estimated_fix_time": "15 mins",
         "priority_order": 1 if severity == "Critical" else 2,
-        "compliance_impact": f"Non-compliant with CIS Benchmarks & SOC 2 Trust Security Criteria.",
+        "compliance_impact": "Non-compliant with CIS Benchmarks & SOC 2 Trust Security Criteria.",
         "confidence_score": 0.96,
     }
 
 
-async def analyze_security_finding(finding: Dict[str, Any]) -> Dict[str, Any]:
+async def analyze_security_finding(finding: dict[str, Any]) -> dict[str, Any]:
     """Generates AI Security Threat Analysis using Google Gemini API."""
     scan_name = finding.get("scan_name", "Security Anomaly")
     resource = finding.get("resource", "cloud-resource")

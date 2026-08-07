@@ -7,9 +7,30 @@ All route groups are registered here with their prefixes and tags.
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    ai, aiops, alerts, auth, cloud, cost, incidents, kubernetes, logs, members, metrics,
-    notifications, organizations, predictions, projects, rag_chat,
-    runbooks, security, servers, teams, traces, twin, users, workflows
+    ai,
+    aiops,
+    alerts,
+    auth,
+    cloud,
+    cost,
+    incidents,
+    kubernetes,
+    logs,
+    members,
+    metrics,
+    notifications,
+    organizations,
+    predictions,
+    projects,
+    rag_chat,
+    runbooks,
+    security,
+    servers,
+    teams,
+    traces,
+    twin,
+    users,
+    workflows,
 )
 
 api_router = APIRouter()

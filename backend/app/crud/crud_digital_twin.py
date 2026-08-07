@@ -3,21 +3,22 @@ Repository for Digital Twin Infrastructure, Failure Scenarios, Executions, and W
 """
 
 import uuid
-from typing import List, Optional, Any
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.digital_twin import (
     InfrastructureTwin,
-    SimulationScenario,
     SimulationExecution,
+    SimulationScenario,
     WhatIfQuery,
 )
 
 
 class CRUDInfrastructureTwin(CRUDBase[InfrastructureTwin, Any, Any]):
-    async def get_by_user(self, db: AsyncSession, user_id: uuid.UUID) -> Optional[InfrastructureTwin]:
+    async def get_by_user(self, db: AsyncSession, user_id: uuid.UUID) -> InfrastructureTwin | None:
         stmt = select(InfrastructureTwin).where(InfrastructureTwin.user_id == user_id)
         res = await db.execute(stmt)
         return res.scalar_one_or_none()
@@ -25,8 +26,8 @@ class CRUDInfrastructureTwin(CRUDBase[InfrastructureTwin, Any, Any]):
 
 class CRUDSimulationScenario(CRUDBase[SimulationScenario, Any, Any]):
     async def get_multi_by_twin(
-        self, db: AsyncSession, twin_id: uuid.UUID, category: Optional[str] = None
-    ) -> List[SimulationScenario]:
+        self, db: AsyncSession, twin_id: uuid.UUID, category: str | None = None
+    ) -> list[SimulationScenario]:
         stmt = select(SimulationScenario).where(SimulationScenario.twin_id == twin_id)
         if category and category != "all":
             stmt = stmt.where(SimulationScenario.category == category)
@@ -37,7 +38,7 @@ class CRUDSimulationScenario(CRUDBase[SimulationScenario, Any, Any]):
 class CRUDSimulationExecution(CRUDBase[SimulationExecution, Any, Any]):
     async def get_multi_by_twin(
         self, db: AsyncSession, twin_id: uuid.UUID, limit: int = 50
-    ) -> List[SimulationExecution]:
+    ) -> list[SimulationExecution]:
         stmt = (
             select(SimulationExecution)
             .where(SimulationExecution.twin_id == twin_id)
@@ -51,8 +52,13 @@ class CRUDSimulationExecution(CRUDBase[SimulationExecution, Any, Any]):
 class CRUDWhatIfQuery(CRUDBase[WhatIfQuery, Any, Any]):
     async def get_recent_by_user(
         self, db: AsyncSession, user_id: uuid.UUID, limit: int = 20
-    ) -> List[WhatIfQuery]:
-        stmt = select(WhatIfQuery).where(WhatIfQuery.user_id == user_id).order_by(WhatIfQuery.created_at.desc()).limit(limit)
+    ) -> list[WhatIfQuery]:
+        stmt = (
+            select(WhatIfQuery)
+            .where(WhatIfQuery.user_id == user_id)
+            .order_by(WhatIfQuery.created_at.desc())
+            .limit(limit)
+        )
         res = await db.execute(stmt)
         return list(res.scalars().all())
 

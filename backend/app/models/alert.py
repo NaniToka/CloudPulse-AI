@@ -1,12 +1,20 @@
 """Alert model."""
 
+from __future__ import annotations
+
 import uuid
-from sqlalchemy import String, Text, Float, ForeignKey, JSON
+from typing import TYPE_CHECKING
+
+from sqlalchemy import JSON, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
-from app.models.mixins import UUIDMixin, TimestampMixin
+from app.models.mixins import TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.incident import Incident
+    from app.models.resource import Resource
 
 
 class Alert(UUIDMixin, TimestampMixin, Base):
@@ -14,8 +22,12 @@ class Alert(UUIDMixin, TimestampMixin, Base):
 
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=True)
-    severity: Mapped[str] = mapped_column(String(20), default="medium")  # critical | high | medium | low
-    status: Mapped[str] = mapped_column(String(20), default="active")    # active | acknowledged | resolved
+    severity: Mapped[str] = mapped_column(
+        String(20), default="medium"
+    )  # critical | high | medium | low
+    status: Mapped[str] = mapped_column(
+        String(20), default="active"
+    )  # active | acknowledged | resolved
     metric_name: Mapped[str] = mapped_column(String(200), nullable=True)
     metric_value: Mapped[float] = mapped_column(Float, nullable=True)
     threshold: Mapped[float] = mapped_column(Float, nullable=True)
@@ -33,5 +45,5 @@ class Alert(UUIDMixin, TimestampMixin, Base):
     )
 
     # Relationships
-    resource: Mapped["Resource"] = relationship("Resource", back_populates="alerts")
-    incident: Mapped["Incident"] = relationship("Incident", back_populates="alerts")
+    resource: Mapped[Resource] = relationship("Resource", back_populates="alerts")
+    incident: Mapped[Incident] = relationship("Incident", back_populates="alerts")
