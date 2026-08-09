@@ -38,9 +38,10 @@ export const ragChatService = {
     return response.data;
   },
 
-  async clearHistory(conversationId: str): Promise<void> {
+  async clearHistory(conversationId: string): Promise<void> {
     await apiClient.delete("/chat/history", {
       params: { conversation_id: conversationId },
     });
   },
+
 };

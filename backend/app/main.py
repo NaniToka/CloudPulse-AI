@@ -67,7 +67,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.create_all)
     log.info("database_ready")
 
+    # Seed initial development user & baseline data
+    from app.db.init_db import init_db  # noqa: PLC0415
+    from app.db.session import AsyncSessionLocal  # noqa: PLC0415
+
+    async with AsyncSessionLocal() as session:
+        try:
+            await init_db(session)
+        except Exception as exc:
+            log.warning("init_db_seeding_skipped", error=str(exc))
+
     yield
+
 
     await engine.dispose()
     log.info("shutdown")
@@ -169,14 +180,15 @@ async def readiness_check(response: Response) -> dict:
     except Exception as e:
         log.error("readiness_redis_failed", error=str(e))
 
-    is_ready = db_ok and redis_ok
+    # In local development, in-memory cache is active as a clean fallback
+    is_ready = db_ok and (redis_ok or settings.APP_ENV == "development")
     if not is_ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
     return {
         "status": "ready" if is_ready else "degraded",
         "database": "connected" if db_ok else "unhealthy",
-        "redis": "connected" if redis_ok else "unhealthy",
+        "redis": "connected" if redis_ok else ("in-memory-fallback" if settings.APP_ENV == "development" else "unhealthy"),
         "timestamp": time.time(),
     }
 

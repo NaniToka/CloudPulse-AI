@@ -306,7 +306,8 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
         )
         db.add(rec)
 
-    await db.flush()
+    await db.commit()
+
 
 
 # ── Cost Queries ──────────────────────────────────────────────────────────────
@@ -447,7 +448,10 @@ async def get_cost_overview_data(
         "daily_trend": daily_trend,
         "service_breakdown": service_breakdown,
         "region_breakdown": region_breakdown,
+        "data_source": "Demo Provider",
+        "environment": "Local Development",
     }
+
 
 
 # ── Recommendation CRUD ───────────────────────────────────────────────────────

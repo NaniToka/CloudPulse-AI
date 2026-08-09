@@ -49,7 +49,7 @@ export default function CostPage() {
       setResources(resourcesData.items);
     } catch (err: any) {
       console.error("Failed to load cost data", err);
-      setError(err?.response?.data?.error || "Failed to load cloud cost data. Please try again.");
+      setError(err?.response?.data?.detail || err?.response?.data?.error || "Failed to load cloud cost data. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +73,7 @@ export default function CostPage() {
       }
     } catch (err: any) {
       console.error("Cost AI analysis failed", err);
-      alert(err?.response?.data?.error || "AI Cost analysis failed.");
+      alert(err?.response?.data?.detail || err?.response?.data?.error || "AI Cost analysis failed.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -145,9 +145,18 @@ export default function CostPage() {
     <div className="space-y-6 max-w-[1600px] mx-auto">
       <PageHeader
         title="Cost Optimizer"
-        subtitle="Intelligent cloud spend analysis and Google Gemini FinOps recommendations"
+        subtitle="Intelligent multi-cloud FinOps spend analysis and AI optimization recommendations"
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="text-muted-foreground">Environment:</span>
+              <span className="text-foreground font-semibold">{overview?.environment || "Local Development"}</span>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-muted-foreground">Source:</span>
+              <span className="text-brand-blue font-semibold">{overview?.data_source || "Demo Provider"}</span>
+            </div>
+
             <Button
               variant="outline"
               size="sm"
@@ -180,6 +189,7 @@ export default function CostPage() {
           </div>
         }
       />
+
 
       {/* 1. Monthly Cost Card & Key Metrics */}
       {overview && (

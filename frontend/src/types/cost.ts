@@ -74,7 +74,10 @@ export interface CostOverviewResponse {
   daily_trend: DailyCostItem[];
   service_breakdown: ServiceCostItem[];
   region_breakdown: RegionCostItem[];
+  data_source?: string;
+  environment?: string;
 }
+
 
 export interface CostAnalyzeResponse {
   cost_summary: string;

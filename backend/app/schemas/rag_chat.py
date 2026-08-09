@@ -40,6 +40,7 @@ class RAGQueryResponse(BaseModel):
     conversation_id: str
     question: str
     answer: str
+    provider: str = Field(default="LOCAL DEMO AI", description="AI Provider: LIVE AI (Gemini 1.5 Pro) or LOCAL DEMO AI")
     evidence_sources: list[SourceCitation] = Field(default_factory=list)
     confidence_score: float = Field(default=0.94, ge=0.0, le=1.0)
     related_alerts: list[RelatedItem] = Field(default_factory=list)
@@ -48,6 +49,7 @@ class RAGQueryResponse(BaseModel):
     recommended_actions: list[str] = Field(default_factory=list)
     suggested_followup_questions: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
 
 
 class RAGUploadResponse(BaseModel):

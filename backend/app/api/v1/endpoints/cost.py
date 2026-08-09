@@ -69,7 +69,10 @@ async def get_cost_overview(
         daily_trend=[DailyCostItem(**d) for d in data["daily_trend"]],
         service_breakdown=[ServiceCostItem(**s) for s in data["service_breakdown"]],
         region_breakdown=[RegionCostItem(**r) for r in data["region_breakdown"]],
+        data_source=data.get("data_source", "Demo Provider"),
+        environment=data.get("environment", "Local Development"),
     )
+
 
 
 # ---------------------------------------------------------------------------

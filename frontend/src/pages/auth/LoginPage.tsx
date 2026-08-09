@@ -114,6 +114,19 @@ export default function LoginPage() {
             "Sign in"
           )}
         </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            login({ email: "admin@cloudpulse.io", password: "Password123!" });
+          }}
+          disabled={isPending}
+          className="w-full text-xs border-brand-blue/30 text-brand-blue hover:bg-brand-blue/10 gap-1.5"
+        >
+          <Zap className="h-3.5 w-3.5" /> 1-Click Demo Login (admin@cloudpulse.io)
+        </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
@@ -122,6 +135,7 @@ export default function LoginPage() {
           Start free trial →
         </Link>
       </p>
+
     </div>
   );
 }

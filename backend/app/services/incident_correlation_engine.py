@@ -19,6 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.incident import Incident, IncidentTimelineEvent
 from app.models.trace import ServiceDependency
+from app.schemas.incident import IncidentResponse
+from app.services.websocket_manager import incident_ws_manager
+
 
 log = structlog.get_logger(__name__)
 
@@ -169,11 +172,15 @@ class IncidentCorrelationEngine:
                         is_dependent = (
                             s1 in downstream_map.get(s2, set())
                             or s2 in downstream_map.get(s1, set())
-                            or ("db" in s1 and "svc" in s2)
-                            or ("db" in s2 and "svc" in s1)
-                            or ("cache" in s1 and "api" in s2)
-                            or ("redis" in s1 and "api" in s2)
+                            or (any(k in s1 for k in ["db", "database", "postgres", "sql", "rds", "data"]) and any(k in s2 for k in ["payment", "checkout", "auth", "api", "order", "svc", "service"]))
+                            or (any(k in s2 for k in ["db", "database", "postgres", "sql", "rds", "data"]) and any(k in s1 for k in ["payment", "checkout", "auth", "api", "order", "svc", "service"]))
+                            or (any(k in s1 for k in ["cache", "redis", "memcached"]) and any(k in s2 for k in ["payment", "checkout", "auth", "api", "order", "svc", "service"]))
+                            or (any(k in s2 for k in ["cache", "redis", "memcached"]) and any(k in s1 for k in ["payment", "checkout", "auth", "api", "order", "svc", "service"]))
+                            or ("payment" in s1 and "checkout" in s2) or ("checkout" in s1 and "payment" in s2)
+                            or ("auth" in s1 and "gateway" in s2) or ("gateway" in s1 and "auth" in s2)
+                            or ("api" in s1 and "svc" in s2) or ("svc" in s1 and "api" in s2)
                         )
+
 
                         if same_service or same_resource or is_dependent:
                             matched_cluster = cluster
@@ -235,15 +242,31 @@ class IncidentCorrelationEngine:
             created_incidents.append(incident)
 
         await db.commit()
-        for inc in created_incidents:
-            await db.refresh(inc)
+        from app.crud.crud_incident import crud_incident
 
-        log.info(
-            "correlation_completed",
-            raw_count=len(raw_alerts),
-            correlated_incidents=len(created_incidents),
-        )
-        return created_incidents
+        reloaded_incidents = []
+        for inc in created_incidents:
+            reloaded = await crud_incident.get_with_timeline(db, inc.id)
+            if reloaded:
+                reloaded_incidents.append(reloaded)
+            else:
+                reloaded_incidents.append(inc)
+
+        # 6. Broadcast WebSockets notification
+        for inc in reloaded_incidents:
+            try:
+                resp = IncidentResponse.model_validate(inc)
+                await incident_ws_manager.broadcast(
+                    {
+                        "event": "incident.created",
+                        "data": resp.model_dump(mode="json"),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
+            except Exception as exc:
+                log.warning("ws_broadcast_error", error=str(exc))
+
+        return reloaded_incidents
 
     def _build_incident_from_cluster(
         self, cluster: list[dict[str, Any]], organization_id: uuid.UUID | None

@@ -21,8 +21,9 @@ export interface RelatedItem {
 export interface RAGQueryResponse {
   id: string;
   conversation_id: string;
-  question: str;
+  question: string;
   answer: string;
+  provider?: string;
   evidence_sources: SourceCitation[];
   confidence_score: number;
   related_alerts: RelatedItem[];
@@ -32,6 +33,7 @@ export interface RAGQueryResponse {
   suggested_followup_questions: string[];
   created_at: string;
 }
+
 
 export interface RAGUploadResponse {
   filename: string;

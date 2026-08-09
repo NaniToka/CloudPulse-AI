@@ -203,6 +203,7 @@ class RAGService:
                         "answer",
                         "Based on telemetry context, CPU saturation is caused by memory heap leak on api-gateway.",
                     ),
+                    provider="LIVE AI (Gemini 1.5 Pro)",
                     evidence_sources=sources,
                     confidence_score=float(data.get("confidence_score", 0.95)),
                     related_alerts=[RelatedItem(**a) for a in data.get("related_alerts", [])],
@@ -216,11 +217,13 @@ class RAGService:
                 await crud_rag_chat.add_message(
                     conv_id, res.question, res.answer, res.confidence_score
                 )
+                log.info("rag_query_completed_live_ai", conversation_id=conv_id, sources_count=len(sources))
                 return res
             except Exception as exc:
-                log.error("gemini_rag_query_failed", error=str(exc))
+                log.warning("gemini_rag_query_failed_falling_back", error=str(exc))
 
         # Fallback RAG synthesis if Gemini API unconfigured or offline
+        log.info("rag_query_using_local_demo_provider", conversation_id=conv_id, question=req.question[:60])
         res = self._generate_fallback_rag_response(conv_id, req.question, sources)
         from app.crud.crud_rag_chat import crud_rag_chat
 
@@ -232,16 +235,17 @@ class RAGService:
     ) -> RAGQueryResponse:
         q_lower = question.lower()
 
-        if "cpu" in q_lower or "high" in q_lower or "unhealthy" in q_lower:
+        if any(k in q_lower for k in ["cpu", "high", "unhealthy", "load", "memory", "oom"]):
             answer = (
-                "### Infrastructure Diagnostics: High CPU Saturation\n\n"
-                "CloudPulse AI analyzed live metrics and detected **CPU utilization at 94.2%** on `api-gateway` in region `us-east-1`.\n\n"
+                "### Infrastructure Diagnostics: Telemetry & Resource Utilization\n\n"
+                "CloudPulse AI analyzed live metrics and detected **CPU utilization at 94.2%** and **Memory at 88.7%** on `api-gateway` in region `us-east-1`.\n\n"
                 "#### Root Cause:\n"
                 "- Unbounded memory heap growth (+450MB/15m) in session handler during traffic burst.\n"
-                "- Thread pool lock contention resulting in HTTP 504 Gateway Timeouts.\n\n"
+                "- Thread pool lock contention resulting in elevated P99 latency and HTTP 504 Gateway Timeouts.\n\n"
                 "#### Recommended Actions:\n"
                 "1. Scale container replicas for `api-gateway` from 4 to 12 instances.\n"
-                "2. Flush stale session memory cache entries in Redis."
+                "2. Flush stale session memory cache entries in Redis cluster.\n"
+                "3. Enable Horizontal Pod Autoscaling (HPA) target at 75% CPU."
             )
             rel_alerts = [
                 RelatedItem(
@@ -273,14 +277,18 @@ class RAGService:
                 "Show me the latency waterfall for the slowest trace.",
             ]
 
-        elif "cost" in q_lower or "spend" in q_lower or "resource" in q_lower:
+        elif any(k in q_lower for k in ["cost", "spend", "bill", "saving", "price", "budget", "finops"]):
             answer = (
-                "### Cloud Cost Breakdown\n\n"
-                "Your total monthly cloud infrastructure spend is **$14,250/mo**.\n\n"
-                "#### Highest Cost Resource:\n"
-                "- **PostgreSQL Aurora Cluster (`db.r6g.4xlarge`)**: **$4,820/mo** (33.8% of total AWS bill).\n\n"
-                "#### Potential Savings:\n"
-                "- Switching idle instances to Reserved Instances will save **$3,180/mo**."
+                "### Cloud Cost & FinOps Optimization Summary\n\n"
+                "Your total monthly cloud infrastructure spend across all clouds is **$14,250/mo**.\n\n"
+                "#### Highest Cost Resources:\n"
+                "- **PostgreSQL Aurora Cluster (`db.r6g.4xlarge`)**: **$4,820/mo** (33.8% of AWS bill).\n"
+                "- **Unattached EBS Volumes (14 volumes)**: **$840/mo** (idle storage waste).\n"
+                "- **Overprovisioned Kubernetes Nodes**: **$2,340/mo** (average CPU utilization < 18%).\n\n"
+                "#### Potential Monthly Savings:\n"
+                "- Purchasing 1-Year Compute Savings Plans: **$3,180/mo**.\n"
+                "- Deleting unattached EBS volumes & snapshots: **$840/mo**.\n"
+                "- Downsizing idle worker nodes: **$1,120/mo**."
             )
             rel_alerts = []
             rel_traces = []
@@ -288,22 +296,24 @@ class RAGService:
             actions = [
                 "Purchase 1-Year Savings Plan for Aurora Cluster",
                 "Delete 14 unattached EBS volumes",
+                "Apply node rightsizing recommendations",
             ]
             followups = [
                 "How much can we save by purchasing Reserved Instances?",
-                "Show all idle EC2 instances.",
+                "Show all idle EC2 instances across AWS and GCP.",
             ]
 
-        elif "latency" in q_lower or "slow" in q_lower or "trace" in q_lower:
+        elif any(k in q_lower for k in ["latency", "slow", "trace", "duration", "timeout", "p99", "bottleneck"]):
             answer = (
-                "### Latency Bottleneck Analysis\n\n"
-                "The slowest service in your architecture is **`billing-service -> Stripe API`**.\n\n"
+                "### Distributed Tracing & Latency Bottleneck Analysis\n\n"
+                "The slowest service in your architecture is **`billing-service -> Stripe API Gateway`**.\n\n"
                 "#### Key Metrics:\n"
                 "- **Trace ID**: `tr-94821a0b` (`POST /api/v1/checkout`)\n"
-                "- **Total Request Duration**: `654.5 ms`\n"
-                "- **Stripe API Call**: `420.0 ms` (64% of total trace duration)\n\n"
+                "- **Total Request Duration**: `654.5 ms` (P99 threshold: 300ms)\n"
+                "- **Stripe API Call Span**: `420.0 ms` (64% of total trace duration)\n"
+                "- **PostgreSQL Transaction Lock**: `148.0 ms`\n\n"
                 "#### Recommendation:\n"
-                "Offload synchronous payment verification to an asynchronous Kafka event queue."
+                "Offload synchronous payment verification to an asynchronous Kafka/Celery event queue and apply connection pooling."
             )
             rel_alerts = []
             rel_traces = [
@@ -314,21 +324,117 @@ class RAGService:
             rel_incidents = []
             actions = [
                 "Wrap Stripe API HTTP calls in async background queue",
-                "Add Redis caching for user tokens",
+                "Add Redis caching for user authorization tokens",
             ]
             followups = [
-                "Why is the Stripe API taking 420ms?",
-                "Show me the service dependency map.",
+                "Why is the Stripe API span taking 420ms?",
+                "Show me the service dependency map for billing-service.",
+            ]
+
+        elif any(k in q_lower for k in ["incident", "outage", "alert", "error", "down", "failure"]):
+            answer = (
+                "### Incident Intelligence & Correlated Signals\n\n"
+                "There is currently **1 active P0 Critical incident** requiring immediate attention:\n\n"
+                "- **Incident**: `P99 Latency degradation on Payment API` (`payment-service`)\n"
+                "- **Root Cause**: Redis memory limit reached maxmemory threshold (2GB), evicting session tokens.\n"
+                "- **Impact**: 8.4% drop in checkout conversion rate.\n"
+                "- **Confidence Score**: 96%\n\n"
+                "#### Auto-Remediation Plan:\n"
+                "1. Scale Redis Cluster Memory to 8GB (`wf-redis-scale`).\n"
+                "2. Run UNLINK on expired telemetry namespaces."
+            )
+            rel_alerts = [
+                RelatedItem(
+                    type="alert",
+                    id="ALT-9482",
+                    title="Redis Memory Limit Breached (99.4%)",
+                    severity="Critical",
+                )
+            ]
+            rel_traces = [
+                RelatedItem(
+                    type="trace", id="tr-94821a0b", title="POST /api/v1/checkout", status="error"
+                )
+            ]
+            rel_incidents = [
+                RelatedItem(
+                    type="incident",
+                    id="INC-4029",
+                    title="P99 Latency degradation on Payment API",
+                    status="Investigating",
+                    severity="CRITICAL",
+                )
+            ]
+            actions = [
+                "Execute remediation workflow wf-redis-scale",
+                "Notify #sre-oncall Slack channel",
+            ]
+            followups = [
+                "What is the blast radius for INC-4029?",
+                "Show evidence logs for the payment-service outage.",
+            ]
+
+        elif any(k in q_lower for k in ["k8s", "kubernetes", "pod", "cluster", "node", "deployment"]):
+            answer = (
+                "### Kubernetes Container Intelligence\n\n"
+                "CloudPulse AI is monitoring **3 clusters (48 nodes, 284 pods)** across GKE and EKS.\n\n"
+                "- **Cluster Health**: `gke-prod-us-east1` (Healthy), `eks-prod-eu-west1` (Degraded)\n"
+                "- **CrashLoopBackOff**: 2 pods detected on namespace `payments` (`payment-worker-v2`)\n"
+                "- **Resource Efficiency**: Cluster CPU allocation 42%, Memory allocation 68%\n\n"
+                "#### Root Cause:\n"
+                "Missing environment secret `STRIPE_WEBHOOK_SECRET` in `payment-worker-v2` deployment spec."
+            )
+            rel_alerts = [
+                RelatedItem(
+                    type="alert",
+                    id="ALT-K8S-01",
+                    title="Pod CrashLoopBackOff: payment-worker-v2",
+                    severity="High",
+                )
+            ]
+            rel_traces = []
+            rel_incidents = []
+            actions = [
+                "Inject missing secret into payments namespace",
+                "Restart payment-worker-v2 deployment rollouts",
+            ]
+            followups = [
+                "Show pod logs for payment-worker-v2.",
+                "List all pods in CrashLoopBackOff state.",
+            ]
+
+        elif any(k in q_lower for k in ["security", "cve", "vulnerability", "iam", "compliance", "policy"]):
+            answer = (
+                "### AI Security & Cloud Compliance Overview\n\n"
+                "Overall Cloud Security Posture Score: **88 / 100 (SOC2 & ISO 27001 Compliant)**.\n\n"
+                "- **Critical Findings**: 0\n"
+                "- **High Findings**: 2 (S3 bucket public read permissions on `media-assets-prod`, unrotated IAM access keys > 90 days)\n"
+                "- **Medium Findings**: 5 (Security group 0.0.0.0/0 on SSH port 22)\n\n"
+                "#### Remediation Actions:\n"
+                "1. Apply S3 Block Public Access on `media-assets-prod`.\n"
+                "2. Rotate IAM credentials for user `ci-deployer-bot`."
+            )
+            rel_alerts = []
+            rel_traces = []
+            rel_incidents = []
+            actions = [
+                "Enforce S3 Block Public Access",
+                "Rotate CI/CD IAM credentials",
+            ]
+            followups = [
+                "Run a fresh CSPM security scan on AWS.",
+                "Show compliance breakdown for SOC2.",
             ]
 
         else:
             answer = (
                 "### CloudPulse AI System Health Overview\n\n"
-                "Overall infrastructure health is **STABLE** with 1 active warning.\n\n"
-                "- **Active Microservices**: 9 nodes online\n"
-                "- **Avg P99 Latency**: 124.0 ms\n"
-                "- **Active User Sessions**: 8,450 concurrent users\n"
-                "- **System SLA Availability**: 99.94%"
+                "Overall infrastructure health is **STABLE (96.1% healthy)** across AWS, GCP, and Azure.\n\n"
+                "- **Monitored Compute Nodes**: 2,847 active servers\n"
+                "- **Avg Ingress Latency**: 124.0 ms (P99: 248.0 ms)\n"
+                "- **Active Correlated Incidents**: 1 P0 Critical, 1 P1 High\n"
+                "- **Monthly Cloud Spend**: $84,230 (Potential savings: $18,400/mo)\n"
+                "- **AI Anomaly Detection Pipeline**: Operational with 0 ingestion lag."
             )
             rel_alerts = [
                 RelatedItem(
@@ -343,20 +449,26 @@ class RAGService:
                 RelatedItem(
                     type="incident",
                     id="INC-4029",
-                    title="Database Connection Pool Exhaustion",
+                    title="P99 Latency degradation on Payment API",
                     status="Investigating",
+                    severity="CRITICAL",
                 )
             ]
             actions = [
-                "Review active P0 incident INC-4029",
-                "Check Horizontal Pod Autoscaler targets",
+                "Review active P0 incident in Incident Command Center",
+                "Run cost optimization sweep on unattached EBS storage",
             ]
-            followups = ["Show all incidents this week.", "Why is CPU high on api-gateway?"]
+            followups = [
+                "Why is CPU utilization high on api-gateway?",
+                "What are our top 3 cloud cost savings opportunities?",
+                "Show active incidents and MTTR metrics.",
+            ]
 
         return RAGQueryResponse(
             conversation_id=conversation_id,
             question=question,
             answer=answer,
+            provider="LOCAL DEMO AI (Deterministic RAG)",
             evidence_sources=sources,
             confidence_score=0.94,
             related_alerts=rel_alerts,
@@ -368,3 +480,4 @@ class RAGService:
 
 
 rag_service = RAGService()
+

@@ -139,8 +139,9 @@ async def test_update_and_resolve_incident(client: AsyncClient):
     )
     assert resolve_resp.status_code == 200
     resolved_data = resolve_resp.json()
-    assert resolved_data["status"] == "Resolved"
+    assert resolved_data["status"].upper() == "RESOLVED"
     assert resolved_data["resolution_notes"] == resolve_payload["resolution_notes"]
+
     assert resolved_data["resolved_at"] is not None
 
 

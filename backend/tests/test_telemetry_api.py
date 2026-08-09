@@ -36,8 +36,9 @@ async def test_ingest_logs(client: AsyncClient):
     assert data["source"] == "kubernetes-pod-1"
     assert data["severity"] == "ERROR"
     assert data["event_type"] == "log_error"
-    assert "metadata_" in data
-    assert data["metadata_"]["is_error"] is True
+    assert "metadata" in data
+    assert data["metadata"]["is_error"] is True
+
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,7 @@
  * RAG AI Infrastructure Chat Platform — Main Page
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Sparkles,
@@ -14,12 +14,14 @@ import {
   RefreshCw,
   Database,
   FileText,
+  Cpu,
 } from "lucide-react";
 
 import PageHeader from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/useToast";
 
 import { ragChatService } from "@/services/ragChatService";
@@ -37,6 +39,17 @@ export default function RAGChatPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastToastRef = useRef<{ msg: string; time: number } | null>(null);
+
+  const showDeduplicatedToast = useCallback((title: string, description: string, variant?: "default" | "destructive") => {
+    const key = `${title}:${description}`;
+    const now = Date.now();
+    if (lastToastRef.current && lastToastRef.current.msg === key && now - lastToastRef.current.time < 3000) {
+      return; // Skip duplicate toast within 3s window
+    }
+    lastToastRef.current = { msg: key, time: now };
+    toast({ title, description, variant });
+  }, [toast]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -54,11 +67,11 @@ export default function RAGChatPage() {
       setMessages((prev) => [...prev, res]);
     },
     onError: (err: any) => {
-      toast({
-        title: "Chat query failed",
-        description: err?.response?.data?.detail || "Could not query RAG pipeline.",
-        variant: "destructive",
-      });
+      showDeduplicatedToast(
+        "Chat query issue",
+        err?.response?.data?.detail || "Could not query RAG pipeline. Using local telemetry memory.",
+        "destructive"
+      );
     },
   });
 
@@ -66,10 +79,17 @@ export default function RAGChatPage() {
   const uploadMutation = useMutation({
     mutationFn: (file: File) => ragChatService.uploadDocument(file, "logs"),
     onSuccess: (res) => {
-      toast({
-        title: "Telemetry File Indexed",
-        description: `${res.filename} indexed into '${res.collection}' vector store.`,
-      });
+      showDeduplicatedToast(
+        "Telemetry File Indexed",
+        `${res.filename} indexed into '${res.collection}' vector store.`
+      );
+    },
+    onError: (err: any) => {
+      showDeduplicatedToast(
+        "Upload failed",
+        err?.response?.data?.detail || "Could not index file.",
+        "destructive"
+      );
     },
   });
 
@@ -78,10 +98,7 @@ export default function RAGChatPage() {
     mutationFn: () => ragChatService.clearHistory(conversationId),
     onSuccess: () => {
       setMessages([]);
-      toast({
-        title: "History Cleared",
-        description: "RAG chat session history wiped.",
-      });
+      showDeduplicatedToast("History Cleared", "RAG chat session history wiped.");
     },
   });
 
@@ -101,7 +118,7 @@ export default function RAGChatPage() {
 
   const handleExportConversation = () => {
     const text = messages
-      .map((m) => `User: ${m.question}\nAI: ${m.answer}\nConfidence: ${m.confidence_score}\n---`)
+      .map((m) => `User: ${m.question}\nAI (${m.provider || "Demo AI"}): ${m.answer}\nConfidence: ${m.confidence_score}\n---`)
       .join("\n\n");
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -111,6 +128,8 @@ export default function RAGChatPage() {
     a.click();
   };
 
+  const latestProvider = messages.length > 0 ? messages[messages.length - 1].provider : "LOCAL DEMO AI (Deterministic RAG)";
+
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-100px)] max-h-[900px]">
       {/* Page Header */}
@@ -118,7 +137,15 @@ export default function RAGChatPage() {
         title="AI Infrastructure Chat (RAG)"
         subtitle="Retrieval-Augmented Generation assistant answering queries across ChromaDB telemetry vector collections"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-muted-foreground">Engine:</span>
+              <span className="text-foreground font-semibold">
+                {latestProvider?.includes("LIVE") ? "Live Gemini AI" : "Local Demo AI"}
+              </span>
+            </div>
+
             <input
               type="file"
               ref={fileInputRef}
@@ -158,6 +185,7 @@ export default function RAGChatPage() {
           </div>
         }
       />
+
 
       {/* Main Conversation Chat Box */}
       <Card className="border border-white/10 bg-bg-surface/80 backdrop-blur-md shadow-2xl flex-1 flex flex-col justify-between overflow-hidden">

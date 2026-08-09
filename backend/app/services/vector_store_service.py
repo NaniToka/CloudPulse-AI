@@ -33,10 +33,14 @@ class VectorStoreService:
         """Initialize ChromaDB client and create 6 collections."""
         try:
             import chromadb
+            from chromadb.config import Settings
 
             persist_dir = os.path.join(os.getcwd(), "chroma_db_data")
             os.makedirs(persist_dir, exist_ok=True)
-            self.chroma_client = chromadb.PersistentClient(path=persist_dir)
+            self.chroma_client = chromadb.PersistentClient(
+                path=persist_dir,
+                settings=Settings(anonymized_telemetry=False),
+            )
 
             for col in COLLECTION_NAMES:
                 collection_obj = self.chroma_client.get_or_create_collection(
@@ -73,8 +77,10 @@ class VectorStoreService:
             except Exception as exc:
                 log.error("chromadb_upsert_failed", collection=collection_name, error=str(exc))
 
-        # Store in fallback in-memory cache
-        self.in_memory_docs[collection_name].append(doc_item)
+        # Store in fallback in-memory cache (deduplicated by id)
+        existing = [d for d in self.in_memory_docs[collection_name] if d["id"] != doc_id]
+        existing.append(doc_item)
+        self.in_memory_docs[collection_name] = existing
 
     def query_similarity(
         self,
@@ -85,6 +91,7 @@ class VectorStoreService:
         """Queries across ChromaDB collections for relevant context documents."""
         target_collections = collection_filter or COLLECTION_NAMES
         results = []
+        seen_ids = set()
 
         query_terms = [t.lower() for t in query.split() if len(t) > 2]
 
@@ -95,32 +102,41 @@ class VectorStoreService:
             # Query ChromaDB collection if active
             if col_name in self.collections:
                 try:
-                    res = self.collections[col_name].query(
-                        query_texts=[query],
-                        n_results=min(top_k, 5),
-                    )
-                    if res and res.get("documents") and len(res["documents"]) > 0:
-                        docs = res["documents"][0]
-                        metas = res.get("metadatas", [[]])[0]
-                        ids = res.get("ids", [[]])[0]
-                        for idx, d_text in enumerate(docs):
-                            results.append(
-                                {
-                                    "collection": col_name,
-                                    "id": ids[idx] if idx < len(ids) else f"{col_name}-{idx}",
-                                    "text": d_text,
-                                    "metadata": metas[idx] if idx < len(metas) else {},
-                                    "score": 0.95,
-                                }
-                            )
+                    count = self.collections[col_name].count()
+                    if count > 0:
+                        n_res = min(top_k, count)
+                        res = self.collections[col_name].query(
+                            query_texts=[query],
+                            n_results=n_res,
+                        )
+                        if res and res.get("documents") and len(res["documents"]) > 0:
+                            docs = res["documents"][0]
+                            metas = res.get("metadatas", [[]])[0]
+                            ids = res.get("ids", [[]])[0]
+                            for idx, d_text in enumerate(docs):
+                                doc_id = ids[idx] if idx < len(ids) else f"{col_name}-{idx}"
+                                if doc_id not in seen_ids:
+                                    seen_ids.add(doc_id)
+                                    results.append(
+                                        {
+                                            "collection": col_name,
+                                            "id": doc_id,
+                                            "text": d_text,
+                                            "metadata": metas[idx] if idx < len(metas) else {},
+                                            "score": 0.95,
+                                        }
+                                    )
                 except Exception as exc:
                     log.debug("chromadb_query_failed", collection=col_name, error=str(exc))
 
             # Query in-memory docs fallback
             for doc in self.in_memory_docs.get(col_name, []):
+                if doc["id"] in seen_ids:
+                    continue
                 doc_text_lower = doc["text"].lower()
                 matches = sum(1 for term in query_terms if term in doc_text_lower)
                 if matches > 0:
+                    seen_ids.add(doc["id"])
                     results.append(
                         {
                             "collection": col_name,
@@ -134,6 +150,7 @@ class VectorStoreService:
         # Sort by relevance score desc
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:top_k]
+
 
 
 vector_store_service = VectorStoreService()

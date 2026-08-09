@@ -9,10 +9,12 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.models.incident import Incident, IncidentTimelineEvent
+from app.models.organization import Organization
 from app.schemas.incident import (
     BlastRadiusResponse,
     IncidentAcknowledgeRequest,
@@ -58,8 +60,14 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
         log.info("seeding_initial_incidents")
         now = datetime.now(UTC)
 
+        org_stmt = select(Organization).limit(1)
+        org_res = await db.execute(org_stmt)
+        default_org = org_res.scalar_one_or_none()
+        org_id = default_org.id if default_org else None
+
         sample_incidents = [
             Incident(
+                organization_id=org_id,
                 title="P99 Latency degradation on Payment API",
                 description="Payment API response time exceeded 2.5s threshold due to Redis cache eviction spike.",
                 severity="CRITICAL",
@@ -151,6 +159,7 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 ai_confidence_score=0.96,
             ),
             Incident(
+                organization_id=org_id,
                 title="Database Connection Pool Exhaustion on PostgreSQL Primary",
                 description="PostgreSQL primary rejected connections: max_connections (200) reached due to connection leaks.",
                 severity="CRITICAL",
@@ -246,6 +255,7 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 ai_confidence_score=0.95,
             ),
             Incident(
+                organization_id=org_id,
                 title="High CPU Saturation on Auth Worker Node",
                 description="Kubernetes worker pool node-us-east-1a CPU utilization at 98% for > 15 minutes.",
                 severity="HIGH",

@@ -61,16 +61,28 @@ export const RAGChatMessage: React.FC<RAGChatMessageProps> = ({
         <div className="w-full max-w-3xl bg-bg-surface/90 border border-white/10 rounded-2xl rounded-tl-none p-5 space-y-4 shadow-xl">
           {/* Answer Header */}
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="h-6 w-6 rounded-lg bg-brand-purple/20 flex items-center justify-center text-brand-purple">
                 <Sparkles className="h-3.5 w-3.5" />
               </div>
               <span className="font-bold text-foreground">CloudPulse AI Assistant</span>
               <span className="text-muted-foreground">•</span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] uppercase font-mono px-1.5 py-0.5 ${
+                  message.provider?.includes("LIVE")
+                    ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/40"
+                    : "bg-brand-blue/20 text-brand-blue border-brand-blue/30"
+                }`}
+              >
+                {message.provider || "LOCAL DEMO AI"}
+              </Badge>
+              <span className="text-muted-foreground">•</span>
               <span className="text-emerald-400 font-mono text-[11px] flex items-center gap-1">
                 <ShieldCheck className="h-3.5 w-3.5" /> RAG Confidence: {Math.round(message.confidence_score * 100)}%
               </span>
             </div>
+
 
             <button
               onClick={handleCopy}

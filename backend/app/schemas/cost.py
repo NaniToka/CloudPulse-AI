@@ -103,6 +103,9 @@ class CostOverviewResponse(BaseModel):
     daily_trend: list[DailyCostItem]
     service_breakdown: list[ServiceCostItem]
     region_breakdown: list[RegionCostItem]
+    data_source: str = Field(default="Demo Provider", description="Data source provider")
+    environment: str = Field(default="Local Development", description="Execution environment")
+
 
 
 # ── Service-wise Costs Response ───────────────────────────────────────────────

@@ -61,8 +61,9 @@ class IncidentTimelineEventBase(BaseModel):
     title: str = Field(..., min_length=2, max_length=255)
     description: str | None = None
     source: str = Field(default="system")
-    event_metadata: dict[str, Any] = Field(default_factory=dict, alias="metadata")
+    event_metadata: dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime | None = None
+
 
 
 class IncidentTimelineEventCreate(IncidentTimelineEventBase):
