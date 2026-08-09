@@ -1,20 +1,36 @@
-"""
-Unit tests for Unified Telemetry Intelligence Platform API.
-"""
-from typing import AsyncGenerator
+import uuid
+
 import pytest
 from httpx import AsyncClient
 
 
+def unique_payload() -> dict:
+    return {
+        "email": f"telemuser-{uuid.uuid4().hex[:8]}@example.com",
+        "password": "SecurePassword123",
+        "first_name": "Telemetry",
+        "last_name": "Tester",
+    }
+
+
+async def get_auth_headers(client: AsyncClient) -> dict[str, str]:
+    payload = unique_payload()
+    resp = await client.post("/api/v1/auth/register", json=payload)
+    assert resp.status_code == 201, resp.text
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest.mark.asyncio
-async def test_ingest_logs(async_client: AsyncClient, token_headers: dict[str, str]):
+async def test_ingest_logs(client: AsyncClient):
+    headers = await get_auth_headers(client)
     payload = {
         "source": "kubernetes-pod-1",
         "level": "ERROR",
         "message": "Connection timeout 504 on upstream database.",
-        "service_name": "checkout-service"
+        "service_name": "checkout-service",
     }
-    response = await async_client.post("/api/v1/telemetry/logs", json=payload, headers=token_headers)
+    response = await client.post("/api/v1/telemetry/logs", json=payload, headers=headers)
     assert response.status_code == 201
     data = response.json()
     assert data["source"] == "kubernetes-pod-1"
@@ -25,14 +41,15 @@ async def test_ingest_logs(async_client: AsyncClient, token_headers: dict[str, s
 
 
 @pytest.mark.asyncio
-async def test_ingest_metrics_anomaly(async_client: AsyncClient, token_headers: dict[str, str]):
+async def test_ingest_metrics_anomaly(client: AsyncClient):
+    headers = await get_auth_headers(client)
     payload = {
         "resource_id": "i-0987654321",
         "metric_name": "system_cpu_usage_pct",
         "value": 98.5,
-        "unit": "percent"
+        "unit": "percent",
     }
-    response = await async_client.post("/api/v1/telemetry/metrics", json=payload, headers=token_headers)
+    response = await client.post("/api/v1/telemetry/metrics", json=payload, headers=headers)
     assert response.status_code == 201
     data = response.json()
     assert data["resource_id"] == "i-0987654321"
@@ -40,15 +57,16 @@ async def test_ingest_metrics_anomaly(async_client: AsyncClient, token_headers: 
 
 
 @pytest.mark.asyncio
-async def test_ingest_traces_bottleneck(async_client: AsyncClient, token_headers: dict[str, str]):
+async def test_ingest_traces_bottleneck(client: AsyncClient):
+    headers = await get_auth_headers(client)
     payload = {
         "service_name": "api-gateway",
         "spans": [
             {"operation": "GET /users", "duration_ms": 150.0, "status": "OK"},
-            {"operation": "db.users.find", "duration_ms": 650.0, "status": "TIMEOUT"}
-        ]
+            {"operation": "db.users.find", "duration_ms": 650.0, "status": "TIMEOUT"},
+        ],
     }
-    response = await async_client.post("/api/v1/telemetry/traces", json=payload, headers=token_headers)
+    response = await client.post("/api/v1/telemetry/traces", json=payload, headers=headers)
     assert response.status_code == 201
     data = response.json()
     assert len(data) == 2
@@ -57,16 +75,18 @@ async def test_ingest_traces_bottleneck(async_client: AsyncClient, token_headers
 
 
 @pytest.mark.asyncio
-async def test_get_telemetry_events(async_client: AsyncClient, token_headers: dict[str, str]):
-    response = await async_client.get("/api/v1/telemetry/events?limit=10", headers=token_headers)
+async def test_get_telemetry_events(client: AsyncClient):
+    headers = await get_auth_headers(client)
+    response = await client.get("/api/v1/telemetry/events?limit=10", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
 
 
 @pytest.mark.asyncio
-async def test_get_telemetry_health(async_client: AsyncClient, token_headers: dict[str, str]):
-    response = await async_client.get("/api/v1/telemetry/health", headers=token_headers)
+async def test_get_telemetry_health(client: AsyncClient):
+    headers = await get_auth_headers(client)
+    response = await client.get("/api/v1/telemetry/health", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
@@ -74,10 +94,12 @@ async def test_get_telemetry_health(async_client: AsyncClient, token_headers: di
 
 
 @pytest.mark.asyncio
-async def test_get_telemetry_ai_summary(async_client: AsyncClient, token_headers: dict[str, str]):
-    response = await async_client.get("/api/v1/telemetry/ai-summary", headers=token_headers)
+async def test_get_telemetry_ai_summary(client: AsyncClient):
+    headers = await get_auth_headers(client)
+    response = await client.get("/api/v1/telemetry/ai-summary", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert "root_cause_analysis" in data
     assert "recommended_mitigations" in data
     assert isinstance(data["impacted_services"], list)
+

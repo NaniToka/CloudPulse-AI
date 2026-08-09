@@ -6,6 +6,7 @@ Analyzes distributed tracing execution spans and pinpoints service bottlenecks.
 from __future__ import annotations
 
 from typing import Any
+
 import structlog
 
 log = structlog.get_logger(__name__)
@@ -31,6 +32,15 @@ class TraceProcessor:
         anomaly_event = None
 
         if is_bottleneck and slowest_span:
+            serialized_errors = [
+                {
+                    **span,
+                    "timestamp": span["timestamp"].isoformat()
+                    if hasattr(span.get("timestamp"), "isoformat")
+                    else str(span.get("timestamp")),
+                }
+                for span in error_spans
+            ]
             anomaly_event = {
                 "source": "trace_processor",
                 "event_type": "trace_bottleneck",
@@ -42,7 +52,7 @@ class TraceProcessor:
                     "duration_ms": max_duration,
                     "error_spans_count": len(error_spans),
                 },
-                "raw_payload": {"spans_count": len(spans_data), "errors": error_spans},
+                "raw_payload": {"spans_count": len(spans_data), "errors": serialized_errors},
             }
 
         return {

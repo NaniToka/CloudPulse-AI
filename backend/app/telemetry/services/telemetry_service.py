@@ -7,9 +7,10 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+
+import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from app.models.incident import Incident
 from app.models.telemetry import MetricRecord, TelemetryEvent, TraceRecord

@@ -22,7 +22,7 @@ from app.models.digital_twin import (  # noqa: F401
     SimulationScenario,
     WhatIfQuery,
 )
-from app.models.incident import Incident  # noqa: F401
+from app.models.incident import Incident, IncidentTimelineEvent  # noqa: F401
 from app.models.kubernetes import K8sCluster, K8sDeployment, K8sEvent, K8sNode, K8sPod  # noqa: F401
 from app.models.log_analysis import LogAnalysis  # noqa: F401
 from app.models.metric import MetricPoint  # noqa: F401
@@ -32,6 +32,11 @@ from app.models.prediction import Prediction  # noqa: F401
 from app.models.resource import Resource  # noqa: F401
 from app.models.runbook import AutomationStep, Runbook, RunbookExecution  # noqa: F401
 from app.models.security import ComplianceReport, SecurityScan  # noqa: F401
+from app.models.telemetry import (  # noqa: F401
+    MetricRecord,
+    TelemetryEvent,
+    TraceRecord,
+)
 from app.models.tenant import (  # noqa: F401
     AuditLog,
     Invitation,
@@ -50,9 +55,4 @@ from app.models.workflow import (  # noqa: F401
     WorkflowExecution,
     WorkflowStepLog,
     WorkflowTemplate,
-)
-from app.models.telemetry import (  # noqa: F401
-    TelemetryEvent,
-    MetricRecord,
-    TraceRecord,
 )

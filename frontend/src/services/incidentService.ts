@@ -1,17 +1,26 @@
 /**
- * Frontend Incident Service — REST client calls for Incident Management Center
+ * Frontend Incident Service — REST client calls for Enterprise Incident Command Center & RCA Platform
  */
 
 import apiClient from "@/lib/api";
 import type {
+  BlastRadius,
   Incident,
-  IncidentCreatePayload,
-  IncidentUpdatePayload,
-  IncidentResolvePayload,
-  IncidentListResponse,
-  IncidentStats,
-  IncidentAnalytics,
+  IncidentAcknowledgePayload,
   IncidentAIAnalysis,
+  IncidentAnalytics,
+  IncidentCorrelationPayload,
+  IncidentCorrelationResponse,
+  IncidentCreatePayload,
+  IncidentListResponse,
+  IncidentRemediatePayload,
+  IncidentRemediateResponse,
+  IncidentResolvePayload,
+  IncidentStats,
+  IncidentTimelineEventPayload,
+  IncidentUpdatePayload,
+  RCAData,
+  TimelineEvent,
 } from "@/types/incident";
 
 export interface GetIncidentsParams {
@@ -57,6 +66,11 @@ export const incidentService = {
     return response.data;
   },
 
+  async acknowledgeIncident(id: string, payload?: IncidentAcknowledgePayload): Promise<Incident> {
+    const response = await apiClient.post<Incident>(`/incidents/${id}/acknowledge`, payload || {});
+    return response.data;
+  },
+
   async resolveIncident(id: string, payload: IncidentResolvePayload): Promise<Incident> {
     const response = await apiClient.post<Incident>(`/incidents/${id}/resolve`, payload);
     return response.data;
@@ -64,6 +78,36 @@ export const incidentService = {
 
   async reanalyzeIncident(id: string): Promise<IncidentAIAnalysis> {
     const response = await apiClient.post<IncidentAIAnalysis>(`/incidents/${id}/analyze`);
+    return response.data;
+  },
+
+  async getTimeline(id: string): Promise<TimelineEvent[]> {
+    const response = await apiClient.get<TimelineEvent[]>(`/incidents/${id}/timeline`);
+    return response.data;
+  },
+
+  async addTimelineEvent(id: string, payload: IncidentTimelineEventPayload): Promise<TimelineEvent> {
+    const response = await apiClient.post<TimelineEvent>(`/incidents/${id}/timeline`, payload);
+    return response.data;
+  },
+
+  async getImpact(id: string): Promise<BlastRadius> {
+    const response = await apiClient.get<BlastRadius>(`/incidents/${id}/impact`);
+    return response.data;
+  },
+
+  async getRootCause(id: string): Promise<RCAData> {
+    const response = await apiClient.get<RCAData>(`/incidents/${id}/root-cause`);
+    return response.data;
+  },
+
+  async correlateAlerts(payload: IncidentCorrelationPayload): Promise<IncidentCorrelationResponse> {
+    const response = await apiClient.post<IncidentCorrelationResponse>("/incidents/correlate", payload);
+    return response.data;
+  },
+
+  async executeRemediation(id: string, payload: IncidentRemediatePayload): Promise<IncidentRemediateResponse> {
+    const response = await apiClient.post<IncidentRemediateResponse>(`/incidents/${id}/remediate`, payload);
     return response.data;
   },
 

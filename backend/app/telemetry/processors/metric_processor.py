@@ -6,6 +6,7 @@ Detects statistical deviations, metric spikes (e.g. 300% surge), and threshold v
 from __future__ import annotations
 
 from typing import Any
+
 import structlog
 
 log = structlog.get_logger(__name__)
@@ -42,11 +43,15 @@ class MetricProcessor:
 
         event = None
         if is_anomaly:
+            ts = collected_metric["timestamp"]
+            ts_iso = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+            raw_payload_copy = {**collected_metric, "timestamp": ts_iso}
+
             event = {
                 "source": "metric_processor",
                 "event_type": "metric_anomaly",
                 "severity": severity,
-                "timestamp": collected_metric["timestamp"],
+                "timestamp": ts,
                 "metadata_": {
                     "resource_id": res_id,
                     "metric_name": m_name,
@@ -54,7 +59,7 @@ class MetricProcessor:
                     "deviation_factor": deviation,
                     "reason": reason,
                 },
-                "raw_payload": collected_metric,
+                "raw_payload": raw_payload_copy,
             }
 
         return {

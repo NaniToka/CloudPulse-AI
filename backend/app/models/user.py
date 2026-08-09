@@ -66,13 +66,13 @@ class User(UUIDMixin, TimestampMixin, Base):
         foreign_keys=[organization_id],
         lazy="raise",
     )
-    chat_sessions: Mapped[list["ChatSession"]] = relationship(
+    chat_sessions: Mapped[list[ChatSession]] = relationship(
         "ChatSession",
         back_populates="user",
         lazy="raise",
         cascade="all, delete-orphan",
     )
-    notifications: Mapped[list["Notification"]] = relationship(
+    notifications: Mapped[list[Notification]] = relationship(
         "Notification",
         back_populates="user",
         lazy="raise",
