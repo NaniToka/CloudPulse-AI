@@ -163,3 +163,28 @@ async def require_active_user(user=Depends(get_current_user)):
             detail="This account has been deactivated.",
         )
     return user
+
+
+def require_roles(*allowed_roles: str):
+    """
+    Factory creating a dependency that verifies current_user.role is in allowed_roles
+    or current_user.is_superuser is True.
+    """
+    async def role_checker(user=Depends(require_active_user)):
+        user_role = (getattr(user, "role", "") or "").lower()
+        allowed = [r.lower() for r in allowed_roles]
+        if (
+            getattr(user, "is_superuser", False)
+            or user_role in allowed
+            or ("admin" in allowed and user_role in ("admin", "superuser", "owner"))
+        ):
+            return user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access forbidden: this action requires one of {allowed_roles} roles.",
+        )
+    return role_checker
+
+
+require_admin_user = require_roles("admin", "superuser", "owner")
+require_sre_user = require_roles("admin", "sre", "engineer", "owner")

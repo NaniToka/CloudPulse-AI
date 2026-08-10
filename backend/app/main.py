@@ -151,16 +151,56 @@ app.include_router(api_router, prefix="/api/v1")
 # ---------------------------------------------------------------------------
 
 
-@app.get("/health", tags=["System"], summary="Liveness Probe")
+@app.get("/health", tags=["System"], summary="Liveness & Health Probe")
 @app.get("/api/health", tags=["System"], summary="API Liveness Probe", include_in_schema=False)
 @app.get("/api/v1/health", tags=["System"], summary="API v1 Liveness Probe", include_in_schema=False)
 async def health_check() -> dict:
-    """Kubernetes liveness probe — verifies the API process is alive and responsive."""
+    """Enterprise structured health check reporting overall and dependency health."""
+    db_status = "healthy"
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "unhealthy"
+
+    redis_status = "healthy"
+    try:
+        redis_ok = await cache_service.ping()
+        if not redis_ok:
+            redis_status = "in-memory-fallback"
+    except Exception:
+        redis_status = "in-memory-fallback"
+
+    ai_provider = (
+        "gemini-cloud-ai"
+        if (settings.GEMINI_API_KEY and settings.GEMINI_API_KEY not in ("your_key_here", "your_gemini_api_key_here", ""))
+        else "local-deterministic-engine"
+    )
+
+    is_healthy = db_status == "healthy"
+
     return {
-        "status": "ok",
+        "status": "ok" if is_healthy else "degraded",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "env": settings.APP_ENV,
+        "dependencies": {
+            "database": db_status,
+            "redis": redis_status,
+            "ai": ai_provider,
+        },
+    }
+
+
+@app.get("/version", tags=["System"], summary="Service Version")
+@app.get("/api/v1/version", tags=["System"], summary="API v1 Version")
+async def version_info() -> dict:
+    """Returns semantic version and environment build metadata."""
+    return {
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "env": settings.APP_ENV,
+        "api_version": "v1",
     }
 
 
