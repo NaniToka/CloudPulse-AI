@@ -25,10 +25,10 @@ class ParsedLogEntry(BaseModel):
 
     line_number: int
     timestamp: str | None = None
-    level: str  # ERROR | WARN | WARNING | CRITICAL | INFO | DEBUG | UNKNOWN
+    level: str = "INFO"  # ERROR | WARN | WARNING | CRITICAL | INFO | DEBUG | UNKNOWN
     service: str | None = None
-    message: str
-    raw: str  # original unparsed line
+    message: str = ""
+    raw: str | None = None  # original unparsed line
 
 
 class LogStats(BaseModel):

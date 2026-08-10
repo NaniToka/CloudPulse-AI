@@ -261,7 +261,14 @@ async def get_analysis(
 
     response = AnalysisResponse.model_validate(record)
     # Deserialise JSON → ParsedLogEntry objects
-    response.parsed_entries = [ParsedLogEntry(**e) for e in (record.parsed_entries or [])]
+    parsed = []
+    for e in (record.parsed_entries or []):
+        if isinstance(e, dict):
+            entry_data = dict(e)
+            if "raw" not in entry_data or entry_data["raw"] is None:
+                entry_data["raw"] = entry_data.get("message", "")
+            parsed.append(ParsedLogEntry(**entry_data))
+    response.parsed_entries = parsed
     return response
 
 
