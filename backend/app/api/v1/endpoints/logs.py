@@ -3,24 +3,11 @@ Log Analyzer endpoints.
 
 Routes
 ------
-POST   /api/v1/logs/upload        — Upload a log file, trigger AI analysis
+POST   /api/v1/logs/upload        — Upload a log file, trigger AI root-cause analysis
 GET    /api/v1/logs/history       — List all analyses for the current user
-GET    /api/v1/logs/{id}          — Get one analysis by ID
-DELETE /api/v1/logs/{id}          — Delete one analysis
-
-Upload flow
------------
-1. Validate file (extension, size) — synchronous.
-2. Parse log file into normalised entries — synchronous.
-3. Insert DB row with status="analyzing" — respond immediately (201).
-4. Fire-and-forget background task: call Gemini, update DB row.
-
-The client polls GET /logs/{id} until status changes from "analyzing"
-to "complete" or "error".
-
-Authentication
---------------
-All routes require a valid Bearer JWT (require_active_user dependency).
+GET    /api/v1/logs/{id}          — Get full analysis by ID
+DELETE /api/v1/logs/{id}          — Delete one analysis record
+GET    /api/v1/logs/{id}/pdf      — Download analysis as an official PDF report
 """
 
 from __future__ import annotations
@@ -28,7 +15,7 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_active_user
@@ -43,11 +30,9 @@ from app.schemas.log_analysis import (
     UploadResponse,
 )
 from app.services.log_analysis_service import analyse_logs
-from app.services.log_parser import (
-    LogValidationError,
-    parse_log_file,
-    validate_file,
-)
+from app.services.log_parser import parse_log_file
+from app.services.pdf_report_service import generate_log_analysis_pdf
+from app.utils.log_security import decode_log_bytes, validate_log_upload
 
 log = structlog.get_logger(__name__)
 router = APIRouter()
@@ -62,21 +47,15 @@ async def _run_analysis(
     record_id: uuid.UUID,
     user_id: uuid.UUID,
     entries: list[dict],
-    stats: dict,
     filename: str,
 ) -> None:
     """
-    Background coroutine: call Gemini and persist results.
-
-    Uses a fresh DB session because the request session is already closed
-    by the time this background task runs.
+    Background coroutine: executes RCA synthesis and updates database.
     """
     from app.db.session import AsyncSessionLocal  # noqa: PLC0415
 
     async with AsyncSessionLocal() as db:
         try:
-            await db.commit()  # ensure fresh transaction
-
             record = await crud_log_analysis.get(db, record_id=record_id, user_id=user_id)
             if not record:
                 log.warning("log_analysis_record_missing", record_id=str(record_id))
@@ -84,38 +63,33 @@ async def _run_analysis(
 
             try:
                 analysis = await analyse_logs(
-                    entries=entries,
-                    stats=stats,
+                    parsed_entries=entries,
                     filename=filename,
-                    user_id=str(user_id),
                 )
                 await crud_log_analysis.update_analysis_result(
                     db,
                     record=record,
                     status="complete",
-                    **analysis,
+                    executive_summary=analysis.get("executive_summary"),
+                    root_cause=analysis.get("root_cause"),
+                    severity=analysis.get("severity"),
+                    recommended_fixes=analysis.get("recommended_fixes"),
+                    preventive_measures=analysis.get("preventive_measures"),
+                    confidence_score=analysis.get("confidence_score"),
                 )
                 log.info(
-                    "log_analysis_saved",
+                    "log_analysis_completed_successfully",
                     record_id=str(record_id),
                     severity=analysis.get("severity"),
-                )
-            except (RuntimeError, ValueError) as exc:
-                # Known errors: missing API key, rate limit
-                log.warning("log_analysis_known_error", error=str(exc))
-                await crud_log_analysis.update_analysis_result(
-                    db,
-                    record=record,
-                    status="error",
-                    ai_error=str(exc)[:1000],
+                    engine=analysis.get("engine_used"),
                 )
             except Exception as exc:
-                log.exception("log_analysis_unexpected_error", error=str(exc))
+                log.exception("log_analysis_pipeline_error", error=str(exc))
                 await crud_log_analysis.update_analysis_result(
                     db,
                     record=record,
                     status="error",
-                    ai_error=f"Unexpected error: {type(exc).__name__}: {str(exc)[:800]}",
+                    ai_error=f"Analysis pipeline error: {str(exc)[:800]}",
                 )
 
             await db.commit()
@@ -133,7 +107,7 @@ async def _run_analysis(
     "/upload",
     response_model=UploadResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload a log file and trigger AI analysis",
+    summary="Upload a server log file and trigger AI analysis",
 )
 async def upload_log(
     file: UploadFile,
@@ -143,38 +117,37 @@ async def upload_log(
 ) -> UploadResponse:
     """
     Accepts a .log, .txt, or .json file up to 10 MB.
-
-    Responds immediately with the new record (status = "analyzing").
-    AI analysis runs in the background; poll GET /logs/{id} for results.
+    Validates extension, MIME type, parses entries, persists record,
+    and initiates automated AI root-cause analysis in the background.
     """
-    filename = file.filename or "unknown.log"
-    content = await file.read()
+    raw_filename = file.filename or "server.log"
+    content_bytes = await file.read()
+    file_size = len(content_bytes)
 
-    log.info(
-        "log_upload_received",
-        user_id=str(current_user.id),
-        filename=filename,
-        size=len(content),
+    # 1. Security & MIME validation
+    clean_filename, file_type = validate_log_upload(
+        filename=raw_filename,
+        content_type=file.content_type,
+        file_size=file_size,
     )
 
-    # ── 1. Validate ────────────────────────────────────────────────────
-    try:
-        file_type = validate_file(filename, content)
-    except LogValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        )
+    log.info(
+        "log_upload_validated",
+        user_id=str(current_user.id),
+        filename=clean_filename,
+        size_bytes=file_size,
+    )
 
-    # ── 2. Parse ───────────────────────────────────────────────────────
-    entries, stats = parse_log_file(content, file_type)
+    # 2. Decode and parse log file
+    decoded_text = decode_log_bytes(content_bytes)
+    entries, stats = parse_log_file(decoded_text.encode("utf-8"), file_type)
 
-    # ── 3. Persist ─────────────────────────────────────────────────────
+    # 3. Persist record in database
     record = await crud_log_analysis.create(
         db,
         user_id=current_user.id,
-        filename=filename,
-        file_size_bytes=len(content),
+        filename=clean_filename,
+        file_size_bytes=file_size,
         file_type=file_type,
         total_lines=stats["total_lines"],
         error_count=stats["error_count"],
@@ -184,20 +157,13 @@ async def upload_log(
         parsed_entries=entries,
     )
 
-    log.info(
-        "log_upload_persisted",
-        record_id=str(record.id),
-        total_lines=stats["total_lines"],
-    )
-
-    # ── 4. Kick off background analysis ────────────────────────────────
+    # 4. Kick off background analysis
     background_tasks.add_task(
         _run_analysis,
         record_id=record.id,
         user_id=current_user.id,
         entries=entries,
-        stats=stats,
-        filename=filename,
+        filename=clean_filename,
     )
 
     return UploadResponse(
@@ -256,11 +222,10 @@ async def get_analysis(
     if not record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Log analysis not found.",
+            detail="Log analysis record not found.",
         )
 
     response = AnalysisResponse.model_validate(record)
-    # Deserialise JSON → ParsedLogEntry objects
     parsed = []
     for e in (record.parsed_entries or []):
         if isinstance(e, dict):
@@ -273,6 +238,63 @@ async def get_analysis(
 
 
 # ---------------------------------------------------------------------------
+# GET /logs/{id}/pdf
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{record_id}/pdf",
+    summary="Download log analysis report as a formatted PDF",
+)
+async def download_analysis_pdf(
+    record_id: uuid.UUID,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await crud_log_analysis.get(db, record_id=record_id, user_id=current_user.id)
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Log analysis record not found.",
+        )
+
+    data = {
+        "filename": record.filename,
+        "created_at": record.created_at,
+        "severity": record.severity,
+        "confidence_score": record.confidence_score,
+        "total_lines": record.total_lines,
+        "error_count": record.error_count,
+        "warning_count": record.warning_count,
+        "critical_count": record.critical_count,
+        "executive_summary": record.executive_summary,
+        "root_cause": record.root_cause,
+        "recommended_fixes": record.recommended_fixes,
+        "preventive_measures": record.preventive_measures,
+        "parsed_entries": record.parsed_entries,
+    }
+
+    try:
+        pdf_bytes = generate_log_analysis_pdf(data)
+    except Exception as exc:
+        log.exception("pdf_generation_failed", error=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate PDF report.",
+        ) from exc
+
+    safe_name = record.filename.replace(" ", "_").replace("/", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="CloudPulse_Log_Analysis_{safe_name}.pdf"',
+            "Cache-Control": "no-cache",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # DELETE /logs/{id}
 # ---------------------------------------------------------------------------
 
@@ -280,7 +302,7 @@ async def get_analysis(
 @router.delete(
     "/{record_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a log analysis",
+    summary="Delete a log analysis record",
 )
 async def delete_analysis(
     record_id: uuid.UUID,
@@ -291,6 +313,6 @@ async def delete_analysis(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Log analysis not found.",
+            detail="Log analysis record not found.",
         )
     log.info("log_analysis_deleted", record_id=str(record_id))
