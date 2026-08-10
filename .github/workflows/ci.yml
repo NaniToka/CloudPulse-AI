@@ -1,0 +1,103 @@
+name: CloudPulse-AI CI Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  backend-ci:
+    name: Backend Lint & Pytest Suite
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: cloudpulse_user
+          POSTGRES_PASSWORD: cloudpulse_secret
+          POSTGRES_DB: cloudpulse_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+          pip install -r backend/requirements.txt
+          pip install ruff pytest pytest-asyncio pytest-cov
+
+      - name: Ruff Linter Check
+        run: |
+          ruff check backend/app
+
+      - name: Run Pytest Suite with Coverage
+        env:
+          DATABASE_URL: postgresql+asyncpg://cloudpulse_user:cloudpulse_secret@localhost:5432/cloudpulse_test_db
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test_super_secret_jwt_signing_key_32_bytes_long
+          APP_ENV: development
+          DEMO_MODE: "true"
+        run: |
+          pytest backend/tests/ -v --cov=backend/app --cov-report=term-missing
+
+  frontend-ci:
+    name: Frontend Type-Check, Lint & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: |
+          npm ci
+
+      - name: TypeScript Type-Check
+        working-directory: ./frontend
+        run: |
+          npm run type-check
+
+      - name: ESLint Code Quality Gate
+        working-directory: ./frontend
+        run: |
+          npm run lint
+
+      - name: Production Vite Build
+        working-directory: ./frontend
+        run: |
+          npm run build

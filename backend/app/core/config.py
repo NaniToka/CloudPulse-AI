@@ -21,10 +21,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Application
+    # Application & Environment
     APP_ENV: str = "development"
     APP_NAME: str = "CloudPulse AI"
     APP_VERSION: str = "1.0.0"
+    DEMO_MODE: bool = True
 
     # Backend
     BACKEND_HOST: str = "0.0.0.0"
@@ -33,14 +34,19 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = (
-        "postgresql+asyncpg://cloudpulse_user:cloudpulse_dev_password" "@localhost:5432/cloudpulse"
+        "postgresql+asyncpg://cloudpulse_user:cloudpulse_dev_password@localhost:5432/cloudpulse"
     )
 
-    # JWT
+    # JWT Authentication
     JWT_SECRET_KEY: str = "insecure_default_change_in_production"
+    SECRET_KEY: str | None = None
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    @property
+    def effective_secret_key(self) -> str:
+        return self.SECRET_KEY or self.JWT_SECRET_KEY
 
     # Gemini AI
     GEMINI_API_KEY: str = ""

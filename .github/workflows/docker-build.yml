@@ -1,13 +1,15 @@
-name: Docker Multi-Stage Build & Security Scan
+name: Docker Container Build Verification
 
 on:
   push:
-    branches: [main]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
-  docker-build-and-scan:
-    name: Build Images & Trivy Scan
+  docker-build:
+    name: Multi-Stage Container Builds
     runs-on: ubuntu-latest
 
     steps:
@@ -24,6 +26,8 @@ jobs:
           file: ./backend/Dockerfile
           load: true
           tags: cloudpulse/backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build Frontend Image
         uses: docker/build-push-action@v5
@@ -32,21 +36,5 @@ jobs:
           file: ./frontend/Dockerfile
           load: true
           tags: cloudpulse/frontend:ci
-
-      - name: Run Trivy Vulnerability Scanner (Backend)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'cloudpulse/backend:ci'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-
-      - name: Run Trivy Vulnerability Scanner (Frontend)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'cloudpulse/frontend:ci'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

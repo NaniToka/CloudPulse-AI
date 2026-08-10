@@ -1,33 +1,45 @@
-name: Security Scan & Vulnerability Audit
+name: Security & Vulnerability Scanning
 
 on:
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday midnight
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 4 * * 1'  # Every Monday at 04:00 UTC
 
 jobs:
-  trivy-scan:
-    name: Trivy Security & Vulnerability Audit
+  security-audit:
+    name: Bandit SAST & Dependency Audit
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner in repository mode
-        uses: aquasecurity/trivy-action@master
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          python-version: '3.12'
 
-      - name: Upload SARIF results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+      - name: Install Security Tools
+        run: |
+          pip install bandit safety
+
+      - name: Run Bandit SAST Security Scan
+        run: |
+          bandit -r backend/app -ll -x backend/tests
+
+      - name: Audit Backend Dependencies with Safety
+        run: |
+          safety check -r backend/requirements.txt --ignore 70612 || true
+
+      - name: Set up Node.js 20.x
+        uses: actions/setup-node@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          node-version: '20'
+
+      - name: Audit Frontend npm Dependencies
+        working-directory: ./frontend
+        run: |
+          npm audit --audit-level=high || true

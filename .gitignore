@@ -2,10 +2,16 @@
 # CloudPulse AI — .gitignore
 # =============================================================================
 
-# Environment
+# Environment & Secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
 
 # Node / Frontend
 node_modules/

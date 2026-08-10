@@ -49,7 +49,7 @@ def _build_token(subject: Any, token_type: str, expires_delta: timedelta) -> str
         "exp": now + expires_delta,
         "type": token_type,
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(payload, settings.effective_secret_key, algorithm=settings.JWT_ALGORITHM)
 
 
 def create_access_token(
@@ -81,6 +81,6 @@ def decode_token(token: str) -> dict[str, Any]:
     """
     return jwt.decode(
         token,
-        settings.JWT_SECRET_KEY,
+        settings.effective_secret_key,
         algorithms=[settings.JWT_ALGORITHM],
     )
