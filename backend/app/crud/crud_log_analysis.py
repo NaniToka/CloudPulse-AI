@@ -66,6 +66,91 @@ async def get(
     return result.scalar_one_or_none()
 
 
+async def seed_default_logs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Seed baseline realistic log analyses if the user has no records."""
+    from sqlalchemy import func as _func
+
+    count_res = await db.execute(
+        select(_func.count()).select_from(LogAnalysis).where(LogAnalysis.user_id == user_id)
+    )
+    if count_res.scalar_one() > 0:
+        return
+
+    sample_logs = [
+        {
+            "filename": "api-gateway-prod-oom.log",
+            "file_size_bytes": 14250,
+            "file_type": "json",
+            "status": "complete",
+            "total_lines": 42,
+            "error_count": 18,
+            "warning_count": 8,
+            "critical_count": 6,
+            "info_count": 10,
+            "severity": "CRITICAL",
+            "executive_summary": "Sustained high heap memory allocation in api-gateway caused prolonged JVM GC pauses and container OOM-Kills, generating HTTP 504 timeouts on ingress traffic.",
+            "root_cause": "Session token cache retained unbounded JSON payloads under 5,000 req/sec burst without TTL eviction policy.",
+            "recommended_fixes": "1. Increase pod memory limit from 2Gi to 4Gi via kubectl patch deployment.\n2. Configure Redis TTL expiration for session cache entries (3600s).\n3. Enable G1GC low-latency garbage collector with -XX:MaxGCPauseMillis=200.",
+            "preventive_measures": "1. Add Prometheus memory saturation alert at 80% utilization.\n2. Implement Kubernetes Horizontal Pod Autoscaler based on memory metric.\n3. Conduct load testing on session serialization handler.",
+            "confidence_score": 0.96,
+            "parsed_entries": [
+                {"line_number": 1, "timestamp": "2026-08-10T15:20:01.102Z", "level": "INFO", "service": "api-gateway", "message": "Inbound request spike detected from ingress controller (rate=4820 rps)."},
+                {"line_number": 2, "timestamp": "2026-08-10T15:20:04.234Z", "level": "WARN", "service": "api-gateway", "message": "JVM Heap memory threshold exceeded 85% (1740MB / 2048MB)."},
+                {"line_number": 3, "timestamp": "2026-08-10T15:20:08.841Z", "level": "ERROR", "service": "api-gateway", "message": "java.lang.OutOfMemoryError: Java heap space during SessionContext deserialization."},
+                {"line_number": 4, "timestamp": "2026-08-10T15:20:09.110Z", "level": "CRITICAL", "service": "api-gateway", "message": "Health check probe failed: /healthz timeout after 5000ms. Kubelet issuing SIGKILL."},
+                {"line_number": 5, "timestamp": "2026-08-10T15:20:12.440Z", "level": "ERROR", "service": "api-gateway", "message": "Upstream connection dropped: 504 Gateway Timeout returned to 412 clients."}
+            ]
+        },
+        {
+            "filename": "auth-service-db-exhaustion.log",
+            "file_size_bytes": 9820,
+            "file_type": "standard",
+            "status": "complete",
+            "total_lines": 28,
+            "error_count": 12,
+            "warning_count": 6,
+            "critical_count": 2,
+            "info_count": 8,
+            "severity": "HIGH",
+            "executive_summary": "PostgreSQL connection pool on auth-service reached maximum capacity (100/100 connections), resulting in client authentication handshake timeouts.",
+            "root_cause": "Long-running JWT validation queries blocked pooled connections due to missing index on users.organization_id.",
+            "recommended_fixes": "1. Deploy PgBouncer connection pooler in transaction mode.\n2. Increase HikariCP maxLifetime and connectionTimeout to 30000ms.\n3. Add CREATE INDEX CONCURRENTLY idx_users_org_id ON users(organization_id).",
+            "preventive_measures": "1. Implement circuit breaker for DB pool exhaustion.\n2. Set statement_timeout = '5s' on application database role.",
+            "confidence_score": 0.94,
+            "parsed_entries": [
+                {"line_number": 1, "timestamp": "2026-08-10T15:10:00.012Z", "level": "INFO", "service": "auth-service", "message": "Token verification service initialized with 100 connection pool limit."},
+                {"line_number": 2, "timestamp": "2026-08-10T15:11:15.542Z", "level": "WARN", "service": "auth-service", "message": "Connection pool utilization high: 92/100 active connections in use."},
+                {"line_number": 3, "timestamp": "2026-08-10T15:12:02.190Z", "level": "ERROR", "service": "auth-service", "message": "TimeoutException: Connection acquisition timed out after 30000ms waiting for available pool connection."},
+                {"line_number": 4, "timestamp": "2026-08-10T15:12:05.882Z", "level": "CRITICAL", "service": "auth-service", "message": "Authentication pipeline degraded: 48 authorization requests rejected."}
+            ]
+        }
+    ]
+
+    for item in sample_logs:
+        rec = LogAnalysis(
+            user_id=user_id,
+            filename=item["filename"],
+            file_size_bytes=item["file_size_bytes"],
+            file_type=item["file_type"],
+            status=item["status"],
+            total_lines=item["total_lines"],
+            error_count=item["error_count"],
+            warning_count=item["warning_count"],
+            critical_count=item["critical_count"],
+            info_count=item["info_count"],
+            severity=item["severity"],
+            executive_summary=item["executive_summary"],
+            root_cause=item["root_cause"],
+            recommended_fixes=item["recommended_fixes"],
+            preventive_measures=item["preventive_measures"],
+            confidence_score=item["confidence_score"],
+            parsed_entries=item["parsed_entries"],
+        )
+        db.add(rec)
+
+    await db.commit()
+
+
 async def list_by_user(
     db: AsyncSession,
     *,
@@ -74,6 +159,7 @@ async def list_by_user(
     limit: int = 50,
 ) -> list[LogAnalysis]:
     """List all analyses for a user, newest first."""
+    await seed_default_logs_if_empty(db, user_id)
     result = await db.execute(
         select(LogAnalysis)
         .where(LogAnalysis.user_id == user_id)
@@ -86,6 +172,7 @@ async def list_by_user(
 
 async def count_by_user(db: AsyncSession, *, user_id: uuid.UUID) -> int:
     """Count total analyses for a user."""
+    await seed_default_logs_if_empty(db, user_id)
     from sqlalchemy import func
     from sqlalchemy import select as _select
 

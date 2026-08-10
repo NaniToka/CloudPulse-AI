@@ -152,6 +152,8 @@ app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"], summary="Liveness Probe")
+@app.get("/api/health", tags=["System"], summary="API Liveness Probe", include_in_schema=False)
+@app.get("/api/v1/health", tags=["System"], summary="API v1 Liveness Probe", include_in_schema=False)
 async def health_check() -> dict:
     """Kubernetes liveness probe — verifies the API process is alive and responsive."""
     return {

@@ -86,13 +86,105 @@ async def init_db(db: AsyncSession) -> None:
     # 1. Seed Default Admin User & Organization
     admin_user = await _seed_admin_user_and_org(db)
 
-
-    # 2. Seed Baseline Cost Optimizer Data
     if admin_user:
-        await seed_default_costs_if_empty(db, admin_user.id)
+        # 2. Seed Baseline Cost Optimizer Data
+        try:
+            await seed_default_costs_if_empty(db, admin_user.id)
+        except Exception as e:
+            log.warning("seed_cost_skipped", error=str(e))
+
+        # 3. Seed Incidents & Timeline Events
+        try:
+            from app.api.v1.endpoints.incidents import _seed_initial_incidents_if_empty, incident_service
+            await _seed_initial_incidents_if_empty(db, incident_service)
+        except Exception as e:
+            log.warning("seed_incidents_skipped", error=str(e))
+
+        # 4. Seed Predictions
+        try:
+            from app.api.v1.endpoints.predictions import _seed_initial_predictions_if_empty, prediction_service
+            await _seed_initial_predictions_if_empty(db, prediction_service)
+        except Exception as e:
+            log.warning("seed_predictions_skipped", error=str(e))
+
+        # 5. Seed Distributed Traces
+        try:
+            from app.api.v1.endpoints.traces import _seed_initial_traces_if_empty, trace_service
+            await _seed_initial_traces_if_empty(db, trace_service)
+        except Exception as e:
+            log.warning("seed_traces_skipped", error=str(e))
+
+        # 6. Seed Alerts
+        try:
+            from app.services.alert_service import alert_service
+            await alert_service.get_alerts(db)
+        except Exception as e:
+            log.warning("seed_alerts_skipped", error=str(e))
+
+        # 7. Seed Servers & Infrastructure
+        try:
+            from app.services.server_service import server_service
+            await server_service.get_servers(db)
+        except Exception as e:
+            log.warning("seed_servers_skipped", error=str(e))
+
+        # 8. Seed Security Scans & Findings
+        try:
+            from app.api.v1.endpoints.security import _seed_initial_security_scans_if_empty, security_service
+            await _seed_initial_security_scans_if_empty(db, security_service)
+        except Exception as e:
+            log.warning("seed_security_skipped", error=str(e))
+
+        # 9. Seed AIOps Recommendations
+        try:
+            from app.api.v1.endpoints.aiops import _seed_initial_aiops_recommendations, aiops_service
+            await _seed_initial_aiops_recommendations(db, aiops_service)
+        except Exception as e:
+            log.warning("seed_aiops_skipped", error=str(e))
+
+        # 10. Seed Kubernetes Clusters & Workloads
+        try:
+            from app.services.kubernetes_service import kubernetes_service
+            await kubernetes_service.get_clusters(db, user_id=admin_user.id)
+        except Exception as e:
+            log.warning("seed_k8s_skipped", error=str(e))
+
+        # 11. Seed Multi-Cloud Accounts & Resources
+        try:
+            from app.services.cloud_observability_service import cloud_observability_service
+            await cloud_observability_service.get_accounts(db, user_id=admin_user.id)
+        except Exception as e:
+            log.warning("seed_cloud_skipped", error=str(e))
+
+        # 12. Seed Digital Twin Infrastructure
+        try:
+            from app.services.digital_twin_service import digital_twin_service
+            await digital_twin_service.get_or_create_twin(db, user_id=admin_user.id)
+        except Exception as e:
+            log.warning("seed_digital_twin_skipped", error=str(e))
+
+        # 13. Seed Workflows & Templates
+        try:
+            from app.services.workflow_engine_service import workflow_engine_service
+            await workflow_engine_service.get_workflows(db, user_id=admin_user.id)
+        except Exception as e:
+            log.warning("seed_workflows_skipped", error=str(e))
+
+        # 14. Seed Auto-Remediation Runbooks
+        try:
+            from app.api.v1.endpoints.runbooks import _seed_initial_runbooks_if_empty, runbook_service
+            await _seed_initial_runbooks_if_empty(db, runbook_service)
+        except Exception as e:
+            log.warning("seed_runbooks_skipped", error=str(e))
+
+        # 15. Seed Vector Store RAG collections
+        try:
+            from app.services.rag_service import seed_infrastructure_rag_data
+            seed_infrastructure_rag_data()
+        except Exception as e:
+            log.warning("seed_rag_skipped", error=str(e))
 
     log.info("init_db_seeding_complete")
-
 
 
 async def _seed_admin_user_and_org(db: AsyncSession) -> User | None:
@@ -122,7 +214,6 @@ async def _seed_admin_user_and_org(db: AsyncSession) -> User | None:
             id=uuid.uuid4(),
             email="admin@cloudpulse.io",
             hashed_password=hash_password("Password123!"),
-
             first_name="Admin",
             last_name="Engineer",
             role="admin",

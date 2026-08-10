@@ -56,15 +56,15 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # CORS — stored as List[str] but the validator accepts all three env formats
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # CORS — accepts list[str], JSON string array, comma-separated, or single URL
+    CORS_ORIGINS: list[str] | str = ["http://localhost:5173", "http://localhost:3000"]
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> list[str]:
         """
         Accept three formats:
-          1. Already a list (passed programmatically or by pydantic internally)
+          1. Already a list
           2. JSON array string:  '["http://a","http://b"]'
           3. Comma-separated:   'http://a,http://b'
           4. Single URL:        'http://a'
@@ -78,7 +78,7 @@ class Settings(BaseSettings):
 
                 return json.loads(stripped)
             return [origin.strip() for origin in stripped.split(",") if origin.strip()]
-        return v
+        return ["http://localhost:5173", "http://localhost:3000"]
 
     # Logging
     LOG_LEVEL: str = "INFO"
