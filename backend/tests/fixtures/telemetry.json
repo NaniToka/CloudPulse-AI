@@ -1,0 +1,79 @@
+[
+  {
+    "signal_id": "telem-cpu-001",
+    "source": "telemetry",
+    "timestamp": "2026-08-11T10:02:00Z",
+    "service": "api-gateway",
+    "resource_id": "pod-api-gateway-8f7d",
+    "environment": "production",
+    "region": "us-east-1",
+    "severity": "HIGH",
+    "title": "CPU utilization spike",
+    "message": "CPU utilization exceeded 92% threshold on api-gateway pod-api-gateway-8f7d",
+    "metric": "cpu_utilization_percent",
+    "value": 94.2,
+    "threshold": 85.0,
+    "metadata": {
+      "cluster": "prod-useast1-eks",
+      "namespace": "ingress",
+      "node": "node-us-east-1a"
+    }
+  },
+  {
+    "signal_id": "telem-mem-002",
+    "source": "telemetry",
+    "timestamp": "2026-08-11T10:02:30Z",
+    "service": "api-gateway",
+    "resource_id": "pod-api-gateway-8f7d",
+    "environment": "production",
+    "region": "us-east-1",
+    "severity": "HIGH",
+    "title": "Memory pressure warning",
+    "message": "Memory utilization at 91.8% on api-gateway (heap limit 2GB)",
+    "metric": "memory_utilization_percent",
+    "value": 91.8,
+    "threshold": 85.0,
+    "metadata": {
+      "cluster": "prod-useast1-eks",
+      "namespace": "ingress"
+    }
+  },
+  {
+    "signal_id": "telem-lat-003",
+    "source": "telemetry",
+    "timestamp": "2026-08-11T10:03:00Z",
+    "service": "api-gateway",
+    "resource_id": "gateway-alb-ingress",
+    "environment": "production",
+    "region": "us-east-1",
+    "severity": "CRITICAL",
+    "title": "P99 latency degradation",
+    "message": "P99 response latency surged from 180ms baseline to 2840ms",
+    "metric": "p99_latency_ms",
+    "value": 2840.0,
+    "threshold": 500.0,
+    "metadata": {
+      "trace_id": "trace-99214a77bc81",
+      "endpoint": "/api/v1/checkout"
+    }
+  },
+  {
+    "signal_id": "telem-db-004",
+    "source": "telemetry",
+    "timestamp": "2026-08-11T10:03:15Z",
+    "service": "database-cluster",
+    "resource_id": "postgres-primary-db",
+    "environment": "production",
+    "region": "us-east-1",
+    "severity": "CRITICAL",
+    "title": "Database connection pool exhausted",
+    "message": "PostgreSQL active connections reached 198/200 (99.0% saturation)",
+    "metric": "db_active_connections_percent",
+    "value": 99.0,
+    "threshold": 80.0,
+    "metadata": {
+      "db_name": "production_app",
+      "idle_in_transaction": 42
+    }
+  }
+]

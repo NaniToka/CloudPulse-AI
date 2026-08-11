@@ -48,7 +48,7 @@ def _extract_json(text: str) -> dict[str, Any]:
     cleaned = re.sub(r"```(?:json)?", "", text).strip()
     match = _JSON_RE.search(cleaned)
     if not match:
-        raise ValueError(f"Model returned no valid JSON: {text[:200]!r}")
+        raise ValueError(f"Model returned no JSON object: {text[:200]!r}")
     return json.loads(match.group(0))
 
 

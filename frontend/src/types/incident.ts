@@ -135,8 +135,14 @@ export interface Incident {
   ai_long_term_prevention?: string[];
   ai_preventive_actions?: string[];
   ai_similar_incidents?: SimilarIncident[];
-  ai_estimated_resolution_time?: string;
-  ai_confidence_score?: number;
+  // SLA, MTTR & Tracking
+  resource_id?: string;
+  environment?: string;
+  correlation_score?: number;
+  mttr_seconds?: number;
+  sla_target_seconds?: number;
+  sla_status?: "PENDING" | "AT_RISK" | "MET" | "BREACHED" | string;
+  analysis_engine?: "gemini" | "local" | string;
 }
 
 export interface IncidentCreatePayload {

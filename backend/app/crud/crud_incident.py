@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,10 +16,13 @@ from sqlalchemy.orm import selectinload
 from app.crud.base import CRUDBase
 from app.models.incident import Incident, IncidentTimelineEvent
 from app.schemas.incident import (
+    IncidentAnalyticsResponse,
     IncidentCreate,
     IncidentStatsResponse,
     IncidentTimelineEventCreate,
     IncidentUpdate,
+    MonthlyTrendPoint,
+    SeverityCount,
 )
 
 
@@ -78,7 +82,7 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
         crit_res = await db.execute(critical_stmt)
         critical_incidents = crit_res.scalar() or 0
 
-        # Calculate Average Resolution Time
+        # Calculate Average Resolution Time & SLA compliance from resolved incidents
         resolved_filters = base_filters + [Incident.resolved_at.isnot(None)]
         resolved_stmt = select(Incident).where(and_(*resolved_filters))
         res_items = list((await db.execute(resolved_stmt)).scalars().all())
@@ -88,30 +92,151 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
         sla_met_count = 0
 
         for inc in res_items:
-            if inc.resolved_at and inc.created_at:
-                diff = (inc.resolved_at - inc.created_at).total_seconds() / 60.0
-                if diff >= 0:
-                    total_diff_minutes += diff
+            ref_start = inc.started_at or inc.created_at
+            if inc.resolved_at and ref_start:
+                res_time = inc.resolved_at
+                if res_time.tzinfo is None:
+                    res_time = res_time.replace(tzinfo=UTC)
+                if ref_start.tzinfo is None:
+                    ref_start = ref_start.replace(tzinfo=UTC)
+                diff_sec = (res_time - ref_start).total_seconds()
+                if diff_sec >= 0:
+                    diff_min = diff_sec / 60.0
+                    total_diff_minutes += diff_min
                     valid_count += 1
-                    # SLA compliance check: Critical <= 30m, High <= 60m, others <= 240m
-                    sev_upper = inc.severity.upper()
-                    if sev_upper in ["CRITICAL", "P0"] and diff <= 30:
-                        sla_met_count += 1
-                    elif sev_upper in ["HIGH", "P1"] and diff <= 60:
-                        sla_met_count += 1
-                    elif diff <= 240:
+                    target_sec = inc.sla_target_seconds or 1800
+                    if diff_sec <= target_sec:
                         sla_met_count += 1
 
         avg_resolution_time = (
-            round(total_diff_minutes / valid_count, 1) if valid_count > 0 else 24.5
+            round(total_diff_minutes / valid_count, 1) if valid_count > 0 else 0.0
         )
-        sla_compliance = round((sla_met_count / valid_count) * 100, 1) if valid_count > 0 else 98.4
+        sla_compliance = round((sla_met_count / valid_count) * 100, 1) if valid_count > 0 else 100.0
 
         return IncidentStatsResponse(
             open_incidents=open_incidents,
             critical_incidents=critical_incidents,
             avg_resolution_time_minutes=avg_resolution_time,
             sla_compliance_percent=sla_compliance,
+        )
+
+    async def get_analytics(
+        self, db: AsyncSession, organization_id: uuid.UUID | None = None
+    ) -> IncidentAnalyticsResponse:
+        """Computes comprehensive Incident Analytics and MTTR from real database records."""
+        base_filters = []
+        if organization_id:
+            base_filters.append(
+                or_(Incident.organization_id == organization_id, Incident.organization_id.is_(None))
+            )
+
+        # Fetch all incidents
+        stmt = select(Incident).where(and_(*base_filters) if base_filters else True).order_by(Incident.created_at.desc())
+        res = await db.execute(stmt)
+        all_incidents = list(res.scalars().all())
+
+        total_incidents = len(all_incidents)
+        resolved_incidents = 0
+        critical_incidents = 0
+        high_incidents = 0
+
+        by_severity: dict[str, int] = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        by_service: dict[str, int] = {}
+        root_cause_counts: dict[str, int] = {}
+
+        mttr_values_sec: list[float] = []
+        sla_met_count = 0
+
+        for inc in all_incidents:
+            sev_u = (inc.severity or "HIGH").upper()
+            if sev_u in ["CRITICAL", "P0"]:
+                by_severity["CRITICAL"] += 1
+                critical_incidents += 1
+            elif sev_u in ["HIGH", "P1"]:
+                by_severity["HIGH"] += 1
+                high_incidents += 1
+            elif sev_u in ["MEDIUM", "P2"]:
+                by_severity["MEDIUM"] += 1
+            else:
+                by_severity["LOW"] += 1
+
+            svc = inc.affected_service or "api-gateway"
+            by_service[svc] = by_service.get(svc, 0) + 1
+
+            if inc.root_cause:
+                rc_key = inc.root_cause.strip()
+                root_cause_counts[rc_key] = root_cause_counts.get(rc_key, 0) + 1
+
+            is_resolved = str(inc.status).upper() in ["RESOLVED", "CLOSED"] or inc.resolved_at is not None
+            if is_resolved:
+                resolved_incidents += 1
+                ref_start = inc.started_at or inc.created_at
+                if inc.resolved_at and ref_start:
+                    res_time = inc.resolved_at
+                    if res_time.tzinfo is None:
+                        res_time = res_time.replace(tzinfo=UTC)
+                    if ref_start.tzinfo is None:
+                        ref_start = ref_start.replace(tzinfo=UTC)
+                    diff_sec = inc.mttr_seconds if inc.mttr_seconds is not None else (res_time - ref_start).total_seconds()
+                    if diff_sec >= 0:
+                        mttr_values_sec.append(diff_sec)
+                        target_sec = inc.sla_target_seconds or 1800
+                        if diff_sec <= target_sec:
+                            sla_met_count += 1
+
+        open_incidents = total_incidents - resolved_incidents
+
+        # Average and Median MTTR
+        if mttr_values_sec:
+            avg_mttr_sec = sum(mttr_values_sec) / len(mttr_values_sec)
+            sorted_mttr = sorted(mttr_values_sec)
+            mid = len(sorted_mttr) // 2
+            if len(sorted_mttr) % 2 == 0:
+                median_mttr_sec = (sorted_mttr[mid - 1] + sorted_mttr[mid]) / 2.0
+            else:
+                median_mttr_sec = sorted_mttr[mid]
+            sla_compliance = round((sla_met_count / len(mttr_values_sec)) * 100, 1)
+        else:
+            avg_mttr_sec = 0.0
+            median_mttr_sec = 0.0
+            sla_compliance = 100.0
+
+        # Top root causes
+        sorted_rc = sorted(root_cause_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_root_causes = [{"root_cause": k, "count": v} for k, v in sorted_rc]
+
+        incidents_by_severity = [
+            SeverityCount(severity=k, count=v) for k, v in by_severity.items()
+        ]
+
+        resolution_rate = (
+            round((resolved_incidents / total_incidents) * 100, 1) if total_incidents > 0 else 0.0
+        )
+
+        now = datetime.now(UTC)
+        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        current_month = months[now.month - 1]
+        monthly_trend = [
+            MonthlyTrendPoint(month=current_month, count=total_incidents, resolved_count=resolved_incidents)
+        ]
+
+        return IncidentAnalyticsResponse(
+            total_incidents=total_incidents,
+            open_incidents=open_incidents,
+            resolved_incidents=resolved_incidents,
+            critical_incidents=critical_incidents,
+            high_incidents=high_incidents,
+            average_mttr_seconds=round(avg_mttr_sec, 1),
+            median_mttr_seconds=round(median_mttr_sec, 1),
+            sla_compliance_percent=sla_compliance,
+            by_severity=by_severity,
+            by_service=by_service,
+            top_root_causes=top_root_causes,
+            incidents_by_severity=incidents_by_severity,
+            mean_time_to_resolve_minutes=round(avg_mttr_sec / 60.0, 1),
+            monthly_trend=monthly_trend,
+            resolution_rate_percent=resolution_rate,
+            active_incidents=open_incidents,
         )
 
     async def get_filtered(
@@ -123,6 +248,10 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
         severity: str | None = None,
         priority: str | None = None,
         service: str | None = None,
+        environment: str | None = None,
+        region: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         search: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
@@ -145,6 +274,15 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
             filters.append(func.lower(Incident.priority) == priority.lower())
         if service:
             filters.append(func.lower(Incident.affected_service) == service.lower())
+        if environment:
+            filters.append(func.lower(Incident.environment) == environment.lower())
+        if region:
+            filters.append(func.lower(Incident.affected_region) == region.lower())
+        if start_date:
+            filters.append(Incident.created_at >= start_date)
+        if end_date:
+            filters.append(Incident.created_at <= end_date)
+
         if search:
             search_pattern = f"%{search.lower()}%"
             filters.append(
@@ -153,6 +291,7 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
                     func.lower(Incident.description).like(search_pattern),
                     func.lower(Incident.affected_service).like(search_pattern),
                     func.lower(Incident.assigned_engineer).like(search_pattern),
+                    func.lower(Incident.assigned_to).like(search_pattern),
                     func.lower(Incident.root_cause).like(search_pattern),
                 )
             )

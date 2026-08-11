@@ -23,7 +23,10 @@ from app.schemas.incident import (
     IncidentCorrelationRequest,
     IncidentCorrelationResponse,
     IncidentCreate,
+    IncidentDeclareRequest,
+    IncidentInvestigateRequest,
     IncidentListResponse,
+    IncidentMitigateRequest,
     IncidentRemediateRequest,
     IncidentRemediateResponse,
     IncidentResolve,
@@ -32,9 +35,7 @@ from app.schemas.incident import (
     IncidentTimelineEventCreate,
     IncidentTimelineEventResponse,
     IncidentUpdate,
-    MonthlyTrendPoint,
     RootCauseAnalysisResponse,
-    SeverityCount,
 )
 from app.services.incident_service import IncidentService, incident_service
 from app.services.websocket_manager import incident_ws_manager
@@ -77,6 +78,8 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 affected_service="payment-service",
                 affected_services=["payment-service", "checkout-svc", "auth-service"],
                 affected_resources=["redis-cluster-cache", "payment-api-pod-1"],
+                resource_id="redis-cluster-cache",
+                environment="production",
                 affected_region="us-east-1",
                 assigned_engineer="Sarah Chen (SRE Lead)",
                 assigned_to="Sarah Chen (SRE Lead)",
@@ -86,6 +89,10 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 created_at=now,
                 confidence_score=0.96,
                 impact_score=92.0,
+                correlation_score=0.96,
+                sla_target_seconds=900,
+                sla_status="PENDING",
+                analysis_engine="local",
                 root_cause="Redis memory limit reached maxmemory threshold (2GB), evicting session tokens.",
                 contributing_factors=[
                     "Redis memory limit reached maxmemory threshold (2GB)",
@@ -119,6 +126,9 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                         "workflow_id": "wf-redis-scale",
                         "automated": True,
                         "risk_level": "LOW",
+                        "risk": "LOW",
+                        "requires_approval": True,
+                        "dry_run": True,
                     },
                     {
                         "id": "act-flush-telemetry-keys",
@@ -128,6 +138,9 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                         "workflow_id": "wf-redis-key-cleanup",
                         "automated": True,
                         "risk_level": "LOW",
+                        "risk": "LOW",
+                        "requires_approval": True,
+                        "dry_run": True,
                     },
                 ],
                 blast_radius={
@@ -169,6 +182,8 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 affected_service="database-cluster",
                 affected_services=["database-cluster", "payment-service", "order-worker", "api-gateway"],
                 affected_resources=["postgres-primary-db", "pgbouncer-pool-01"],
+                resource_id="postgres-primary-db",
+                environment="production",
                 affected_region="us-east-1",
                 assigned_engineer="Marcus Vance (DBA)",
                 assigned_to="Marcus Vance (DBA)",
@@ -178,6 +193,10 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 created_at=now,
                 confidence_score=0.94,
                 impact_score=95.0,
+                correlation_score=0.95,
+                sla_target_seconds=900,
+                sla_status="PENDING",
+                analysis_engine="local",
                 root_cause="PostgreSQL connection pool saturation due to unclosed idle sessions during background retry loop.",
                 contributing_factors=[
                     "Database active connections reached 200/200 limit",
@@ -215,6 +234,9 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                         "workflow_id": "wf-db-autoscale",
                         "automated": True,
                         "risk_level": "LOW",
+                        "risk": "LOW",
+                        "requires_approval": True,
+                        "dry_run": True,
                     },
                     {
                         "id": "act-pgbouncer-flush",
@@ -224,6 +246,9 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                         "workflow_id": "wf-pgbouncer-flush",
                         "automated": True,
                         "risk_level": "LOW",
+                        "risk": "LOW",
+                        "requires_approval": True,
+                        "dry_run": True,
                     },
                 ],
                 blast_radius={
@@ -254,83 +279,12 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 ai_estimated_resolution_time="10-15 mins",
                 ai_confidence_score=0.95,
             ),
-            Incident(
-                organization_id=org_id,
-                title="High CPU Saturation on Auth Worker Node",
-                description="Kubernetes worker pool node-us-east-1a CPU utilization at 98% for > 15 minutes.",
-                severity="HIGH",
-                priority="High",
-                status="INVESTIGATING",
-                source="kubernetes",
-                affected_service="auth-service",
-                affected_services=["auth-service"],
-                affected_resources=["node-us-east-1a", "auth-pod-4x"],
-                affected_region="us-west-2",
-                assigned_engineer="Alex Rivera (DevOps)",
-                assigned_to="Alex Rivera (DevOps)",
-                created_by="Datadog Webhook",
-                started_at=now,
-                detected_at=now,
-                created_at=now,
-                confidence_score=0.92,
-                impact_score=75.0,
-                root_cause="Unbounded bcrypt hashing thread pool blocking Node event loop under load burst.",
-                evidence=[
-                    {
-                        "type": "metric",
-                        "source": "auth-service",
-                        "message": "CPU utilization at 98.2% on node-us-east-1a",
-                        "severity": "HIGH",
-                        "metric_value": 98.2,
-                        "threshold": 80.0,
-                    }
-                ],
-                recommended_actions=[
-                    {
-                        "id": "act-scale-auth",
-                        "title": "Scale auth-service Replicas from 4 to 10 instances",
-                        "description": "Increase pod capacity to distribute bcrypt CPU load.",
-                        "action_type": "scale",
-                        "workflow_id": "wf-k8s-scale",
-                        "automated": True,
-                        "risk_level": "LOW",
-                    }
-                ],
-                blast_radius={
-                    "root_component": "auth-service",
-                    "directly_affected_resources": ["node-us-east-1a"],
-                    "indirectly_affected_resources": ["auth-service"],
-                    "affected_services": ["auth-service"],
-                    "dependency_depth": 1,
-                    "estimated_user_impact": "HIGH",
-                    "financial_risk_estimate": "$3,200 / hr",
-                },
-                ai_summary="Auth Service worker node CPU throttled due to JWT verification thread pool lock contention.",
-                ai_root_cause="Unbounded bcrypt hashing thread pool blocking Node event loop under load burst.",
-                ai_business_impact="Login duration increased from 120ms to 850ms.",
-                ai_immediate_mitigation="Scale auth-service replicas from 4 to 10 instances.",
-                ai_suggested_resolution="Scale auth-service replicas from 4 to 10 instances.",
-                ai_long_term_prevention=[
-                    "Migrate password hashing to worker pool",
-                    "Add HPA target at 70% CPU",
-                ],
-                ai_preventive_actions=[
-                    "Migrate password hashing to worker pool",
-                    "Add HPA target at 70% CPU",
-                ],
-                ai_similar_incidents=[
-                    {"id": "INC-388", "title": "Bcrypt worker bottleneck", "similarity": "86%"}
-                ],
-                ai_estimated_resolution_time="20 mins",
-                ai_confidence_score=0.92,
-            ),
         ]
 
         for inc in sample_incidents:
             db.add(inc)
             await db.flush()
 
-            # Add timeline events
             evt1 = IncidentTimelineEvent(
                 id=uuid.uuid4(),
                 incident_id=inc.id,
@@ -338,7 +292,7 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 event_type="metric_anomaly",
                 title=f"Telemetry Anomaly Detected: {inc.affected_service}",
                 description=f"Automated monitoring detected threshold anomaly on {inc.affected_service}.",
-                source=inc.affected_service,
+                source=inc.affected_service or "system",
                 created_by="MonitoringEngine",
             )
             evt2 = IncidentTimelineEvent(
@@ -347,7 +301,7 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 timestamp=now,
                 event_type="incident_created",
                 title=f"Incident Correlated: {inc.title}",
-                description=f"Incident created with {inc.severity} severity.",
+                description=f"Incident created with {inc.severity} severity (Confidence: {int(inc.confidence_score * 100)}%).",
                 source="IncidentCorrelationEngine",
                 created_by="IncidentCorrelationEngine",
             )
@@ -357,7 +311,7 @@ async def _seed_initial_incidents_if_empty(db: AsyncSession, service: IncidentSe
                 timestamp=now,
                 event_type="rca_identified",
                 title=f"RCA Complete: {inc.root_cause}",
-                description=f"Confidence: {int(inc.confidence_score * 100)}%.",
+                description=f"Confidence: {int(inc.confidence_score * 100)}%. Multi-signal evidence verified.",
                 source="RootCauseAnalysisService",
                 created_by="CloudPulse AI",
             )
@@ -415,47 +369,6 @@ async def get_incident_stats(
     return await service.get_stats(db)
 
 
-@router.get("", response_model=IncidentListResponse, summary="List incidents")
-async def list_incidents(
-    status: str | None = Query(
-        None, description="Filter by status (INVESTIGATING, IDENTIFIED, MITIGATING, RESOLVED, CLOSED, Open)"
-    ),
-    severity: str | None = Query(None, description="Filter by severity (CRITICAL, HIGH, MEDIUM, LOW, P0-P3)"),
-    priority: str | None = Query(None, description="Filter by priority (Critical, High, Medium, Low)"),
-    service: str | None = Query(None, description="Filter by affected service"),
-    search: str | None = Query(None, description="Search term in title, description, or root cause"),
-    sort_by: str = Query("created_at", description="Sort field (created_at, severity, priority, status)"),
-    sort_dir: str = Query("desc", description="Sort direction (asc, desc)"),
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    service_layer: IncidentService = Depends(get_incident_service),
-):
-    """Retrieve paginated list of incidents with filters, search, and sorting."""
-    await _seed_initial_incidents_if_empty(db, service_layer)
-
-    incidents, total, pages = await service_layer.list_incidents(
-        db,
-        status=status,
-        severity=severity,
-        priority=priority,
-        service=service,
-        search=search,
-        sort_by=sort_by,
-        sort_dir=sort_dir,
-        page=page,
-        size=size,
-    )
-
-    return IncidentListResponse(
-        items=[IncidentResponse.model_validate(inc) for inc in incidents],
-        total=total,
-        page=page,
-        size=size,
-        pages=pages,
-    )
-
-
 @router.get(
     "/analytics", response_model=IncidentAnalyticsResponse, summary="Incident analytics & charts"
 )
@@ -463,74 +376,124 @@ async def get_incident_analytics(
     db: AsyncSession = Depends(get_db),
     service_layer: IncidentService = Depends(get_incident_service),
 ):
-    """Get metrics for incident analytics charts."""
+    """Get metrics for incident analytics charts, SLA compliance, and MTTR."""
     await _seed_initial_incidents_if_empty(db, service_layer)
+    return await service_layer.get_analytics(db)
 
-    incidents, total_incidents, _ = await service_layer.list_incidents(db, size=100)
-    stats = await service_layer.get_stats(db)
 
-    sev_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
-    resolved_count = 0
-    for inc in incidents:
-        sev_norm = str(inc.severity).upper()
-        if sev_norm in ["P0", "CRITICAL"]:
-            sev_counts["CRITICAL"] += 1
-        elif sev_norm in ["P1", "HIGH"]:
-            sev_counts["HIGH"] += 1
-        elif sev_norm in ["P2", "MEDIUM"]:
-            sev_counts["MEDIUM"] += 1
-        else:
-            sev_counts["LOW"] += 1
+@router.get("", response_model=IncidentListResponse, summary="List incidents")
+async def list_incidents(
+    status: str | None = Query(
+        None, description="Filter by status (OPEN, ACKNOWLEDGED, INVESTIGATING, MITIGATING, RESOLVED, CLOSED)"
+    ),
+    severity: str | None = Query(None, description="Filter by severity (CRITICAL, HIGH, MEDIUM, LOW)"),
+    priority: str | None = Query(None, description="Filter by priority (Critical, High, Medium, Low)"),
+    service: str | None = Query(None, description="Filter by affected service"),
+    environment: str | None = Query(None, description="Filter by environment (production, staging, dev)"),
+    region: str | None = Query(None, description="Filter by cloud region"),
+    start_date: datetime | None = Query(None, description="Filter incidents created after this datetime"),
+    end_date: datetime | None = Query(None, description="Filter incidents created before this datetime"),
+    search: str | None = Query(None, description="Search term in title, description, or root cause"),
+    sort_by: str = Query("created_at", description="Sort field (created_at, severity, priority, status)"),
+    sort_dir: str = Query("desc", description="Sort direction (asc, desc)"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    page_size: int | None = Query(None, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Retrieve paginated list of incidents with filters, search, and sorting."""
+    await _seed_initial_incidents_if_empty(db, service_layer)
+    effective_size = page_size or size
 
-        if str(inc.status).upper() in ["RESOLVED", "CLOSED"]:
-            resolved_count += 1
-
-    incidents_by_severity = [SeverityCount(severity=s, count=c) for s, c in sev_counts.items()]
-    active_incidents = total_incidents - resolved_count
-    resolution_rate = (
-        round((resolved_count / total_incidents) * 100, 1) if total_incidents > 0 else 0.0
+    incidents, total, pages = await service_layer.list_incidents(
+        db,
+        status=status,
+        severity=severity,
+        priority=priority,
+        service=service,
+        environment=environment,
+        region=region,
+        start_date=start_date,
+        end_date=end_date,
+        search=search,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        page=page,
+        size=effective_size,
     )
 
-    monthly_trend = [
-        MonthlyTrendPoint(month="Mar", count=14, resolved_count=12),
-        MonthlyTrendPoint(month="Apr", count=18, resolved_count=16),
-        MonthlyTrendPoint(month="May", count=11, resolved_count=10),
-        MonthlyTrendPoint(month="Jun", count=19, resolved_count=18),
-        MonthlyTrendPoint(month="Jul", count=15, resolved_count=14),
-        MonthlyTrendPoint(month="Aug", count=total_incidents, resolved_count=resolved_count),
-    ]
-
-    return IncidentAnalyticsResponse(
-        incidents_by_severity=incidents_by_severity,
-        mean_time_to_resolve_minutes=stats.avg_resolution_time_minutes,
-        monthly_trend=monthly_trend,
-        resolution_rate_percent=resolution_rate,
-        active_incidents=active_incidents,
-        resolved_incidents=resolved_count,
-        total_incidents=total_incidents,
-        sla_compliance_percent=stats.sla_compliance_percent,
+    return IncidentListResponse(
+        items=[IncidentResponse.model_validate(inc) for inc in incidents],
+        total=total,
+        page=page,
+        size=effective_size,
+        pages=pages,
     )
 
 
 @router.post(
     "/correlate",
     response_model=IncidentCorrelationResponse,
-    summary="Correlate raw alerts into incidents",
+    summary="Correlate raw signals and alerts into incidents",
 )
-async def correlate_alerts(
+async def correlate_signals(
     payload: IncidentCorrelationRequest,
     db: AsyncSession = Depends(get_db),
     service_layer: IncidentService = Depends(get_incident_service),
 ):
-    """Ingests raw alerts, deduplicates, and correlates them into high-confidence Incident entities."""
+    """
+    Ingests multi-source signals, deduplicates, and correlates them into high-confidence Incident entities.
+    Protects against duplicate creation through deterministic fingerprinting.
+    """
+    signals_input = payload.alerts or payload.signals
+    if not signals_input:
+        # If no alerts in body, provide sample multi-service cascade
+        signals_input = [
+            {
+                "service": "database-cluster",
+                "event_type": "metric_anomaly",
+                "title": "PostgreSQL active connections at 98.4%",
+                "severity": "CRITICAL",
+            },
+            {
+                "service": "payment-service",
+                "event_type": "trace_failure",
+                "title": "HTTP 504 Gateway Timeouts on /checkout",
+                "severity": "HIGH",
+            },
+            {
+                "service": "auth-service",
+                "event_type": "log_error",
+                "title": "Database connection pool timeout in session worker",
+                "severity": "HIGH",
+            },
+        ]
+
     created = await service_layer.correlate_raw_alerts(
-        db, payload.alerts, organization_id=payload.organization_id
+        db, signals_input, organization_id=payload.organization_id
     )
     return IncidentCorrelationResponse(
         correlated_incidents_count=len(created),
-        raw_alerts_processed=len(payload.alerts),
+        raw_alerts_processed=len(signals_input),
         incidents=[IncidentResponse.model_validate(inc) for inc in created],
     )
+
+
+@router.post(
+    "/declare",
+    response_model=IncidentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Manually declare an incident",
+)
+async def declare_incident_endpoint(
+    payload: IncidentDeclareRequest,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Manually declare an incident from the UI or API."""
+    incident = await service_layer.declare_incident(db, payload)
+    return IncidentResponse.model_validate(incident)
 
 
 @router.post(
@@ -589,12 +552,50 @@ async def acknowledge_incident(
     db: AsyncSession = Depends(get_db),
     service_layer: IncidentService = Depends(get_incident_service),
 ):
-    """Acknowledge incident, updating status to INVESTIGATING and recording timeline event."""
+    """Acknowledge incident, updating status to ACKNOWLEDGED and recording timeline event."""
     user_name = payload.assigned_to or "Engineer"
     ack_obj = await service_layer.acknowledge(db, incident_id, payload, user_name=user_name)
     if not ack_obj:
         raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
     return IncidentResponse.model_validate(ack_obj)
+
+
+@router.post(
+    "/{incident_id}/investigate",
+    response_model=IncidentResponse,
+    summary="Start incident investigation",
+)
+async def investigate_incident(
+    incident_id: uuid.UUID,
+    payload: IncidentInvestigateRequest = IncidentInvestigateRequest(),
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Transition incident to INVESTIGATING and trigger active RCA and AI diagnostics."""
+    user_name = payload.assigned_to or "Engineer"
+    inv_obj = await service_layer.investigate(db, incident_id, payload, user_name=user_name)
+    if not inv_obj:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentResponse.model_validate(inv_obj)
+
+
+@router.post(
+    "/{incident_id}/mitigate",
+    response_model=IncidentResponse,
+    summary="Start incident mitigation",
+)
+async def mitigate_incident(
+    incident_id: uuid.UUID,
+    payload: IncidentMitigateRequest = IncidentMitigateRequest(),
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Transition incident to MITIGATING status."""
+    user_name = payload.authorized_by or "Engineer"
+    mit_obj = await service_layer.mitigate(db, incident_id, payload, user_name=user_name)
+    if not mit_obj:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentResponse.model_validate(mit_obj)
 
 
 @router.post("/{incident_id}/resolve", response_model=IncidentResponse, summary="Resolve incident")
@@ -604,7 +605,7 @@ async def resolve_incident(
     db: AsyncSession = Depends(get_db),
     service_layer: IncidentService = Depends(get_incident_service),
 ):
-    """Mark incident as resolved with resolution notes and broadcast real-time update."""
+    """Mark incident as resolved, calculate MTTR and evaluate SLA compliance status."""
     resolved = await service_layer.resolve(db, incident_id, payload)
     if not resolved:
         raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
@@ -628,17 +629,24 @@ async def reanalyze_incident(
         raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
 
     return IncidentAIAnalysisResponse(
-        ai_summary=ai_data["ai_summary"],
-        root_cause=ai_data["root_cause"],
-        ai_root_cause=ai_data["ai_root_cause"],
-        ai_business_impact=ai_data["ai_business_impact"],
-        ai_suggested_resolution=ai_data["ai_suggested_resolution"],
-        ai_immediate_mitigation=ai_data["ai_immediate_mitigation"],
+        summary=ai_data.get("summary") or ai_data.get("ai_summary", ""),
+        root_cause=ai_data.get("root_cause") or ai_data.get("ai_root_cause", ""),
+        confidence=float(ai_data.get("confidence") or ai_data.get("ai_confidence_score", 0.94)),
+        evidence=ai_data.get("evidence", []),
+        impact=ai_data.get("impact") or ai_data.get("ai_business_impact", ""),
+        recommended_actions=ai_data.get("recommended_actions", []),
+        preventive_actions=ai_data.get("preventive_actions") or ai_data.get("ai_long_term_prevention", []),
+        analysis_engine=ai_data.get("analysis_engine", "local"),
+        ai_summary=ai_data.get("ai_summary", ""),
+        ai_root_cause=ai_data.get("ai_root_cause", ""),
+        ai_business_impact=ai_data.get("ai_business_impact", ""),
+        ai_suggested_resolution=ai_data.get("ai_suggested_resolution", ""),
+        ai_immediate_mitigation=ai_data.get("ai_immediate_mitigation", ""),
         ai_long_term_prevention=ai_data.get("ai_long_term_prevention", []),
         ai_preventive_actions=ai_data.get("ai_preventive_actions", []),
         ai_similar_incidents=ai_data.get("ai_similar_incidents", []),
         ai_estimated_resolution_time=ai_data.get("ai_estimated_resolution_time", "30 minutes"),
-        ai_confidence_score=ai_data.get("ai_confidence_score", 0.94),
+        ai_confidence_score=float(ai_data.get("ai_confidence_score", 0.94)),
     )
 
 

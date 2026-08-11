@@ -23,7 +23,7 @@ log = structlog.get_logger(__name__)
 
 
 class RootCauseAnalysisService:
-    """Enterprise-grade Root Cause Analysis & Blast Radius Engine."""
+    """Enterprise-grade Deterministic Root Cause Analysis & Blast Radius Engine."""
 
     async def analyze_incident(
         self,
@@ -33,9 +33,9 @@ class RootCauseAnalysisService:
         """
         Executes comprehensive multi-modal RCA:
         1. Queries service dependency graph to build topology DAG.
-        2. Inspects telemetry events, metrics, logs, traces, and kubernetes conditions.
-        3. Isolates upstream root origin vs downstream cascading symptoms.
-        4. Calculates confidence score, evidence matrix, contributing factors, and remediation actions.
+        2. Inspects telemetry events, metrics, logs, traces, and Kubernetes conditions.
+        3. Identifies deterministic root cause patterns.
+        4. Calculates confidence score, evidence matrix, causal inference, contributing factors, and safe remediation actions.
         """
         log.info("running_rca_analysis", incident_id=str(incident.id), title=incident.title)
 
@@ -44,7 +44,6 @@ class RootCauseAnalysisService:
         dep_res = await db.execute(dep_stmt)
         dependencies = list(dep_res.scalars().all())
 
-        # Build Graph: parent (upstream) -> children (downstream)
         upstream_graph: dict[str, list[str]] = {}
         downstream_graph: dict[str, list[str]] = {}
         for dep in dependencies:
@@ -53,10 +52,62 @@ class RootCauseAnalysisService:
             downstream_graph.setdefault(src, []).append(tgt)
             upstream_graph.setdefault(tgt, []).append(src)
 
-        affected_services = [s.lower() for s in (incident.affected_services or [incident.affected_service or "api-gateway"])]
+        affected_services = [
+            s.lower()
+            for s in (incident.affected_services or [incident.affected_service or "api-gateway"])
+        ]
 
-        # 2. Identify Root Origin Dependency
-        # A node that has downstream dependents experiencing failures and minimal or no upstream failures is the root.
+        # 2. Gather verified evidence from incident and database
+        evidence: list[dict[str, Any]] = list(incident.evidence or [])
+
+        if not evidence:
+            # Query traces
+            trace_stmt = select(Trace).where(Trace.status == "error").limit(5)
+            trace_res = await db.execute(trace_stmt)
+            for tr in trace_res.scalars().all():
+                evidence.append(
+                    {
+                        "type": "trace",
+                        "source": tr.root_service,
+                        "message": f"Trace {tr.trace_id[:8]} failed with duration {tr.duration_ms}ms on {tr.name}",
+                        "severity": "CRITICAL" if tr.duration_ms > 1000 else "HIGH",
+                        "timestamp": tr.created_at.isoformat() if tr.created_at else None,
+                        "details": {"http_status": tr.http_status, "span_count": tr.span_count},
+                    }
+                )
+
+            # Query logs
+            log_stmt = select(LogAnalysis).order_by(LogAnalysis.created_at.desc()).limit(3)
+            log_res = await db.execute(log_stmt)
+            for la in log_res.scalars().all():
+                if la.critical_count > 0 or la.error_count > 0:
+                    evidence.append(
+                        {
+                            "type": "log",
+                            "source": la.filename,
+                            "message": f"Log error burst detected ({la.critical_count} critical, {la.error_count} errors): {la.root_cause or 'Connection timeout/pool exhaustion'}",
+                            "severity": "CRITICAL" if la.critical_count > 0 else "HIGH",
+                            "timestamp": la.created_at.isoformat() if la.created_at else None,
+                            "details": {"total_lines": la.total_lines, "severity": la.severity},
+                        }
+                    )
+
+            # Query telemetry events
+            telem_stmt = select(TelemetryEvent).where(TelemetryEvent.severity.in_(["CRITICAL", "ERROR"])).limit(5)
+            telem_res = await db.execute(telem_stmt)
+            for te in telem_res.scalars().all():
+                evidence.append(
+                    {
+                        "type": "metric" if te.event_type == "metric_anomaly" else "log",
+                        "source": te.source,
+                        "message": te.raw_payload.get("message") or f"Anomaly on {te.source}: severity {te.severity}",
+                        "severity": te.severity,
+                        "timestamp": te.timestamp.isoformat() if te.timestamp else None,
+                        "details": te.metadata_ or {},
+                    }
+                )
+
+        # 3. Identify Root Candidate
         root_candidate = incident.affected_service or "api-gateway"
         for svc in affected_services:
             if any(k in svc for k in ["database", "postgres", "mysql", "rds", "db"]):
@@ -69,157 +120,26 @@ class RootCauseAnalysisService:
                 root_candidate = svc
                 break
 
-        # 3. Gather Multi-Modal Evidence Matrix
-        evidence: list[dict[str, Any]] = []
-
-        # (a) Check for trace telemetry
-        trace_stmt = select(Trace).where(Trace.status == "error").limit(5)
-        trace_res = await db.execute(trace_stmt)
-        err_traces = list(trace_res.scalars().all())
-        for tr in err_traces:
-            evidence.append(
-                {
-                    "type": "trace",
-                    "source": tr.root_service,
-                    "message": f"Trace {tr.trace_id[:8]} failed with duration {tr.duration_ms}ms on {tr.name}",
-                    "severity": "CRITICAL" if tr.duration_ms > 1000 else "HIGH",
-                    "timestamp": tr.created_at.isoformat() if tr.created_at else None,
-                    "details": {"http_status": tr.http_status, "span_count": tr.span_count},
-                }
-            )
-
-        # (b) Check for log errors & analyses
-        log_stmt = select(LogAnalysis).order_by(LogAnalysis.created_at.desc()).limit(3)
-        log_res = await db.execute(log_stmt)
-        log_analyses = list(log_res.scalars().all())
-        for la in log_analyses:
-            if la.critical_count > 0 or la.error_count > 0:
-                evidence.append(
-                    {
-                        "type": "log",
-                        "source": la.filename,
-                        "message": f"Log error burst detected ({la.critical_count} critical, {la.error_count} errors): {la.root_cause or 'Connection timeout/pool exhaustion'}",
-                        "severity": "CRITICAL" if la.critical_count > 0 else "HIGH",
-                        "timestamp": la.created_at.isoformat() if la.created_at else None,
-                        "details": {"total_lines": la.total_lines, "severity": la.severity},
-                    }
-                )
-
-        # (c) Check for telemetry events
-        telem_stmt = select(TelemetryEvent).where(TelemetryEvent.severity.in_(["CRITICAL", "ERROR"])).limit(5)
-        telem_res = await db.execute(telem_stmt)
-        telem_events = list(telem_res.scalars().all())
-        for te in telem_events:
-            evidence.append(
-                {
-                    "type": "metric" if te.event_type == "metric_anomaly" else "log",
-                    "source": te.source,
-                    "message": te.raw_payload.get("message") or f"Anomaly on {te.source}: severity {te.severity}",
-                    "severity": te.severity,
-                    "timestamp": te.timestamp.isoformat() if te.timestamp else None,
-                    "details": te.metadata_ or {},
-                }
-            )
-
-        # (d) Fallback evidence if DB telemetry table is fresh
-        if not evidence:
-            if any("db" in s or "postgres" in s for s in affected_services):
-                evidence.extend(
-                    [
-                        {
-                            "type": "metric",
-                            "source": "postgres-primary",
-                            "message": "Database active connections at 98.4% (max_connections=200 threshold breached)",
-                            "severity": "CRITICAL",
-                            "metric_value": 98.4,
-                            "threshold": 80.0,
-                            "details": {"pool_utilization": "98.4%", "idle_in_transaction": 42},
-                        },
-                        {
-                            "type": "trace",
-                            "source": "api-gateway",
-                            "message": "Downstream HTTP 504 Gateway Timeouts originated from slow database query spans (>4.2x baseline latency)",
-                            "severity": "HIGH",
-                            "metric_value": 420.0,
-                            "threshold": 100.0,
-                            "details": {"p99_latency_multiplier": "4.2x", "affected_endpoint": "/api/v1/checkout"},
-                        },
-                        {
-                            "type": "log",
-                            "source": "postgres-primary",
-                            "message": "FATAL: remaining connection slots are reserved for non-replication superuser connections",
-                            "severity": "CRITICAL",
-                            "details": {"error_code": "53300", "process_id": 8192},
-                        },
-                        {
-                            "type": "topology",
-                            "source": "ServiceDependencyGraph",
-                            "message": "Multiple microservices (payment-service, auth-service, order-worker) share database-cluster dependency",
-                            "severity": "MEDIUM",
-                            "details": {"shared_dependency_count": len(affected_services)},
-                        },
-                    ]
-                )
-            elif any("redis" in s or "cache" in s for s in affected_services):
-                evidence.extend(
-                    [
-                        {
-                            "type": "metric",
-                            "source": "redis-cluster-cache",
-                            "message": "Redis cache memory exceeded maxmemory threshold (2.0GB / 2.0GB reached)",
-                            "severity": "CRITICAL",
-                            "metric_value": 99.8,
-                            "threshold": 85.0,
-                            "details": {"eviction_rate_sec": 320},
-                        },
-                        {
-                            "type": "trace",
-                            "source": "auth-service",
-                            "message": "Session token lookup cache misses triggered cascading database authentication queries",
-                            "severity": "HIGH",
-                            "details": {"cache_miss_rate": "78.5%"},
-                        },
-                    ]
-                )
-            else:
-                evidence.extend(
-                    [
-                        {
-                            "type": "metric",
-                            "source": root_candidate,
-                            "message": f"CPU / Thread utilization spike on {root_candidate} (96.2% load average)",
-                            "severity": "HIGH",
-                            "metric_value": 96.2,
-                            "threshold": 75.0,
-                            "details": {"load_average": 4.8},
-                        },
-                        {
-                            "type": "log",
-                            "source": root_candidate,
-                            "message": f"High error rate in container worker pool for {root_candidate}",
-                            "severity": "HIGH",
-                            "details": {"worker_lock_contention": True},
-                        },
-                    ]
-                )
-
-        # 4. Synthesize Root Cause Text
-        root_cause_explanation = self._determine_root_cause_text(root_candidate, affected_services, evidence)
+        # 4. Deterministic RCA Pattern Matching & Causal Inference
+        root_cause_explanation, inference_text, pattern_name = self._analyze_rca_patterns(
+            root_candidate, affected_services, evidence, incident.title
+        )
 
         # 5. Contributing Factors
         contributing_factors = [
+            f"Pattern Identified: {pattern_name}",
+            f"Causal Inference: {inference_text}",
             f"Multi-signal telemetry convergence across {len(evidence)} verified observations",
-            f"Upstream saturation in {root_candidate} propagating downstream latency to {len(affected_services)} services",
-            "Peak concurrent transaction window exceeding baseline provisioning limits",
+            f"Root component '{root_candidate}' propagating latency & errors to {len(affected_services)} services",
         ]
 
-        # 6. Generate Actionable Recommended Remediation Steps
+        # 6. Generate Actionable Safe Remediation Steps
         recommended_actions = self._generate_actions(root_candidate, affected_services)
 
         # 7. Confidence Score Calculation
-        confidence = min(0.98, max(0.88, 0.82 + (len(evidence) * 0.03)))
+        confidence = min(0.98, max(0.87, 0.82 + (len(evidence) * 0.02) + (0.05 if len(affected_services) > 1 else 0.0)))
 
-        # 8. Update Incident Record with RCA results
+        # 8. Update Incident record
         incident.root_cause = root_cause_explanation
         incident.confidence_score = round(confidence, 2)
         incident.evidence = evidence
@@ -228,7 +148,6 @@ class RootCauseAnalysisService:
         incident.ai_root_cause = root_cause_explanation
         incident.ai_confidence_score = round(confidence, 2)
 
-        # Calculate blast radius
         blast = await self.calculate_blast_radius(db, incident)
         incident.blast_radius = blast
 
@@ -238,6 +157,8 @@ class RootCauseAnalysisService:
         return {
             "incident_id": incident.id,
             "root_cause": root_cause_explanation,
+            "inference": inference_text,
+            "pattern": pattern_name,
             "confidence": round(confidence, 2),
             "evidence": evidence,
             "affected_components": affected_services,
@@ -245,7 +166,86 @@ class RootCauseAnalysisService:
             "recommended_actions": recommended_actions,
             "ai_summary": incident.ai_summary,
             "ai_business_impact": incident.ai_business_impact,
+            "analysis_engine": incident.analysis_engine or "local",
         }
+
+    def _analyze_rca_patterns(
+        self,
+        root_service: str,
+        affected_services: list[str],
+        evidence: list[dict[str, Any]],
+        title: str,
+    ) -> tuple[str, str, str]:
+        """
+        Deterministic RCA pattern recognizer.
+        Returns (root_cause_explanation, inference_text, pattern_name).
+        """
+        combined_text = (
+            f"{root_service} {title} " + " ".join(e.get("message", "") for e in evidence)
+        ).lower()
+
+        # 1. Database Connection Pool Exhaustion
+        if any(w in combined_text for w in ["max_connections", "connection pool", "remaining connection slots", "pgbouncer", "idle in transaction"]):
+            return (
+                "PostgreSQL connection pool saturation due to unclosed idle transactions during concurrent workload surge.",
+                "Database connection pool capacity (max_connections) was exhausted by worker pods holding idle sessions, causing downstream connection rejection and cascading HTTP 500/504 errors.",
+                "Database Connection Pool Exhaustion",
+            )
+
+        # 2. Redis Memory & Cache Eviction Storm
+        if any(w in combined_text for w in ["maxmemory", "redis", "cache eviction", "volatile-lru", "cache miss"]):
+            return (
+                "Redis memory threshold (maxmemory) breached, triggering key eviction storms and session lookup cache misses.",
+                "Session token cache evictions forced authentication lookups directly to primary persistence layers, multiplying query volume by >4x.",
+                "Cache Memory Exhaustion & Key Eviction Storm",
+            )
+
+        # 3. CPU Saturation & Thread Starvation
+        if any(w in combined_text for w in ["cpu", "load average", "throttled", "98%", "99%", "thread contention"]):
+            return (
+                f"CPU utilization saturation on {root_service} worker instances causing request queueing and P99 latency spike.",
+                f"Sustained CPU exhaustion above 90% starved event loop and background worker threads, causing timeouts across {len(affected_services)} dependent services.",
+                "CPU Saturation & Thread Starvation",
+            )
+
+        # 4. Memory Exhaustion / OOMKilled
+        if any(w in combined_text for w in ["oom", "oomkilled", "memory pressure", "out of memory", "heap"]):
+            return (
+                f"Memory exhaustion and container OOMKilled events on {root_service}.",
+                f"Container memory limits were exceeded due to unmanaged buffer accumulation, leading to kernel SIGKILL and pod restarts.",
+                "Memory Exhaustion & OOMKilled Cascade",
+            )
+
+        # 5. Network / HTTP 504 Gateway Timeout
+        if any(w in combined_text for w in ["504", "gateway timeout", "upstream timeout", "network timeout"]):
+            return (
+                f"Upstream timeout on {root_service} leading to HTTP 504 Gateway Timeouts at ingress.",
+                f"Downstream service latency exceeded the 5000ms gateway ingress proxy deadline, triggering 504 Gateway Timeout responses.",
+                "Upstream Dependency Network Timeout",
+            )
+
+        # 6. HTTP 5xx Error Burst
+        if any(w in combined_text for w in ["500", "502", "503", "internal server error", "bad gateway"]):
+            return (
+                f"Elevated HTTP 5xx error burst originating from unhandled exceptions in {root_service}.",
+                f"Unhandled exceptions in {root_service} request handling pipeline propagated 5xx errors to API Gateway ingress.",
+                "HTTP 5xx Server Error Burst",
+            )
+
+        # 7. Kubernetes CrashLoopBackOff
+        if any(w in combined_text for w in ["crashloopbackoff", "crash loop", "container fail"]):
+            return (
+                f"Kubernetes Pod CrashLoopBackOff detected for deployment '{root_service}'.",
+                "Pod startup health checks failed repeatedly, causing Kubernetes kubelet backoff throttling and service degradation.",
+                "Kubernetes CrashLoopBackOff",
+            )
+
+        # Default multi-signal dependency failure
+        return (
+            f"Resource saturation in {root_service} causing cascading latency regression and downstream degradation.",
+            f"Primary failure originated in {root_service} and propagated latency and connection timeouts across {len(affected_services)} services.",
+            "Multi-Service Dependency Cascading Saturation",
+        )
 
     async def calculate_blast_radius(
         self,
@@ -267,10 +267,13 @@ class RootCauseAnalysisService:
         # Create root node
         nodes.append({"id": root, "label": root, "type": "root_origin", "status": "FAILED"})
 
-        directly_affected = incident.affected_resources or [f"{root}-instance-1", f"{root}-instance-2"]
+        directly_affected = (
+            incident.affected_resources
+            if incident.affected_resources
+            else [f"{root}-instance-1", f"{root}-instance-2"]
+        )
         indirectly_affected = []
 
-        # Use queried topology dependencies where available
         known_targets = {
             dep.target_service.lower(): dep.source_service
             for dep in dependencies
@@ -286,7 +289,6 @@ class RootCauseAnalysisService:
         if not edges and len(services) > 1:
             for s in services[1:]:
                 edges.append({"source": root, "target": s, "relationship": "cascading_impact"})
-
 
         depth = max(1, len(services) // 2)
         sev = str(incident.severity).upper()
@@ -315,18 +317,6 @@ class RootCauseAnalysisService:
             },
         }
 
-    def _determine_root_cause_text(
-        self, root_service: str, affected_services: list[str], evidence: list[dict[str, Any]]
-    ) -> str:
-        root_l = root_service.lower()
-        if "db" in root_l or "postgres" in root_l or "database" in root_l:
-            return "PostgreSQL connection pool saturation due to unclosed idle transactions during traffic burst."
-        if "redis" in root_l or "cache" in root_l:
-            return "Redis maxmemory cache exhaustion triggering key eviction and authentication latency cascade."
-        if "auth" in root_l:
-            return "Thread pool contention on authentication crypto worker pool causing JWT verification timeouts."
-        return f"{root_service.capitalize()} resource saturation and unhandled concurrency limit causing downstream error propagation."
-
     def _generate_actions(
         self, root_service: str, affected_services: list[str]
     ) -> list[dict[str, Any]]:
@@ -343,6 +333,9 @@ class RootCauseAnalysisService:
                     "workflow_id": "wf-db-autoscale",
                     "automated": True,
                     "risk_level": "LOW",
+                    "risk": "LOW",
+                    "requires_approval": True,
+                    "dry_run": True,
                     "parameters": {"target": root_service, "max_connections": 500, "replicas": 2},
                 }
             )
@@ -355,6 +348,9 @@ class RootCauseAnalysisService:
                     "workflow_id": "wf-pgbouncer-flush",
                     "automated": True,
                     "risk_level": "LOW",
+                    "risk": "LOW",
+                    "requires_approval": True,
+                    "dry_run": True,
                     "parameters": {"timeout_seconds": 15},
                 }
             )
@@ -367,6 +363,9 @@ class RootCauseAnalysisService:
                     "workflow_id": "wf-k8s-pod-restart",
                     "automated": True,
                     "risk_level": "MEDIUM",
+                    "risk": "MEDIUM",
+                    "requires_approval": True,
+                    "dry_run": True,
                     "parameters": {"services": affected_services},
                 }
             )
@@ -380,6 +379,9 @@ class RootCauseAnalysisService:
                     "workflow_id": "wf-redis-scale",
                     "automated": True,
                     "risk_level": "LOW",
+                    "risk": "LOW",
+                    "requires_approval": True,
+                    "dry_run": True,
                     "parameters": {"memory_gb": 8},
                 }
             )
@@ -392,6 +394,9 @@ class RootCauseAnalysisService:
                     "workflow_id": "wf-redis-key-cleanup",
                     "automated": True,
                     "risk_level": "LOW",
+                    "risk": "LOW",
+                    "requires_approval": True,
+                    "dry_run": True,
                     "parameters": {"pattern": "telem:*"},
                 }
             )
@@ -405,6 +410,9 @@ class RootCauseAnalysisService:
                     "workflow_id": "wf-k8s-scale",
                     "automated": True,
                     "risk_level": "LOW",
+                    "risk": "LOW",
+                    "requires_approval": True,
+                    "dry_run": True,
                     "parameters": {"service": root_service, "replicas": 12},
                 }
             )
@@ -417,6 +425,9 @@ class RootCauseAnalysisService:
                     "workflow_id": "wf-mesh-circuit-breaker",
                     "automated": True,
                     "risk_level": "MEDIUM",
+                    "risk": "MEDIUM",
+                    "requires_approval": True,
+                    "dry_run": True,
                     "parameters": {"error_threshold_pct": 50, "sleep_window_sec": 5},
                 }
             )

@@ -28,11 +28,14 @@ export interface GetIncidentsParams {
   severity?: string;
   priority?: string;
   service?: string;
+  environment?: string;
+  region?: string;
   search?: string;
   sort_by?: string;
   sort_dir?: string;
   page?: number;
   size?: number;
+  page_size?: number;
 }
 
 export const incidentService = {
@@ -56,6 +59,11 @@ export const incidentService = {
     return response.data;
   },
 
+  async declareIncident(payload: Partial<IncidentCreatePayload>): Promise<Incident> {
+    const response = await apiClient.post<Incident>("/incidents/declare", payload);
+    return response.data;
+  },
+
   async createIncident(payload: IncidentCreatePayload): Promise<Incident> {
     const response = await apiClient.post<Incident>("/incidents", payload);
     return response.data;
@@ -68,6 +76,16 @@ export const incidentService = {
 
   async acknowledgeIncident(id: string, payload?: IncidentAcknowledgePayload): Promise<Incident> {
     const response = await apiClient.post<Incident>(`/incidents/${id}/acknowledge`, payload || {});
+    return response.data;
+  },
+
+  async investigateIncident(id: string, payload?: Record<string, any>): Promise<Incident> {
+    const response = await apiClient.post<Incident>(`/incidents/${id}/investigate`, payload || {});
+    return response.data;
+  },
+
+  async mitigateIncident(id: string, payload?: Record<string, any>): Promise<Incident> {
+    const response = await apiClient.post<Incident>(`/incidents/${id}/mitigate`, payload || {});
     return response.data;
   },
 

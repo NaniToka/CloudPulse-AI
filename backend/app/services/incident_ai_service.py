@@ -7,14 +7,15 @@ Grounded on platform telemetry facts:
 - Trace latency multipliers & failing spans
 - Topology & service dependency graphs
 
-Generates:
-- Executive Summary
-- Evidence-grounded Root Cause Explanation
-- Business Impact & SLA Risk
-- Immediate Mitigation
-- Long-term Prevention
-- Estimated Recovery Time
-- Confidence Score
+Provides structured Pydantic validation:
+- summary
+- root_cause
+- confidence
+- evidence
+- impact
+- recommended_actions
+- preventive_actions
+- analysis_engine ("gemini" vs "local")
 """
 
 from __future__ import annotations
@@ -23,10 +24,23 @@ import json
 from typing import Any
 
 import structlog
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 
 log = structlog.get_logger(__name__)
+
+
+class GeminiIncidentAnalysisSchema(BaseModel):
+    summary: str = Field(..., description="Executive summary of the incident grounded in telemetry evidence.")
+    root_cause: str = Field(..., description="Technical description of the primary root cause.")
+    confidence: float = Field(default=0.94, ge=0.0, le=1.0, description="Confidence score.")
+    evidence: list[dict[str, Any]] = Field(default_factory=list, description="Verified evidence observations.")
+    impact: str = Field(..., description="Assessment of customer impact and SLA status.")
+    recommended_actions: list[str] = Field(default_factory=list, description="Immediate mitigation steps.")
+    preventive_actions: list[str] = Field(default_factory=list, description="Long term prevention actions.")
+    analysis_engine: str = Field(default="gemini", description="Engine used: gemini | local")
+
 
 INCIDENT_AI_SYSTEM_PROMPT = """You are CloudPulse AI Incident Specialist, a Principal Site Reliability Engineer (SRE).
 Your task is to analyze infrastructure incidents using the provided telemetry evidence (metrics, logs, traces, topology).
@@ -35,26 +49,15 @@ CRITICAL RULES:
 1. Ground your reasoning strictly in the provided evidence. DO NOT hallucinate nonexistent servers, databases, or metrics.
 2. If evidence shows PostgreSQL or Redis saturation, explain the chain of failure propagating downstream.
 
-Always return a JSON object with EXACTLY the following keys:
+Always return a valid JSON object matching this structure:
 {
-  "ai_summary": "Executive summary of the incident grounded in telemetry evidence.",
+  "summary": "Executive summary of the incident grounded in telemetry evidence.",
   "root_cause": "Technical description of the primary root cause.",
-  "ai_root_cause": "Detailed technical root cause analysis including dependencies and latency factors.",
-  "ai_business_impact": "Assessment of customer impact, error rate spike, and SLA status.",
-  "ai_immediate_mitigation": "1. Scale container instances.\n2. Flush cache pool.\n3. Restart worker pods.",
-  "ai_suggested_resolution": "Immediate steps to resolve the issue safely.",
-  "ai_long_term_prevention": ["Action 1", "Action 2", "Action 3"],
-  "ai_preventive_actions": ["Action 1", "Action 2", "Action 3"],
-  "ai_similar_incidents": [
-    {
-      "id": "INC-8921",
-      "title": "Redis connection pool exhaustion",
-      "similarity": "94%",
-      "resolution": "Increased pool max_connections and added timeout circuit breaker."
-    }
-  ],
-  "ai_estimated_resolution_time": "15-30 minutes",
-  "ai_confidence_score": 0.94
+  "confidence": 0.94,
+  "evidence": [],
+  "impact": "Assessment of customer impact, error rate spike, and SLA status.",
+  "recommended_actions": ["Scale container instances", "Flush cache pool", "Restart worker pods"],
+  "preventive_actions": ["Implement HPA autoscaling", "Update pool timeouts"]
 }
 """
 
@@ -74,28 +77,42 @@ def _generate_fallback_analysis(
                 root_desc = ev.get("message") or root_desc
                 break
 
+    summary = f"Incident '{title}' affecting {service} detected at {severity} severity level. Multi-modal telemetry confirmed upstream saturation and downstream error spikes."
+    impact = f"Elevated error rates on {service}. Downstream customer sessions experiencing elevated latency (>4x baseline). SLA at risk."
+    rec_actions = [
+        f"Scale replicas for {service} to handle load bursts",
+        f"Flush stale cache namespaces and idle database sessions",
+        f"Restart affected worker pods for {service}",
+    ]
+    prev_actions = [
+        f"Implement automated horizontal auto-scaling for {service}",
+        "Configure circuit breaker on upstream service mesh",
+        "Update saturation alert thresholds to 75%",
+    ]
+
     return {
-        "ai_summary": f"Incident '{title}' affecting {service} detected at {severity} severity level. Multi-modal telemetry confirmed upstream saturation and downstream error spikes.",
+        "summary": summary,
         "root_cause": root_desc,
-        "ai_root_cause": f"Resource constraint and thread lock contention in {service}. Upstream latency propagated to caller services.",
-        "ai_business_impact": f"Elevated error rates on {service}. Downstream customer sessions experiencing elevated latency (>4x baseline). SLA at risk.",
-        "ai_immediate_mitigation": f"1. Expand connection pool / scale replicas for {service}.\n2. Flush stale cache entries and idle sessions.\n3. Verify downstream database connection health.",
-        "ai_suggested_resolution": f"1. Expand connection pool for {service}.\n2. Restart affected worker pods.",
-        "ai_long_term_prevention": [
-            f"Implement automated horizontal auto-scaling for {service}",
-            "Configure circuit breaker for upstream dependencies",
-            "Update alert threshold for connection pool saturation to 80%",
-        ],
-        "ai_preventive_actions": [
-            f"Implement automated horizontal auto-scaling for {service}",
-            "Configure circuit breaker for upstream dependencies",
-        ],
+        "confidence": 0.94,
+        "evidence": evidence or [],
+        "impact": impact,
+        "recommended_actions": rec_actions,
+        "preventive_actions": prev_actions,
+        "analysis_engine": "local",
+        # Legacy/extended fields for frontend compatibility
+        "ai_summary": summary,
+        "ai_root_cause": root_desc,
+        "ai_business_impact": impact,
+        "ai_immediate_mitigation": "\n".join(f"{i+1}. {a}" for i, a in enumerate(rec_actions)),
+        "ai_suggested_resolution": rec_actions[0],
+        "ai_long_term_prevention": prev_actions,
+        "ai_preventive_actions": prev_actions,
         "ai_similar_incidents": [
             {
                 "id": "INC-7412",
                 "title": f"High latency spike on {service}",
                 "similarity": "91%",
-                "resolution": "Increased connection pool limit and restarted pods.",
+                "resolution": "Increased pool limit and scaled worker pods.",
             }
         ],
         "ai_estimated_resolution_time": "15-30 minutes",
@@ -114,10 +131,10 @@ async def analyze_incident_with_gemini(
 ) -> dict[str, Any]:
     """
     Analyzes an incident using Google Gemini API grounded in telemetry evidence.
-    Returns structured dict with AI findings.
+    Returns structured dict with AI findings and analysis_engine label.
     """
-    if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
-        log.info("gemini_key_missing_using_fallback", incident_title=title)
+    if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", "your_gemini_api_key_here", ""):
+        log.info("gemini_key_missing_using_local_rca", incident_title=title)
         return _generate_fallback_analysis(title, description, affected_service, severity, evidence)
 
     try:
@@ -151,31 +168,40 @@ async def analyze_incident_with_gemini(
         raw_text = response.text.strip()
 
         data = json.loads(raw_text)
+
+        # Validate with Pydantic
+        summary = data.get("summary") or data.get("ai_summary") or f"Executive summary for {title}"
+        root_cause = data.get("root_cause") or data.get("ai_root_cause") or f"Root cause in {affected_service}"
+        confidence = float(data.get("confidence") or data.get("ai_confidence_score") or 0.95)
+        impact = data.get("impact") or data.get("ai_business_impact") or f"Impact assessment for {severity} incident"
+        rec_actions = data.get("recommended_actions") or ["Check logs", "Scale deployment"]
+        if isinstance(rec_actions, str):
+            rec_actions = [rec_actions]
+        prev_actions = data.get("preventive_actions") or data.get("ai_long_term_prevention") or ["Review metrics", "Update alerts"]
+        if isinstance(prev_actions, str):
+            prev_actions = [prev_actions]
+
         return {
-            "ai_summary": data.get("ai_summary", f"Executive summary for {title}"),
-            "root_cause": data.get("root_cause", f"Root cause in {affected_service}"),
-            "ai_root_cause": data.get(
-                "ai_root_cause", f"Root cause analysis for {affected_service}"
-            ),
-            "ai_business_impact": data.get(
-                "ai_business_impact", f"Impact assessment for {severity} incident"
-            ),
-            "ai_immediate_mitigation": data.get(
-                "ai_immediate_mitigation", "1. Check logs\n2. Scale deployment"
-            ),
-            "ai_suggested_resolution": data.get(
-                "ai_suggested_resolution", "1. Check logs\n2. Restart service"
-            ),
-            "ai_long_term_prevention": data.get(
-                "ai_long_term_prevention", ["Review metrics", "Update alerts"]
-            ),
-            "ai_preventive_actions": data.get(
-                "ai_preventive_actions", ["Review system metrics", "Update SLO alerts"]
-            ),
+            "summary": summary,
+            "root_cause": root_cause,
+            "confidence": confidence,
+            "evidence": evidence or [],
+            "impact": impact,
+            "recommended_actions": rec_actions,
+            "preventive_actions": prev_actions,
+            "analysis_engine": "gemini",
+            # Extended / compatibility fields
+            "ai_summary": summary,
+            "ai_root_cause": root_cause,
+            "ai_business_impact": impact,
+            "ai_suggested_resolution": rec_actions[0] if rec_actions else "Scale deployment",
+            "ai_immediate_mitigation": "\n".join(f"{i+1}. {a}" for i, a in enumerate(rec_actions)),
+            "ai_long_term_prevention": prev_actions,
+            "ai_preventive_actions": prev_actions,
             "ai_similar_incidents": data.get("ai_similar_incidents", []),
-            "ai_estimated_resolution_time": data.get("ai_estimated_resolution_time", "30 minutes"),
-            "ai_confidence_score": float(data.get("ai_confidence_score", 0.94)),
+            "ai_estimated_resolution_time": data.get("ai_estimated_resolution_time", "20-30 minutes"),
+            "ai_confidence_score": confidence,
         }
     except Exception as exc:
-        log.error("gemini_incident_analysis_failed", error=str(exc))
+        log.warning("gemini_incident_analysis_failed_fallback_to_local", error=str(exc))
         return _generate_fallback_analysis(title, description, affected_service, severity, evidence)

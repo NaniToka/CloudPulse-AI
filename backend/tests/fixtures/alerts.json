@@ -1,0 +1,60 @@
+[
+  {
+    "signal_id": "alert-001",
+    "source": "alert",
+    "timestamp": "2026-08-11T10:02:45Z",
+    "service": "api-gateway",
+    "resource_id": "gateway-alb-ingress",
+    "environment": "production",
+    "region": "us-east-1",
+    "severity": "CRITICAL",
+    "title": "APIGatewayCPUSaturation",
+    "message": "API Gateway cluster CPU utilization > 90% for 3 consecutive evaluation windows",
+    "metric": "cpu_utilization",
+    "value": 94.2,
+    "threshold": 85.0,
+    "metadata": {
+      "alertname": "APIGatewayCPUSaturation",
+      "severity": "critical",
+      "pagerduty_escalation": "sre-primary"
+    }
+  },
+  {
+    "signal_id": "alert-002",
+    "source": "alert",
+    "timestamp": "2026-08-11T10:03:10Z",
+    "service": "api-gateway",
+    "resource_id": "gateway-alb-ingress",
+    "environment": "production",
+    "region": "us-east-1",
+    "severity": "CRITICAL",
+    "title": "High5xxErrorRate",
+    "message": "HTTP 500 & 504 error response rate breached 12.4% (> 2.0% threshold)",
+    "metric": "http_5xx_rate_percent",
+    "value": 12.4,
+    "threshold": 2.0,
+    "metadata": {
+      "alertname": "High5xxErrorRate",
+      "trace_id": "trace-99214a77bc81"
+    }
+  },
+  {
+    "signal_id": "alert-003",
+    "source": "alert",
+    "timestamp": "2026-08-11T10:03:20Z",
+    "service": "database-cluster",
+    "resource_id": "postgres-primary-db",
+    "environment": "production",
+    "region": "us-east-1",
+    "severity": "CRITICAL",
+    "title": "PostgresConnectionPoolExhausted",
+    "message": "PostgreSQL primary active backend connections reached 198/200 max_connections",
+    "metric": "postgres_active_connections",
+    "value": 198.0,
+    "threshold": 160.0,
+    "metadata": {
+      "alertname": "PostgresConnectionPoolExhausted",
+      "instance": "postgres-primary-db"
+    }
+  }
+]

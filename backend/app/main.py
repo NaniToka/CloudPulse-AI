@@ -145,6 +145,7 @@ register_exception_handlers(app)
 # ---------------------------------------------------------------------------
 
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/api", include_in_schema=False)
 
 # ---------------------------------------------------------------------------
 # System & Observability Routes
