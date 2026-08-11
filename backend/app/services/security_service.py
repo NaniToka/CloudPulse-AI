@@ -203,7 +203,7 @@ class SecurityService:
             else:
                 low_cnt += 1
 
-        await db.commit()
+        await db.flush()
 
         summary = await self.get_risk_score(db)
 
@@ -246,7 +246,7 @@ class SecurityService:
             db.add(cr)
             created.append(cr)
 
-        await db.commit()
+        await db.flush()
         return created
 
 

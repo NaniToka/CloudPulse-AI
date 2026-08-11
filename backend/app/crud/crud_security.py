@@ -88,7 +88,7 @@ class CRUDSecurity(CRUDBase[SecurityScan, Any, Any]):
             return None
         finding.status = new_status.upper()
         db.add(finding)
-        await db.commit()
+        await db.flush()
         await db.refresh(finding)
         return finding
 

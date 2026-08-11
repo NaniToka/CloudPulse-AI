@@ -121,6 +121,7 @@ async def get_service_map(
     service_layer: TraceService = Depends(get_trace_service),
 ):
     """Retrieve interactive microservices topology graph nodes and edges."""
+    await _seed_initial_traces_if_empty(db, service_layer)
     return await service_layer.get_service_map(db)
 
 
@@ -130,6 +131,7 @@ async def get_service_dependencies(
     service_layer: TraceService = Depends(get_trace_service),
 ):
     """Retrieve service dependency list."""
+    await _seed_initial_traces_if_empty(db, service_layer)
     service_map = await service_layer.get_service_map(db)
     return {"dependencies": service_map.edges}
 
@@ -145,4 +147,5 @@ async def get_service_metrics(
     service_layer: TraceService = Depends(get_trace_service),
 ):
     """Retrieve performance metrics (latency, RPS, error rate) for a specific service."""
+    await _seed_initial_traces_if_empty(db, service_layer)
     return await service_layer.get_service_metrics(db, service_name)
