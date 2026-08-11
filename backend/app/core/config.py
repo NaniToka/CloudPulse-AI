@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = True
 
     # Backend
-    BACKEND_HOST: str = "0.0.0.0"
+    BACKEND_HOST: str = "0.0.0.0"  # nosec B104
     BACKEND_PORT: int = 8000
     BACKEND_RELOAD: bool = True
 

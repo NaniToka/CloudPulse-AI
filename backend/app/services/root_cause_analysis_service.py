@@ -226,7 +226,7 @@ class RootCauseAnalysisService:
         if any(w in combined_text for w in ["oom", "oomkilled", "memory pressure", "out of memory", "heap"]):
             return (
                 f"Memory exhaustion and container OOMKilled events on {root_service}.",
-                f"Container memory limits were exceeded due to unmanaged buffer accumulation, leading to kernel SIGKILL and pod restarts.",
+                "Container memory limits were exceeded due to unmanaged buffer accumulation, leading to kernel SIGKILL and pod restarts.",
                 "Memory Exhaustion & OOMKilled Cascade",
             )
 
@@ -234,7 +234,7 @@ class RootCauseAnalysisService:
         if any(w in combined_text for w in ["504", "gateway timeout", "upstream timeout", "network timeout"]):
             return (
                 f"Upstream timeout on {root_service} leading to HTTP 504 Gateway Timeouts at ingress.",
-                f"Downstream service latency exceeded the 5000ms gateway ingress proxy deadline, triggering 504 Gateway Timeout responses.",
+                "Downstream service latency exceeded the 5000ms gateway ingress proxy deadline, triggering 504 Gateway Timeout responses.",
                 "Upstream Dependency Network Timeout",
             )
 

@@ -10,13 +10,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
 import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.alert import Alert
 from app.models.incident import Incident
 from app.models.service_dependency import ServiceDependency, ServiceNode
 from app.schemas.dependency import ServiceHealthResponse

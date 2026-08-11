@@ -6,7 +6,7 @@ Initializes tables and seeds rich deterministic baseline data for local developm
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import select, text
@@ -95,14 +95,20 @@ async def init_db(db: AsyncSession) -> None:
 
         # 3. Seed Incidents & Timeline Events
         try:
-            from app.api.v1.endpoints.incidents import _seed_initial_incidents_if_empty, incident_service
+            from app.api.v1.endpoints.incidents import (
+                _seed_initial_incidents_if_empty,
+                incident_service,
+            )
             await _seed_initial_incidents_if_empty(db, incident_service)
         except Exception as e:
             log.warning("seed_incidents_skipped", error=str(e))
 
         # 4. Seed Predictions
         try:
-            from app.api.v1.endpoints.predictions import _seed_initial_predictions_if_empty, prediction_service
+            from app.api.v1.endpoints.predictions import (
+                _seed_initial_predictions_if_empty,
+                prediction_service,
+            )
             await _seed_initial_predictions_if_empty(db, prediction_service)
         except Exception as e:
             log.warning("seed_predictions_skipped", error=str(e))
@@ -130,14 +136,20 @@ async def init_db(db: AsyncSession) -> None:
 
         # 8. Seed Security Scans & Findings
         try:
-            from app.api.v1.endpoints.security import _seed_initial_security_scans_if_empty, security_service
+            from app.api.v1.endpoints.security import (
+                _seed_initial_security_scans_if_empty,
+                security_service,
+            )
             await _seed_initial_security_scans_if_empty(db, security_service)
         except Exception as e:
             log.warning("seed_security_skipped", error=str(e))
 
         # 9. Seed AIOps Recommendations
         try:
-            from app.api.v1.endpoints.aiops import _seed_initial_aiops_recommendations, aiops_service
+            from app.api.v1.endpoints.aiops import (
+                _seed_initial_aiops_recommendations,
+                aiops_service,
+            )
             await _seed_initial_aiops_recommendations(db, aiops_service)
         except Exception as e:
             log.warning("seed_aiops_skipped", error=str(e))
@@ -172,7 +184,10 @@ async def init_db(db: AsyncSession) -> None:
 
         # 14. Seed Auto-Remediation Runbooks
         try:
-            from app.api.v1.endpoints.runbooks import _seed_initial_runbooks_if_empty, runbook_service
+            from app.api.v1.endpoints.runbooks import (
+                _seed_initial_runbooks_if_empty,
+                runbook_service,
+            )
             await _seed_initial_runbooks_if_empty(db, runbook_service)
         except Exception as e:
             log.warning("seed_runbooks_skipped", error=str(e))

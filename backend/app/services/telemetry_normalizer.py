@@ -11,9 +11,10 @@ Standardizes, resamples, and aligns raw telemetry metrics across:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, Sequence
+from typing import Any
 
 import structlog
 
@@ -127,7 +128,7 @@ class TelemetryNormalizer:
         now = datetime.now(UTC)
 
         for idx, item in enumerate(raw_points):
-            if isinstance(item, (int, float)):
+            if isinstance(item, int | float):
                 # Relative sequential points ending at now
                 t = now - timedelta(seconds=(len(raw_points) - idx - 1) * bucket_seconds)
                 parsed_points.append(NormalizedDataPoint(timestamp=t, value=float(item)))

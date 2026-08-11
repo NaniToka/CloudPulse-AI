@@ -11,14 +11,14 @@ Implements:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Sequence
 
 import structlog
 
 from app.services.baseline_engine import BaselineEngine, baseline_engine
-from app.services.telemetry_normalizer import NormalizedTimeSeries, telemetry_normalizer
+from app.services.telemetry_normalizer import NormalizedTimeSeries
 
 log = structlog.get_logger(__name__)
 

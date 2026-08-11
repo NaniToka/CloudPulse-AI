@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import re
+
 from fastapi import HTTPException, status
 
 MAX_LOG_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB

@@ -51,13 +51,13 @@ class ServiceNode(UUIDMixin, TimestampMixin, Base):
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=True, default=dict)
 
     # Relationships to outbound and inbound dependencies
-    outbound_dependencies: Mapped[list["ServiceDependency"]] = relationship(
+    outbound_dependencies: Mapped[list[ServiceDependency]] = relationship(
         "ServiceDependency",
         foreign_keys="[ServiceDependency.source_service_id]",
         back_populates="source_node",
         cascade="all, delete-orphan",
     )
-    inbound_dependencies: Mapped[list["ServiceDependency"]] = relationship(
+    inbound_dependencies: Mapped[list[ServiceDependency]] = relationship(
         "ServiceDependency",
         foreign_keys="[ServiceDependency.target_service_id]",
         back_populates="target_node",
@@ -116,12 +116,12 @@ class ServiceDependency(UUIDMixin, TimestampMixin, Base):
     )
 
     # Node ORM Relationships
-    source_node: Mapped["ServiceNode | None"] = relationship(
+    source_node: Mapped[ServiceNode | None] = relationship(
         "ServiceNode",
         foreign_keys=[source_service_id],
         back_populates="outbound_dependencies",
     )
-    target_node: Mapped["ServiceNode | None"] = relationship(
+    target_node: Mapped[ServiceNode | None] = relationship(
         "ServiceNode",
         foreign_keys=[target_service_id],
         back_populates="inbound_dependencies",

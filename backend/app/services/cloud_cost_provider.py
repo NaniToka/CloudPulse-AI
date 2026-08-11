@@ -7,24 +7,18 @@ from __future__ import annotations
 
 import abc
 import uuid
-from datetime import UTC, datetime
-from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import crud_cost
-from app.models.cost import CloudCost, OptimizationRecommendation
 from app.schemas.cost import (
     CloudCostItem,
     CloudCostListResponse,
     CostAnalyzeResponse,
     CostOverviewResponse,
-    DailyCostItem,
     RecommendationItem,
     RecommendationsResponse,
-    RegionCostItem,
-    ServiceCostItem,
     ServiceCostsResponse,
 )
 

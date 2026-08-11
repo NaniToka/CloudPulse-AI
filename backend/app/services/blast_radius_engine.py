@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import uuid
 from collections import deque
-from typing import Any
 
 import structlog
 from sqlalchemy import func, select
@@ -33,7 +32,7 @@ class BlastRadiusEngine:
     ) -> BlastRadiusResponse:
         """
         Calculates failure propagation and affected blast radius starting from root_service.
-        
+
         Note on causal propagation:
         When a backend dependency (e.g. payment-service or postgres) degrades,
         all callers that rely on it (order-service -> checkout-service -> api-gateway)

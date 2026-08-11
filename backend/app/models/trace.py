@@ -58,4 +58,4 @@ class Span(UUIDMixin, Base):
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
 
 
-from app.models.service_dependency import ServiceDependency  # noqa: F401
+from app.models.service_dependency import ServiceDependency  # noqa: E402, F401

@@ -393,8 +393,8 @@ async def test_organization_tenant_isolation(db_session: AsyncSession):
     db_session.add_all([inc1, inc2])
     await db_session.commit()
 
-    items1, total1, _ = await incident_service.list_incidents(db_session, organization_id=org1.id)
-    items2, total2, _ = await incident_service.list_incidents(db_session, organization_id=org2.id)
+    items1, total1, _ = await incident_service.list_incidents(db_session, organization_id=org1.id, size=100)
+    items2, total2, _ = await incident_service.list_incidents(db_session, organization_id=org2.id, size=100)
 
     org1_ids = [str(i.id) for i in items1]
     org2_ids = [str(i.id) for i in items2]

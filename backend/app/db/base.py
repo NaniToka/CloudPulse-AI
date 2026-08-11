@@ -32,6 +32,7 @@ from app.models.prediction import AnomalyEvent, Prediction  # noqa: F401
 from app.models.resource import Resource  # noqa: F401
 from app.models.runbook import AutomationStep, Runbook, RunbookExecution  # noqa: F401
 from app.models.security import ComplianceReport, SecurityScan  # noqa: F401
+from app.models.service_dependency import ServiceDependency, ServiceNode  # noqa: F401
 from app.models.telemetry import (  # noqa: F401
     MetricRecord,
     TelemetryEvent,
@@ -45,7 +46,6 @@ from app.models.tenant import (  # noqa: F401
     Team,
     TeamMember,
 )
-from app.models.service_dependency import ServiceDependency, ServiceNode  # noqa: F401
 from app.models.trace import Span, Trace  # noqa: F401
 
 # Import all models to register them with SQLAlchemy metadata

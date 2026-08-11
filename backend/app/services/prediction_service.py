@@ -5,13 +5,12 @@ Prediction Service orchestrating Predictive AIOps, Analytics, and Incident integ
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
-from typing import Any
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.crud_prediction import crud_anomaly_event, crud_prediction
+from app.crud.crud_prediction import crud_prediction
 from app.models.incident import Incident, IncidentTimelineEvent
 from app.models.prediction import AnomalyEvent, Prediction
 from app.schemas.prediction import (

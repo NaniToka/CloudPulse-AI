@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any, Sequence
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -23,10 +24,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.incident import Incident
 from app.models.prediction import AnomalyEvent, Prediction
-from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.service_dependency import ServiceDependency
 from app.services.anomaly_engine import AnomalyEngine, anomaly_engine
 from app.services.baseline_engine import BaselineEngine, baseline_engine
-from app.services.capacity_risk_engine import CapacityRiskEngine, capacity_risk_engine
+from app.services.capacity_risk_engine import (
+    CapacityRiskEngine,
+    CapacityRiskResult,
+    capacity_risk_engine,
+)
 from app.services.forecasting_engine import ForecastingEngine, forecasting_engine
 from app.services.telemetry_normalizer import TelemetryNormalizer, telemetry_normalizer
 from app.services.trend_engine import TrendEngine, trend_engine
@@ -335,15 +340,15 @@ class PredictiveAIOpsEngine:
             if ai_data
             else [
                 f"Autoscale {svc} pod replicas (+4 instances)",
-                f"Flush stale session memory cache entries",
-                f"Throttle ingress rate to nominal baseline",
+                "Flush stale session memory cache entries",
+                "Throttle ingress rate to nominal baseline",
             ]
         )
         prev_actions = (
             ai_data.get("preventive_actions")
             if ai_data
             else [
-                f"Configure Horizontal Pod Autoscaler target at 75% memory",
+                "Configure Horizontal Pod Autoscaler target at 75% memory",
                 f"Profile heap allocation hotspots in {svc} codebase",
             ]
         )

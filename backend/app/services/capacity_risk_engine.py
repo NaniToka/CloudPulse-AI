@@ -11,9 +11,8 @@ Predicts:
 
 from __future__ import annotations
 
-import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import structlog
 
@@ -115,7 +114,7 @@ class CapacityRiskEngine:
                 rate_of_growth_per_minute=round(slope / max(0.1, sample_interval_minutes), 4),
                 data_status="sufficient",
                 summary=f"CRITICAL: {name} is at {current_val:.1f}%, currently breaching threshold of {target_threshold:.1f}%.",
-                recommended_mitigation=f"Scale capacity or restart worker instances immediately.",
+                recommended_mitigation="Scale capacity or restart worker instances immediately.",
             )
 
         # Non-increasing slope or negative trend

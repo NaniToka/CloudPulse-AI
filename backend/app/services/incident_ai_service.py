@@ -81,7 +81,7 @@ def _generate_fallback_analysis(
     impact = f"Elevated error rates on {service}. Downstream customer sessions experiencing elevated latency (>4x baseline). SLA at risk."
     rec_actions = [
         f"Scale replicas for {service} to handle load bursts",
-        f"Flush stale cache namespaces and idle database sessions",
+        "Flush stale cache namespaces and idle database sessions",
         f"Restart affected worker pods for {service}",
     ]
     prev_actions = [

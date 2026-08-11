@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Network,
@@ -66,7 +66,7 @@ export const ServiceDependencyExplorerPage: React.FC = () => {
   const [drawerTab, setDrawerTab] = useState<'overview' | 'blast' | 'rca'>('overview');
 
   // Fetch Graph Data
-  const loadGraph = async () => {
+  const loadGraph = useCallback(async () => {
     try {
       setLoading(true);
       const data = await dependencyService.getGraph({
@@ -88,11 +88,11 @@ export const ServiceDependencyExplorerPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [envFilter, initialService]);
 
   useEffect(() => {
     loadGraph();
-  }, [envFilter]);
+  }, [loadGraph]);
 
   // Handle Incident Deep-Linking RCA
   useEffect(() => {

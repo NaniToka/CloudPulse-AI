@@ -25,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.cloud_resource import CloudResource
 from app.models.kubernetes import K8sDeployment
 from app.models.service_dependency import ServiceDependency, ServiceNode
-from app.models.telemetry import TelemetryEvent
 from app.models.trace import Span, Trace
 from app.schemas.dependency import DependencyDiscoveryResponse
 
@@ -45,7 +44,7 @@ class DependencyDiscoveryService:
     ) -> float:
         """
         Calculates mathematical dependency confidence score bounded between 0.10 and 0.99.
-        
+
         Formula:
         Confidence = min(0.99, max(0.10,
             0.35 * TraceEvidence

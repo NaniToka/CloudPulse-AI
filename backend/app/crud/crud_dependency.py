@@ -7,15 +7,18 @@ from __future__ import annotations
 import math
 import uuid
 from collections import deque
-from datetime import UTC, datetime
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
 from app.models.service_dependency import ServiceDependency, ServiceNode
-from app.schemas.dependency import ServiceDependencyCreate, ServiceDependencyUpdate, ServiceNodeCreate, ServiceNodeUpdate
+from app.schemas.dependency import (
+    ServiceDependencyCreate,
+    ServiceDependencyUpdate,
+    ServiceNodeCreate,
+    ServiceNodeUpdate,
+)
 
 
 class CRUDServiceDependency(CRUDBase[ServiceDependency, ServiceDependencyCreate, ServiceDependencyUpdate]):

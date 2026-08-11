@@ -858,7 +858,9 @@ class IncidentService:
         post_telemetry: dict[str, float] | None = None,
     ) -> Any:
         """Runs telemetry before/after verification for an incident."""
-        from app.services.incident_resolution_verification_service import incident_resolution_verification_service
+        from app.services.incident_resolution_verification_service import (
+            incident_resolution_verification_service,
+        )
 
         incident = await self.crud.get_with_timeline(db, incident_id)
         if not incident:
@@ -886,7 +888,7 @@ class IncidentService:
             timestamp=now,
             event_type="status_changed",
             title=f"Incident Closed by {user_name}",
-            description=f"Incident closed. All verification criteria met.",
+            description="Incident closed. All verification criteria met.",
             source="IncidentCommandCenter",
             event_metadata={"status": "CLOSED"},
             created_by=user_name,

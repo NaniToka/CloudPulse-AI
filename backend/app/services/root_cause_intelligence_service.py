@@ -18,12 +18,12 @@ from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.incident import Incident
-from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.service_dependency import ServiceDependency
 from app.schemas.dependency import (
     BlastRadiusResponse,
     RootCauseCandidate,

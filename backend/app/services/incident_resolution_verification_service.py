@@ -8,7 +8,7 @@ that degradation has subsided, error rates have normalized, latency has recovere
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -16,7 +16,6 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.incident import Incident, IncidentTimelineEvent
-from app.models.service_dependency import ServiceNode
 
 log = structlog.get_logger(__name__)
 

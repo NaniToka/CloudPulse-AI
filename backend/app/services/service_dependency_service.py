@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_dependency import crud_service_dependency, crud_service_node
 from app.models.incident import Incident
-from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.service_dependency import ServiceDependency
 from app.schemas.dependency import (
     BlastRadiusResponse,
     DependencyDiscoveryResponse,
@@ -30,7 +30,6 @@ from app.services.blast_radius_engine import blast_radius_engine
 from app.services.dependency_discovery_service import dependency_discovery_service
 from app.services.root_cause_intelligence_service import root_cause_intelligence_service
 from app.services.service_health_service import service_health_service
-from app.services.websocket_manager import incident_ws_manager
 
 log = structlog.get_logger(__name__)
 

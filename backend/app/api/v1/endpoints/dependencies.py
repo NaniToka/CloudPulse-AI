@@ -23,7 +23,10 @@ from app.schemas.dependency import (
     ServiceListResponse,
     ServiceNodeDetailResponse,
 )
-from app.services.service_dependency_service import ServiceDependencyService, service_dependency_service
+from app.services.service_dependency_service import (
+    ServiceDependencyService,
+    service_dependency_service,
+)
 
 log = structlog.get_logger(__name__)
 
