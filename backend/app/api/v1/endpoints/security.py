@@ -2,8 +2,10 @@
 AI Security & Cloud Compliance Center REST API Endpoints.
 """
 
+import uuid
+
 import structlog
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
@@ -12,8 +14,11 @@ from app.schemas.security import (
     RiskScoreResponse,
     SecurityFindingResponse,
     SecurityListResponse,
+    SecurityOverviewResponse,
+    SecurityRecommendation,
     SecurityScanPayload,
     SecurityScanResponse,
+    SecurityStatusUpdatePayload,
 )
 from app.services.security_service import SecurityService, security_service
 
@@ -30,7 +35,7 @@ async def _seed_initial_security_scans_if_empty(db: AsyncSession, service: Secur
     items, total, _ = await service.list_findings(db, size=1)
     if total == 0:
         log.info("seeding_initial_security_findings")
-        await service.run_security_scan(db, SecurityScanPayload(provider="AWS"))
+        await service.run_security_scan(db, SecurityScanPayload(provider="ALL"))
 
 
 @router.post(
@@ -48,18 +53,32 @@ async def trigger_security_scan(
     return await service.run_security_scan(db, payload)
 
 
+@router.get(
+    "/overview",
+    response_model=SecurityOverviewResponse,
+    summary="Get security posture overview",
+)
+async def get_security_overview(
+    db: AsyncSession = Depends(get_db),
+    service: SecurityService = Depends(get_security_service),
+):
+    """Retrieve posture score, finding statistics, compliance summary, and threat vectors."""
+    await _seed_initial_security_scans_if_empty(db, service)
+    return await service.get_overview(db)
+
+
 @router.get("/findings", response_model=SecurityListResponse, summary="List security findings")
 async def list_security_findings(
     severity: str | None = Query(
-        None, description="Filter by severity (Critical, High, Medium, Low)"
+        None, description="Filter by severity (CRITICAL, HIGH, MEDIUM, LOW, INFO)"
     ),
     category: str | None = Query(
-        None, description="Filter by category (IAM, Network, Storage, Database, Secrets)"
+        None, description="Filter by category (IAM, Network, Storage, Database, Secrets, Compute, Kubernetes)"
     ),
-    provider: str | None = Query(None, description="Filter by provider (AWS, GCP, Azure)"),
+    provider: str | None = Query(None, description="Filter by provider (AWS, GCP, Azure, Kubernetes)"),
     framework: str | None = Query(None, description="Filter by compliance framework"),
     status_filter: str | None = Query(
-        None, alias="status", description="Filter by status (Open, Resolved)"
+        None, alias="status", description="Filter by status (OPEN, INVESTIGATING, MITIGATED, RESOLVED, ACCEPTED_RISK)"
     ),
     search: str | None = Query(None, description="Search in scan_name, resource, or description"),
     page: int = Query(1, ge=1),
@@ -87,6 +106,61 @@ async def list_security_findings(
         size=size,
         pages=pages,
     )
+
+
+@router.get(
+    "/findings/{finding_id}",
+    response_model=SecurityFindingResponse,
+    summary="Get security finding details",
+)
+async def get_security_finding_by_id(
+    finding_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    service: SecurityService = Depends(get_security_service),
+):
+    """Retrieve complete evidence, risk score, and AI threat analysis for a single finding."""
+    finding = await service.get_finding_by_id(db, finding_id)
+    if not finding:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Security finding with ID {finding_id} not found.",
+        )
+    return SecurityFindingResponse.model_validate(finding)
+
+
+@router.patch(
+    "/findings/{finding_id}/status",
+    response_model=SecurityFindingResponse,
+    summary="Update security finding status",
+)
+async def update_security_finding_status(
+    finding_id: uuid.UUID,
+    payload: SecurityStatusUpdatePayload,
+    db: AsyncSession = Depends(get_db),
+    service: SecurityService = Depends(get_security_service),
+):
+    """Update status of a security finding (OPEN, INVESTIGATING, MITIGATED, RESOLVED, ACCEPTED_RISK)."""
+    updated = await service.update_finding_status(db, finding_id, payload.status)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Security finding with ID {finding_id} not found.",
+        )
+    return SecurityFindingResponse.model_validate(updated)
+
+
+@router.get(
+    "/recommendations",
+    response_model=list[SecurityRecommendation],
+    summary="Get security recommendations",
+)
+async def get_security_recommendations(
+    db: AsyncSession = Depends(get_db),
+    service: SecurityService = Depends(get_security_service),
+):
+    """Retrieve prioritized actionable security recommendations."""
+    await _seed_initial_security_scans_if_empty(db, service)
+    return await service.get_recommendations(db)
 
 
 @router.get(
@@ -128,7 +202,7 @@ async def get_security_executive_report(
     return {
         "title": "CloudPulse AI Executive Security & Compliance Report",
         "overall_security_score": risk_summary["overall_security_score"],
-        "risk_level": "High" if risk_summary["overall_risk_score"] > 6.0 else "Medium",
+        "risk_level": risk_summary.get("risk_level", "High"),
         "compliance_summary": [
             {
                 "framework": r.framework,

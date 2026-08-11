@@ -3,6 +3,7 @@ CRUD Repository for Security Scans, Findings, & Compliance Reports.
 """
 
 import math
+import uuid
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
@@ -72,6 +73,25 @@ class CRUDSecurity(CRUDBase[SecurityScan, Any, Any]):
 
         return items, total, pages
 
+    async def get_finding_by_id(self, db: AsyncSession, finding_id: uuid.UUID) -> SecurityScan | None:
+        """Fetch single security finding by ID."""
+        stmt = select(SecurityScan).where(SecurityScan.id == finding_id)
+        res = await db.execute(stmt)
+        return res.scalar_one_or_none()
+
+    async def update_status(
+        self, db: AsyncSession, finding_id: uuid.UUID, new_status: str
+    ) -> SecurityScan | None:
+        """Update finding status."""
+        finding = await self.get_finding_by_id(db, finding_id)
+        if not finding:
+            return None
+        finding.status = new_status.upper()
+        db.add(finding)
+        await db.commit()
+        await db.refresh(finding)
+        return finding
+
     async def get_compliance_reports(self, db: AsyncSession) -> list[ComplianceReport]:
         """Fetch all compliance framework scorecards."""
         stmt = select(ComplianceReport).order_by(ComplianceReport.overall_score.desc())
@@ -80,32 +100,42 @@ class CRUDSecurity(CRUDBase[SecurityScan, Any, Any]):
 
     async def get_risk_score_summary(self, db: AsyncSession) -> dict[str, Any]:
         """Compute aggregated security posture metrics and risk scores."""
-        # Get count per severity
         stmt = select(SecurityScan.severity, func.count(SecurityScan.id)).group_by(
             SecurityScan.severity
         )
         res = await db.execute(stmt)
         counts = dict(res.all())
 
-        crit = counts.get("Critical", 0)
-        high = counts.get("High", 0)
-        med = counts.get("Medium", 0)
-        low = counts.get("Low", 0)
+        # Support case-insensitive key lookup
+        crit = counts.get("Critical", counts.get("CRITICAL", 0))
+        high = counts.get("High", counts.get("HIGH", 0))
+        med = counts.get("Medium", counts.get("MEDIUM", 0))
+        low = counts.get("Low", counts.get("LOW", 0))
 
-        # Risk score formula (0.0 - 10.0)
         weighted_risk = min(10.0, (crit * 2.5 + high * 1.5 + med * 0.5 + low * 0.1))
         security_score = max(0.0, round(100.0 - (weighted_risk * 10), 1))
 
-        # Compliance average
         comp_stmt = select(func.avg(ComplianceReport.overall_score))
         comp_res = await db.execute(comp_stmt)
         avg_comp = comp_res.scalar() or 87.5
 
+        if security_score >= 85.0:
+            risk_level = "Low"
+        elif security_score >= 70.0:
+            risk_level = "Medium"
+        elif security_score >= 50.0:
+            risk_level = "High"
+        else:
+            risk_level = "Critical"
+
         return {
             "overall_security_score": security_score,
             "overall_risk_score": round(weighted_risk, 1),
+            "risk_level": risk_level,
             "critical_findings_count": crit,
             "high_findings_count": high,
+            "medium_findings_count": med,
+            "low_findings_count": low,
             "resources_at_risk_count": crit + high + med,
             "compliance_overall_percentage": round(avg_comp, 1),
             "severity_distribution": {

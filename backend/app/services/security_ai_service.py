@@ -53,6 +53,7 @@ def _generate_fallback_security_analysis(
         "priority_order": 1 if severity == "Critical" else 2,
         "compliance_impact": "Non-compliant with CIS Benchmarks & SOC 2 Trust Security Criteria.",
         "confidence_score": 0.96,
+        "analysis_engine": "Local Security Intelligence",
     }
 
 
@@ -103,7 +104,10 @@ async def analyze_security_finding(finding: dict[str, Any]) -> dict[str, Any]:
             "priority_order": int(data.get("priority_order", 1)),
             "compliance_impact": data.get("compliance_impact", "Framework violation."),
             "confidence_score": float(data.get("confidence_score", 0.95)),
+            "analysis_engine": "Gemini AI",
         }
     except Exception as exc:
         log.error("gemini_security_analysis_failed", error=str(exc))
-        return _generate_fallback_security_analysis(scan_name, resource, severity)
+        res = _generate_fallback_security_analysis(scan_name, resource, severity)
+        res["analysis_engine"] = "Local Security Intelligence"
+        return res
