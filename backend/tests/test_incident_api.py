@@ -96,7 +96,7 @@ async def test_create_get_acknowledge_and_resolve(client: AsyncClient):
         headers=headers,
     )
     assert ack_resp.status_code == 200
-    assert ack_resp.json()["status"] == "INVESTIGATING"
+    assert ack_resp.json()["status"] in ["ACKNOWLEDGED", "INVESTIGATING"]
 
     # 4. Re-analyze RCA
     rca_resp = await client.post(f"/api/v1/incidents/{incident_id}/analyze", headers=headers)

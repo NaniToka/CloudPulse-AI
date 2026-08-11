@@ -23,6 +23,7 @@ import {
   Cpu,
   Cloud,
   Box,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -65,13 +66,14 @@ const navGroups = [
   {
     label: "Operations",
     items: [
-      { icon: Zap,           label: "Workflows",          to: "/workflows"            },
-      { icon: ShieldCheck,   label: "AI Security Center", to: "/security",  badge: 4  },
-      { icon: GitCommit,     label: "Trace Explorer",     to: "/tracing"              },
-      { icon: BookOpen,      label: "AI Runbooks",        to: "/runbooks"             },
-      { icon: Sparkles,      label: "Predictive AI",      to: "/predictions", badge: 4  },
-      { icon: AlertTriangle, label: "Incidents",          to: "/incidents",   badge: 3  },
-      { icon: Bell,          label: "Alerts",             to: "/alerts",      badge: 47 },
+      { icon: Zap,           label: "Workflows",            to: "/workflows"            },
+      { icon: ShieldCheck,   label: "AI Security Center",   to: "/security",  badge: 4  },
+      { icon: Network,       label: "Service Dependencies", to: "/dependencies"         },
+      { icon: GitCommit,     label: "Trace Explorer",       to: "/tracing"              },
+      { icon: BookOpen,      label: "AI Runbooks",          to: "/runbooks"             },
+      { icon: Sparkles,      label: "Predictive AI",        to: "/predictions", badge: 4  },
+      { icon: AlertTriangle, label: "Incidents",            to: "/incidents",   badge: 3  },
+      { icon: Bell,          label: "Alerts",               to: "/alerts",      badge: 47 },
     ],
   },
   {

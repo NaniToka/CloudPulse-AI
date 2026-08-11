@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     auth,
     cloud,
     cost,
+    dependencies,
     incidents,
     kubernetes,
     logs,
@@ -135,6 +136,11 @@ api_router.include_router(
     metrics.router,
     prefix="/metrics",
     tags=["Real-Time Observability"],
+)
+api_router.include_router(
+    dependencies.router,
+    prefix="/dependencies",
+    tags=["AI Service Dependency & Root-Cause Engine"],
 )
 api_router.include_router(
     traces.router,

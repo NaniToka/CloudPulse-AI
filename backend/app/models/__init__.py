@@ -45,7 +45,8 @@ from app.models.tenant import (
     Team,
     TeamMember,
 )
-from app.models.trace import ServiceDependency, Span, Trace
+from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.trace import Span, Trace
 from app.models.user import User
 from app.models.workflow import (
     Workflow,
@@ -93,6 +94,7 @@ __all__ = [
     "RunbookExecution",
     "SecurityScan",
     "ServiceDependency",
+    "ServiceNode",
     "SimulationExecution",
     "SimulationScenario",
     "Span",

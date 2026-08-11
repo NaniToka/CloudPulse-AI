@@ -58,11 +58,4 @@ class Span(UUIDMixin, Base):
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
 
 
-class ServiceDependency(UUIDMixin, Base):
-    __tablename__ = "service_dependencies"
-
-    source_service: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    target_service: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    call_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1250)
-    error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=12)
-    avg_duration_ms: Mapped[float] = mapped_column(Float, nullable=False, default=42.5)
+from app.models.service_dependency import ServiceDependency  # noqa: F401

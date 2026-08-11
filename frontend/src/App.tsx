@@ -44,6 +44,7 @@ import DigitalTwinDashboardPage from "@/pages/twin/DigitalTwinDashboardPage";
 import SimulationStudioPage from "@/pages/twin/SimulationStudioPage";
 
 import TelemetryIntelligenceDashboardPage from "@/pages/telemetry/TelemetryIntelligenceDashboardPage";
+import ServiceDependencyExplorerPage from "@/pages/dependencies/ServiceDependencyExplorerPage";
 
 export default function App() {
   return (
@@ -84,6 +85,7 @@ export default function App() {
             <Route path="/logs"          element={<LogsPage />}           />
             <Route path="/cost"          element={<CostPage />}           />
             <Route path="/incidents"     element={<IncidentsPage />}      />
+            <Route path="/dependencies"  element={<ServiceDependencyExplorerPage />} />
             <Route path="/runbooks"      element={<RunbookDashboardPage />} />
             <Route path="/predictions"   element={<PredictiveAnalyticsPage />} />
             <Route path="/alerts"        element={<AlertsPage />}         />

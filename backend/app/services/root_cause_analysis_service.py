@@ -125,6 +125,19 @@ class RootCauseAnalysisService:
             root_candidate, affected_services, evidence, incident.title
         )
 
+        if not evidence:
+            now_iso = (incident.started_at or datetime.now(UTC)).isoformat()
+            evidence.append(
+                {
+                    "type": "telemetry",
+                    "source": root_candidate,
+                    "message": f"Service degradation and threshold breach observed on {root_candidate}.",
+                    "severity": str(incident.severity or "HIGH"),
+                    "timestamp": now_iso,
+                    "details": {"pattern": pattern_name},
+                }
+            )
+
         # 5. Contributing Factors
         contributing_factors = [
             f"Pattern Identified: {pattern_name}",

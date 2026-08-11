@@ -45,7 +45,8 @@ from app.models.tenant import (  # noqa: F401
     Team,
     TeamMember,
 )
-from app.models.trace import ServiceDependency, Span, Trace  # noqa: F401
+from app.models.service_dependency import ServiceDependency, ServiceNode  # noqa: F401
+from app.models.trace import Span, Trace  # noqa: F401
 
 # Import all models to register them with SQLAlchemy metadata
 from app.models.user import User  # noqa: F401

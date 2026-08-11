@@ -74,9 +74,18 @@ export function IncidentImpactGraph({ blastRadius, rootService = "database-clust
               Dependency Blast Radius & Propagation Tree
             </span>
           </div>
-          <Badge variant="outline" className="text-[10px] font-mono border-white/20 text-muted-foreground">
-            Depth: {depth} tiers
-          </Badge>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/dependencies?service=${encodeURIComponent(root)}`}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-[10px] font-mono transition-colors"
+            >
+              <span>Explore Topology</span>
+              <ArrowRight className="w-3 h-3" />
+            </a>
+            <Badge variant="outline" className="text-[10px] font-mono border-white/20 text-muted-foreground">
+              Depth: {depth} tiers
+            </Badge>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-center gap-6 py-4">
