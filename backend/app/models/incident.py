@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -125,6 +125,20 @@ class Incident(UUIDMixin, TimestampMixin, Base):
     )
     ai_confidence_score: Mapped[float | None] = mapped_column(
         Float, nullable=True, default=0.94
+    )
+
+    # Resolution Verification Engine Fields
+    resolution_verified: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    verification_evidence: Mapped[list] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    remaining_risk: Mapped[str] = mapped_column(
+        String(50), default="NONE", nullable=False
+    )  # NONE | LOW | MEDIUM | HIGH
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     organization_id: Mapped[uuid.UUID | None] = mapped_column(

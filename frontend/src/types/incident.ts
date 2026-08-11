@@ -5,12 +5,14 @@
 export type SeverityLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "P0" | "P1" | "P2" | "P3";
 export type PriorityLevel = "Critical" | "High" | "Medium" | "Low";
 export type IncidentStatus =
-  | "DETECTED"
+  | "OPEN"
+  | "ACKNOWLEDGED"
   | "INVESTIGATING"
   | "IDENTIFIED"
   | "MITIGATING"
   | "RESOLVED"
   | "CLOSED"
+  | "DETECTED"
   | "Open"
   | "Monitoring";
 
@@ -30,21 +32,27 @@ export interface TimelineEvent {
     | "trace_failure"
     | "log_error"
     | "incident_created"
+    | "incident_declared"
+    | "acknowledged"
+    | "investigating"
     | "rca_identified"
+    | "mitigating"
     | "remediation_recommended"
     | "remediation_executed"
     | "status_changed"
-    | "engineer_note";
+    | "resolved"
+    | "engineer_note"
+    | string;
   title: string;
   description?: string;
   source: string;
-  metadata?: Record<string, any>;
+  event_metadata?: Record<string, any>;
   timestamp: string;
   created_by?: string;
 }
 
 export interface EvidenceItem {
-  type: "metric" | "log" | "trace" | "alert" | "topology" | "kubernetes" | "cloud" | string;
+  type: "metric" | "log" | "trace" | "alert" | "topology" | "kubernetes" | "cloud" | "deployment" | string;
   source: string;
   message: string;
   severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | string;
@@ -62,6 +70,9 @@ export interface RecommendedAction {
   workflow_id?: string;
   automated: boolean;
   risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | string;
+  risk?: string;
+  requires_approval?: boolean;
+  dry_run?: boolean;
   parameters?: Record<string, any>;
 }
 
@@ -90,6 +101,46 @@ export interface RCAData {
   recommended_actions: RecommendedAction[];
   ai_summary?: string;
   ai_business_impact?: string;
+  analysis_engine?: string;
+}
+
+export interface VerificationEvidenceItem {
+  metric: string;
+  before_value: number;
+  after_value: number;
+  unit: string;
+  delta_percent: number;
+  status: "RESOLVED" | "IMPROVING" | "UNRESOLVED";
+  threshold: number;
+  explanation: string;
+}
+
+export interface ResolutionVerificationResponse {
+  incident_id: string;
+  resolution_verified: boolean;
+  service: string;
+  remaining_risk: "NONE" | "LOW" | "MEDIUM" | "HIGH" | string;
+  verification_evidence: VerificationEvidenceItem[];
+  pre_remediation_summary: string;
+  post_remediation_summary: string;
+  service_health_score: number;
+  verified_at: string;
+}
+
+export interface EvidenceGraph {
+  incident_id: string;
+  service: string;
+  evidence_count: number;
+  categories: {
+    metrics: EvidenceItem[];
+    logs: EvidenceItem[];
+    traces: EvidenceItem[];
+    alerts: EvidenceItem[];
+    deployments: EvidenceItem[];
+    kubernetes: EvidenceItem[];
+    cloud: EvidenceItem[];
+  };
+  summary: string;
 }
 
 export interface Incident {
@@ -126,6 +177,12 @@ export interface Incident {
   blast_radius?: BlastRadius;
   timeline_events?: TimelineEvent[];
 
+  // Resolution Verification
+  resolution_verified?: boolean;
+  verification_evidence?: VerificationEvidenceItem[];
+  remaining_risk?: "NONE" | "LOW" | "MEDIUM" | "HIGH" | string;
+  verified_at?: string;
+
   // AI Diagnostic fields
   ai_summary?: string;
   ai_root_cause?: string;
@@ -135,6 +192,9 @@ export interface Incident {
   ai_long_term_prevention?: string[];
   ai_preventive_actions?: string[];
   ai_similar_incidents?: SimilarIncident[];
+  ai_estimated_resolution_time?: string;
+  ai_confidence_score?: number;
+
   // SLA, MTTR & Tracking
   resource_id?: string;
   environment?: string;
@@ -188,6 +248,15 @@ export interface IncidentAcknowledgePayload {
 export interface IncidentResolvePayload {
   resolution_notes: string;
   resolved_by?: string;
+}
+
+export interface IncidentReopenPayload {
+  reason: string;
+  reopened_by?: string;
+}
+
+export interface IncidentAssignPayload {
+  assigned_to: string;
 }
 
 export interface IncidentRemediatePayload {

@@ -8,6 +8,7 @@ to pinpoint the root origin component and calculate downstream blast radius.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -245,7 +246,15 @@ class RootCauseAnalysisService:
                 "HTTP 5xx Server Error Burst",
             )
 
-        # 7. Kubernetes CrashLoopBackOff
+        # 7. Deployment / Rollout Regression
+        if any(w in combined_text for w in ["deploy", "rollout", "release", "new build", "git commit", "canary"]):
+            return (
+                f"Deployment regression in {root_service} introduced elevated failure rates and performance degradation.",
+                f"New deployment rollout on {root_service} coincided with immediate error rate and latency divergence.",
+                "Deployment-Induced Code or Schema Regression",
+            )
+
+        # 8. Kubernetes CrashLoopBackOff
         if any(w in combined_text for w in ["crashloopbackoff", "crash loop", "container fail"]):
             return (
                 f"Kubernetes Pod CrashLoopBackOff detected for deployment '{root_service}'.",

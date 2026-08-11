@@ -8,6 +8,9 @@ import {
   Network,
   Server,
   Terminal,
+  GitBranch,
+  Cloud,
+  Box,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,6 +51,27 @@ export function EvidencePanel({ evidence = [] }: Props) {
       details: { process_id: 8192, log_level: "FATAL" },
     },
     {
+      type: "alert",
+      source: "AlertManager",
+      message: "PaymentApiHighLatencyAlert firing in us-east-1 production cluster.",
+      severity: "HIGH",
+      details: { alert_name: "PaymentApiHighLatencyAlert", service: "payment-service" },
+    },
+    {
+      type: "deployment",
+      source: "payment-service",
+      message: "Deployment rollout v2.4.1 completed 4 minutes prior to incident escalation.",
+      severity: "HIGH",
+      details: { revision: "v2.4.1", commit: "a8f9c12", author: "CI/CD Pipeline" },
+    },
+    {
+      type: "kubernetes",
+      source: "payment-service-pod-3",
+      message: "Container OOMKilled and restarted 3 times within 10 minutes.",
+      severity: "CRITICAL",
+      details: { restart_count: 3, exit_code: 137, pod: "payment-service-7d4f9b8c6-2x8pl" },
+    },
+    {
       type: "topology",
       source: "ServiceDependencyGraph",
       message: "Multiple microservices (payment-service, auth-service, order-worker) share postgres-primary dependency",
@@ -60,23 +84,22 @@ export function EvidencePanel({ evidence = [] }: Props) {
 
   const filteredItems = items.filter((item) => {
     if (activeTab === "all") return true;
-    return item.type.toLowerCase() === activeTab.toLowerCase();
+    const t = (item.type || "").toLowerCase();
+    if (activeTab === "k8s") return t.includes("kube") || t.includes("k8s");
+    if (activeTab === "cloud") return t.includes("cloud") || t.includes("infra") || t.includes("topo");
+    return t.includes(activeTab.toLowerCase());
   });
 
-  const getEvidenceIcon = (type: string) => {
-    switch (type.toLowerCase()) {
-      case "metric":
-        return <Activity className="w-4 h-4 text-amber-400" />;
-      case "trace":
-        return <Network className="w-4 h-4 text-red-400" />;
-      case "log":
-        return <Terminal className="w-4 h-4 text-rose-400" />;
-      case "topology":
-      case "infrastructure":
-        return <Layers className="w-4 h-4 text-cyan-400" />;
-      default:
-        return <FileText className="w-4 h-4 text-blue-400" />;
-    }
+  const getEvidenceIcon = (type: string = "metric") => {
+    const t = type.toLowerCase();
+    if (t.includes("metric")) return <Activity className="w-4 h-4 text-amber-400" />;
+    if (t.includes("trace")) return <Network className="w-4 h-4 text-red-400" />;
+    if (t.includes("log")) return <Terminal className="w-4 h-4 text-rose-400" />;
+    if (t.includes("alert")) return <AlertCircle className="w-4 h-4 text-amber-400" />;
+    if (t.includes("deploy")) return <GitBranch className="w-4 h-4 text-indigo-400" />;
+    if (t.includes("kube") || t.includes("k8s")) return <Box className="w-4 h-4 text-blue-400" />;
+    if (t.includes("cloud") || t.includes("infra")) return <Cloud className="w-4 h-4 text-sky-400" />;
+    return <Layers className="w-4 h-4 text-cyan-400" />;
   };
 
   const getSeverityBadge = (sev: string = "HIGH") => {
@@ -97,10 +120,10 @@ export function EvidencePanel({ evidence = [] }: Props) {
     <div className="space-y-4">
       {/* Evidence Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-2">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-2 overflow-x-auto">
           <TabsList className="bg-bg-surface border border-white/[0.08] h-9 p-1">
             <TabsTrigger value="all" className="text-xs font-mono">
-              All Evidence ({items.length})
+              All ({items.length})
             </TabsTrigger>
             <TabsTrigger value="metric" className="text-xs font-mono">
               Metrics
@@ -111,8 +134,17 @@ export function EvidencePanel({ evidence = [] }: Props) {
             <TabsTrigger value="trace" className="text-xs font-mono">
               Traces
             </TabsTrigger>
-            <TabsTrigger value="topology" className="text-xs font-mono">
-              Topology
+            <TabsTrigger value="alert" className="text-xs font-mono">
+              Alerts
+            </TabsTrigger>
+            <TabsTrigger value="deploy" className="text-xs font-mono">
+              Deployments
+            </TabsTrigger>
+            <TabsTrigger value="k8s" className="text-xs font-mono">
+              Kubernetes
+            </TabsTrigger>
+            <TabsTrigger value="cloud" className="text-xs font-mono">
+              Cloud / Topology
             </TabsTrigger>
           </TabsList>
         </div>

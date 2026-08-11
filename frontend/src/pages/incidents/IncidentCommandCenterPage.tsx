@@ -50,6 +50,7 @@ import { RemediationPanel } from "@/components/incidents/RemediationPanel";
 import { CreateIncidentModal } from "@/components/incidents/CreateIncidentModal";
 import { IncidentTable } from "@/components/incidents/IncidentTable";
 import { IncidentAnalyticsCharts } from "@/components/incidents/IncidentAnalyticsCharts";
+import { ResolutionVerificationModal } from "@/components/incidents/ResolutionVerificationModal";
 import type {
   Incident,
   IncidentCreatePayload,
@@ -70,6 +71,7 @@ export default function IncidentCommandCenterPage() {
   const [severityFilter, setSeverityFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
 
   // 1. Fetch Active Incidents
   const {
@@ -139,7 +141,7 @@ export default function IncidentCommandCenterPage() {
   // 7. Fetch Blast Radius for Selected Incident
   const { data: blastRadiusData } = useQuery({
     queryKey: ["incident-impact", selectedIncidentId],
-    queryFn: () => (selectedIncidentId ? incidentService.getImpact(selectedIncidentId) : undefined),
+    queryFn: () => (selectedIncidentId ? incidentService.getBlastRadius(selectedIncidentId) : undefined),
     enabled: !!selectedIncidentId,
   });
 
@@ -188,6 +190,32 @@ export default function IncidentCommandCenterPage() {
       queryClient.invalidateQueries({ queryKey: ["incident", selectedIncidentId] });
       queryClient.invalidateQueries({ queryKey: ["incident-timeline", selectedIncidentId] });
       toast({ title: "Incident Resolved", description: "Resolution notes committed." });
+    },
+  });
+
+  const closeIncidentMutation = useMutation({
+    mutationFn: (id: string) => incidentService.closeIncident(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incident", selectedIncidentId] });
+      queryClient.invalidateQueries({ queryKey: ["incident-timeline", selectedIncidentId] });
+      toast({ title: "Incident Closed", description: "Incident closed after verified resolution." });
+    },
+  });
+
+  const verifyResolutionMutation = useMutation({
+    mutationFn: ({ id, telemetry }: { id: string; telemetry?: Record<string, number> }) =>
+      incidentService.verifyResolution(id, { post_telemetry: telemetry }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["incident", selectedIncidentId] });
+      queryClient.invalidateQueries({ queryKey: ["incident-timeline", selectedIncidentId] });
+      toast({
+        title: res.resolution_verified ? "Resolution Verified" : "Verification Warning",
+        description: res.resolution_verified
+          ? "All telemetry returned to nominal baseline."
+          : `Remaining risk flagged: ${res.remaining_risk}`,
+        variant: res.resolution_verified ? "default" : "destructive",
+      });
     },
   });
 
@@ -530,8 +558,19 @@ export default function IncidentCommandCenterPage() {
                       />
                     </div>
 
-                    <div className="text-xs font-mono text-muted-foreground">
-                      Assigned: <span className="text-white font-medium">{selectedIncident.assigned_to || "Unassigned"}</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsVerifyModalOpen(true)}
+                        className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-mono h-8"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                        Verify Telemetry Resolution
+                      </Button>
+                      <div className="text-xs font-mono text-muted-foreground">
+                        Assigned: <span className="text-white font-medium">{selectedIncident.assigned_to || "Unassigned"}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -556,6 +595,11 @@ export default function IncidentCommandCenterPage() {
                     <div>
                       Source: <span className="text-white">{selectedIncident.source || "Correlation Engine"}</span>
                     </div>
+                    {selectedIncident.resolution_verified && (
+                      <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-[10px] font-mono">
+                        Resolution Verified (0 Remaining Risk)
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
@@ -660,6 +704,25 @@ export default function IncidentCommandCenterPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={(payload) => createMutation.mutate(payload)}
         isLoading={createMutation.isPending}
+      />
+
+      {/* Resolution Verification Modal */}
+      <ResolutionVerificationModal
+        incident={selectedIncident || null}
+        isOpen={isVerifyModalOpen}
+        onClose={() => setIsVerifyModalOpen(false)}
+        onVerify={async (overrideTelem) => {
+          if (selectedIncidentId) {
+            return await verifyResolutionMutation.mutateAsync({
+              id: selectedIncidentId,
+              telemetry: overrideTelem,
+            });
+          }
+        }}
+        onCloseIncident={async (id) => {
+          await closeIncidentMutation.mutateAsync(id);
+        }}
+        isLoading={verifyResolutionMutation.isPending}
       />
     </div>
   );

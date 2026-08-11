@@ -5,21 +5,26 @@
 import apiClient from "@/lib/api";
 import type {
   BlastRadius,
+  EvidenceGraph,
   Incident,
   IncidentAcknowledgePayload,
   IncidentAIAnalysis,
   IncidentAnalytics,
+  IncidentAssignPayload,
   IncidentCorrelationPayload,
   IncidentCorrelationResponse,
   IncidentCreatePayload,
   IncidentListResponse,
   IncidentRemediatePayload,
   IncidentRemediateResponse,
+  IncidentReopenPayload,
   IncidentResolvePayload,
   IncidentStats,
   IncidentTimelineEventPayload,
   IncidentUpdatePayload,
   RCAData,
+  RecommendedAction,
+  ResolutionVerificationResponse,
   TimelineEvent,
 } from "@/types/incident";
 
@@ -70,7 +75,7 @@ export const incidentService = {
   },
 
   async updateIncident(id: string, payload: IncidentUpdatePayload): Promise<Incident> {
-    const response = await apiClient.put<Incident>(`/incidents/${id}`, payload);
+    const response = await apiClient.patch<Incident>(`/incidents/${id}`, payload);
     return response.data;
   },
 
@@ -94,6 +99,32 @@ export const incidentService = {
     return response.data;
   },
 
+  async closeIncident(id: string): Promise<Incident> {
+    const response = await apiClient.post<Incident>(`/incidents/${id}/close`);
+    return response.data;
+  },
+
+  async reopenIncident(id: string, payload: IncidentReopenPayload): Promise<Incident> {
+    const response = await apiClient.post<Incident>(`/incidents/${id}/reopen`, payload);
+    return response.data;
+  },
+
+  async assignIncident(id: string, payload: IncidentAssignPayload): Promise<Incident> {
+    const response = await apiClient.post<Incident>(`/incidents/${id}/assign`, payload);
+    return response.data;
+  },
+
+  async verifyResolution(
+    id: string,
+    payload?: { post_telemetry?: Record<string, number> }
+  ): Promise<ResolutionVerificationResponse> {
+    const response = await apiClient.post<ResolutionVerificationResponse>(
+      `/incidents/${id}/verify-resolution`,
+      payload || {}
+    );
+    return response.data;
+  },
+
   async reanalyzeIncident(id: string): Promise<IncidentAIAnalysis> {
     const response = await apiClient.post<IncidentAIAnalysis>(`/incidents/${id}/analyze`);
     return response.data;
@@ -109,8 +140,18 @@ export const incidentService = {
     return response.data;
   },
 
-  async getImpact(id: string): Promise<BlastRadius> {
-    const response = await apiClient.get<BlastRadius>(`/incidents/${id}/impact`);
+  async getEvidenceGraph(id: string): Promise<EvidenceGraph> {
+    const response = await apiClient.get<EvidenceGraph>(`/incidents/${id}/evidence`);
+    return response.data;
+  },
+
+  async getBlastRadius(id: string): Promise<BlastRadius> {
+    const response = await apiClient.get<BlastRadius>(`/incidents/${id}/blast-radius`);
+    return response.data;
+  },
+
+  async getRecommendations(id: string): Promise<RecommendedAction[]> {
+    const response = await apiClient.get<RecommendedAction[]>(`/incidents/${id}/recommendations`);
     return response.data;
   },
 
@@ -119,22 +160,30 @@ export const incidentService = {
     return response.data;
   },
 
+  async executeRemediation(
+    id: string,
+    payload: IncidentRemediatePayload
+  ): Promise<IncidentRemediateResponse> {
+    const response = await apiClient.post<IncidentRemediateResponse>(
+      `/incidents/${id}/remediate`,
+      payload
+    );
+    return response.data;
+  },
+
   async correlateAlerts(payload: IncidentCorrelationPayload): Promise<IncidentCorrelationResponse> {
     const response = await apiClient.post<IncidentCorrelationResponse>("/incidents/correlate", payload);
     return response.data;
   },
 
-  async executeRemediation(id: string, payload: IncidentRemediatePayload): Promise<IncidentRemediateResponse> {
-    const response = await apiClient.post<IncidentRemediateResponse>(`/incidents/${id}/remediate`, payload);
+  async getAnalytics(lookback_days: number = 30): Promise<IncidentAnalytics> {
+    const response = await apiClient.get<IncidentAnalytics>("/incidents/analytics", {
+      params: { lookback_days },
+    });
     return response.data;
   },
 
   async deleteIncident(id: string): Promise<void> {
     await apiClient.delete(`/incidents/${id}`);
-  },
-
-  async getAnalytics(): Promise<IncidentAnalytics> {
-    const response = await apiClient.get<IncidentAnalytics>("/incidents/analytics");
-    return response.data;
   },
 };

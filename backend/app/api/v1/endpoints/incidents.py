@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
@@ -20,15 +21,20 @@ from app.schemas.incident import (
     IncidentAcknowledgeRequest,
     IncidentAIAnalysisResponse,
     IncidentAnalyticsResponse,
+    IncidentAssignRequest,
     IncidentCorrelationRequest,
     IncidentCorrelationResponse,
     IncidentCreate,
     IncidentDeclareRequest,
+    IncidentEvidenceGraphResponse,
     IncidentInvestigateRequest,
     IncidentListResponse,
     IncidentMitigateRequest,
     IncidentRemediateRequest,
     IncidentRemediateResponse,
+    IncidentReopenRequest,
+    IncidentResolutionVerificationRequest,
+    IncidentResolutionVerificationResponse,
     IncidentResolve,
     IncidentResponse,
     IncidentStatsResponse,
@@ -738,6 +744,155 @@ async def execute_incident_remediation(
     except Exception as exc:
         log.error("remediation_execution_failed", error=str(exc))
         raise HTTPException(status_code=500, detail=f"Remediation failed: {str(exc)}")
+
+
+@router.patch("/{incident_id}", response_model=IncidentResponse, summary="Patch incident")
+async def patch_incident(
+    incident_id: uuid.UUID,
+    payload: IncidentUpdate,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Partially update incident attributes."""
+    updated = await service_layer.update(db, incident_id, payload)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentResponse.model_validate(updated)
+
+
+@router.post(
+    "/{incident_id}/verify-resolution",
+    response_model=IncidentResolutionVerificationResponse,
+    summary="Verify incident resolution against telemetry",
+)
+async def verify_incident_resolution(
+    incident_id: uuid.UUID,
+    payload: IncidentResolutionVerificationRequest = IncidentResolutionVerificationRequest(),
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """
+    Compares telemetry before and during the incident against post-mitigation metrics
+    to verify that error rates, latency, and resource saturation have normalized.
+    """
+    res = await service_layer.verify_resolution(db, incident_id, post_telemetry=payload.post_telemetry)
+    if not res:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentResolutionVerificationResponse(
+        incident_id=res.incident_id,
+        resolution_verified=res.resolution_verified,
+        service=res.service,
+        remaining_risk=res.remaining_risk,
+        verification_evidence=res.verification_evidence,
+        pre_remediation_summary=res.pre_remediation_summary,
+        post_remediation_summary=res.post_remediation_summary,
+        service_health_score=res.service_health_score,
+        verified_at=res.verified_at,
+    )
+
+
+@router.post(
+    "/{incident_id}/close",
+    response_model=IncidentResponse,
+    summary="Close incident",
+)
+async def close_incident(
+    incident_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Mark an incident as CLOSED after verified resolution."""
+    closed = await service_layer.close(db, incident_id)
+    if not closed:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentResponse.model_validate(closed)
+
+
+@router.post(
+    "/{incident_id}/reopen",
+    response_model=IncidentResponse,
+    summary="Reopen incident",
+)
+async def reopen_incident(
+    incident_id: uuid.UUID,
+    payload: IncidentReopenRequest,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Reopens an incident if regression or recurring errors are detected."""
+    reopened = await service_layer.reopen(db, incident_id, reason=payload.reason, reopened_by=payload.reopened_by)
+    if not reopened:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentResponse.model_validate(reopened)
+
+
+@router.post(
+    "/{incident_id}/assign",
+    response_model=IncidentResponse,
+    summary="Assign incident",
+)
+async def assign_incident(
+    incident_id: uuid.UUID,
+    payload: IncidentAssignRequest,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Assign incident to an SRE engineer or on-call team."""
+    assigned = await service_layer.assign(db, incident_id, payload.assigned_to)
+    if not assigned:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentResponse.model_validate(assigned)
+
+
+@router.get(
+    "/{incident_id}/evidence",
+    response_model=IncidentEvidenceGraphResponse,
+    summary="Get structured incident evidence graph",
+)
+async def get_incident_evidence(
+    incident_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Retrieve structured evidence graph categorized by metrics, logs, traces, alerts, deployments, and k8s."""
+    ev_graph = await service_layer.get_evidence_graph(db, incident_id)
+    if not ev_graph:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return IncidentEvidenceGraphResponse(**ev_graph)
+
+
+@router.get(
+    "/{incident_id}/blast-radius",
+    response_model=BlastRadiusResponse,
+    summary="Get incident blast radius (alias for /impact)",
+)
+async def get_incident_blast_radius_alias(
+    incident_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Alias route for blast radius calculation."""
+    impact = await service_layer.get_impact(db, incident_id)
+    if not impact:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return BlastRadiusResponse(**impact)
+
+
+@router.get(
+    "/{incident_id}/recommendations",
+    response_model=list[dict[str, Any]],
+    summary="Get incident recommendations",
+)
+async def get_incident_recommendations(
+    incident_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    service_layer: IncidentService = Depends(get_incident_service),
+):
+    """Get list of actionable remediation steps for an incident."""
+    incident = await service_layer.get_by_id(db, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found.")
+    return incident.recommended_actions or []
 
 
 @router.delete("/{incident_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete incident")

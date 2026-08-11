@@ -352,14 +352,60 @@ class IncidentResponse(IncidentBase):
     ai_business_impact: str | None = None
     ai_suggested_resolution: str | None = None
     ai_immediate_mitigation: str | None = None
-    ai_long_term_prevention: list[str] | None = Field(default_factory=list)
-    ai_preventive_actions: list[str] | None = Field(default_factory=list)
-    ai_similar_incidents: list[dict[str, Any]] | None = Field(default_factory=list)
-    ai_estimated_resolution_time: str | None = None
-    ai_confidence_score: float | None = 0.94
+    # Resolution Verification Fields
+    resolution_verified: bool = False
+    verification_evidence: list[dict[str, Any]] = Field(default_factory=list)
+    remaining_risk: str = "NONE"
+    verified_at: datetime | None = None
 
     # Timeline Events
     timeline_events: list[IncidentTimelineEventResponse] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Resolution Verification Schemas
+# ---------------------------------------------------------------------------
+
+
+class IncidentResolutionVerificationRequest(BaseModel):
+    post_telemetry: dict[str, float] | None = Field(
+        default=None,
+        description="Optional explicit post-remediation telemetry values (e.g. error_rate, latency_p99_ms, cpu_utilization)",
+    )
+
+
+class IncidentResolutionVerificationResponse(BaseModel):
+    incident_id: uuid.UUID
+    resolution_verified: bool
+    service: str
+    remaining_risk: str  # NONE | LOW | MEDIUM | HIGH
+    verification_evidence: list[dict[str, Any]]
+    pre_remediation_summary: str
+    post_remediation_summary: str
+    service_health_score: float
+    verified_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Evidence Graph & Extended Lifecycle Schemas
+# ---------------------------------------------------------------------------
+
+
+class IncidentEvidenceGraphResponse(BaseModel):
+    incident_id: uuid.UUID
+    service: str
+    evidence_count: int
+    categories: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    summary: str
+
+
+class IncidentReopenRequest(BaseModel):
+    reason: str = Field(..., min_length=3, description="Reason for reopening incident")
+    reopened_by: str = Field(default="Engineer", description="Name/email of engineer reopening incident")
+
+
+class IncidentAssignRequest(BaseModel):
+    assigned_to: str = Field(..., min_length=2, description="Assignee name or email")
 
 
 # ---------------------------------------------------------------------------

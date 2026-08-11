@@ -851,6 +851,155 @@ class IncidentService:
             executed_at=now,
         )
 
+    async def verify_resolution(
+        self,
+        db: AsyncSession,
+        incident_id: uuid.UUID,
+        post_telemetry: dict[str, float] | None = None,
+    ) -> Any:
+        """Runs telemetry before/after verification for an incident."""
+        from app.services.incident_resolution_verification_service import incident_resolution_verification_service
+
+        incident = await self.crud.get_with_timeline(db, incident_id)
+        if not incident:
+            return None
+        return await incident_resolution_verification_service.verify_incident_resolution(
+            db, incident, post_telemetry_override=post_telemetry
+        )
+
+    async def close(
+        self,
+        db: AsyncSession,
+        incident_id: uuid.UUID,
+        user_name: str = "Engineer",
+    ) -> Incident | None:
+        """Closes an incident after resolution."""
+        incident = await self.crud.get_with_timeline(db, incident_id)
+        if not incident:
+            return None
+        now = datetime.now(UTC)
+        incident.status = "CLOSED"
+        incident.updated_at = now
+        evt = IncidentTimelineEvent(
+            id=uuid.uuid4(),
+            incident_id=incident.id,
+            timestamp=now,
+            event_type="status_changed",
+            title=f"Incident Closed by {user_name}",
+            description=f"Incident closed. All verification criteria met.",
+            source="IncidentCommandCenter",
+            event_metadata={"status": "CLOSED"},
+            created_by=user_name,
+        )
+        db.add(evt)
+        await db.commit()
+        return await self.crud.get_with_timeline(db, incident_id)
+
+    async def reopen(
+        self,
+        db: AsyncSession,
+        incident_id: uuid.UUID,
+        reason: str,
+        reopened_by: str = "Engineer",
+    ) -> Incident | None:
+        """Reopens a resolved or closed incident upon recurring degradation."""
+        incident = await self.crud.get_with_timeline(db, incident_id)
+        if not incident:
+            return None
+        now = datetime.now(UTC)
+        incident.status = "INVESTIGATING"
+        incident.resolved_at = None
+        incident.resolution_verified = False
+        incident.remaining_risk = "HIGH"
+        incident.updated_at = now
+        evt = IncidentTimelineEvent(
+            id=uuid.uuid4(),
+            incident_id=incident.id,
+            timestamp=now,
+            event_type="status_changed",
+            title=f"Incident Reopened by {reopened_by}",
+            description=f"Reason: {reason}",
+            source="IncidentCommandCenter",
+            event_metadata={"status": "INVESTIGATING", "reopened_by": reopened_by, "reason": reason},
+            created_by=reopened_by,
+        )
+        db.add(evt)
+        await db.commit()
+        return await self.crud.get_with_timeline(db, incident_id)
+
+    async def assign(
+        self,
+        db: AsyncSession,
+        incident_id: uuid.UUID,
+        assigned_to: str,
+    ) -> Incident | None:
+        """Assigns an incident to an SRE engineer or team."""
+        incident = await self.crud.get_with_timeline(db, incident_id)
+        if not incident:
+            return None
+        now = datetime.now(UTC)
+        incident.assigned_to = assigned_to
+        incident.assigned_engineer = assigned_to
+        incident.updated_at = now
+        evt = IncidentTimelineEvent(
+            id=uuid.uuid4(),
+            incident_id=incident.id,
+            timestamp=now,
+            event_type="status_changed",
+            title=f"Incident Assigned to {assigned_to}",
+            description=f"Assigned owner updated to {assigned_to}.",
+            source="IncidentCommandCenter",
+            event_metadata={"assigned_to": assigned_to},
+            created_by="System",
+        )
+        db.add(evt)
+        await db.commit()
+        return await self.crud.get_with_timeline(db, incident_id)
+
+    async def get_evidence_graph(
+        self,
+        db: AsyncSession,
+        incident_id: uuid.UUID,
+    ) -> dict[str, Any] | None:
+        """Returns structured categorized evidence graph."""
+        incident = await self.crud.get_with_timeline(db, incident_id)
+        if not incident:
+            return None
+        evidence = incident.evidence or []
+        categories: dict[str, list[dict[str, Any]]] = {
+            "metrics": [],
+            "logs": [],
+            "traces": [],
+            "alerts": [],
+            "deployments": [],
+            "kubernetes": [],
+            "cloud": [],
+        }
+        for ev in evidence:
+            t = ev.get("type", "metrics").lower()
+            if "metric" in t:
+                categories["metrics"].append(ev)
+            elif "log" in t:
+                categories["logs"].append(ev)
+            elif "trace" in t:
+                categories["traces"].append(ev)
+            elif "alert" in t:
+                categories["alerts"].append(ev)
+            elif "deploy" in t:
+                categories["deployments"].append(ev)
+            elif "k8s" in t or "kube" in t:
+                categories["kubernetes"].append(ev)
+            else:
+                categories["cloud"].append(ev)
+
+        return {
+            "incident_id": incident.id,
+            "service": incident.affected_service or "api-gateway",
+            "evidence_count": len(evidence),
+            "categories": categories,
+            "summary": f"{len(evidence)} verified telemetry evidence proof points supporting causal inference.",
+        }
+
     async def delete(self, db: AsyncSession, incident_id: uuid.UUID) -> bool:
         incident = await self.crud.get(db, incident_id)
         if not incident:
