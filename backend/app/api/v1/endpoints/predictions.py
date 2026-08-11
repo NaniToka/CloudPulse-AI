@@ -1,6 +1,8 @@
 """
-Predictive Incident Detection Engine API Endpoints.
+Predictive AIOps & Anomaly Intelligence Engine API Endpoints.
 """
+
+from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -11,8 +13,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.models.prediction import Prediction
+from app.schemas.incident import IncidentResponse
 from app.schemas.prediction import (
+    AnomalyDetectionRequest,
+    AnomalyDetectionResponse,
+    AnomalyEventResponse,
+    CapacityRiskRequest,
+    CapacityRiskResponse,
+    CreateIncidentFromPredictionRequest,
+    ForecastRequest,
     InfrastructureRiskHeatmapResponse,
+    MetricForecastResponse,
+    PredictionAnalyticsResponse,
     PredictionAnalyzeRequest,
     PredictionListResponse,
     PredictionResponse,
@@ -30,24 +42,35 @@ def get_prediction_service() -> PredictionService:
     return prediction_service
 
 
-async def _seed_initial_predictions_if_empty(db: AsyncSession, service: PredictionService) -> None:
-    preds, total, _ = await service.list_predictions(db, size=1)
+async def _seed_initial_predictions_if_empty(
+    db: AsyncSession, service: PredictionService, organization_id: uuid.UUID | None = None
+) -> None:
+    preds, total, _ = await service.list_predictions(db, organization_id=organization_id, size=1)
     if total == 0:
         log.info("seeding_initial_predictive_failures")
         now = datetime.now(UTC)
         sample_predictions = [
             Prediction(
-                title="Imminent OOM & Thread Exhaustion on api-gateway",
+                id=uuid.uuid4(),
+                organization_id=organization_id,
+                title="Imminent OOM & Thread Pool Exhaustion on api-gateway",
                 service="api-gateway",
+                metric_name="memory_utilization",
+                environment="production",
                 region="us-east-1",
                 prediction_score=0.89,
                 failure_probability=88.5,
-                expected_failure_time=now + timedelta(minutes=28),
+                confidence_score=0.95,
                 risk_level="Critical",
                 status="Active",
+                trend_direction="ACCELERATING_DEGRADATION",
+                trend_strength=0.92,
+                rate_of_change=3.4,
+                anomaly_score=0.88,
+                expected_failure_time=now + timedelta(minutes=28),
+                estimated_time_to_threshold_minutes=28.0,
                 affected_services=["api-gateway", "auth-service", "payment-service"],
                 likely_root_cause="Linear heap memory leak (+450MB/15m) in session handler during traffic burst.",
-                confidence_score=0.95,
                 recommended_preventive_actions=[
                     "Scale api-gateway pod replicas from 4 to 12 instances",
                     "Flush stale session memory cache entries",
@@ -59,6 +82,8 @@ async def _seed_initial_predictions_if_empty(db: AsyncSession, service: Predicti
                     "p99_latency": "2,840 ms",
                     "error_rate": "4.8%",
                 },
+                data_sufficiency={"samples": 45, "minimum_required": 15, "sufficient": True, "confidence_factor": 1.0},
+                analysis_engine="local",
                 ai_explanation="CloudPulse AI Watchdog detected a linear memory heap growth rate of +450MB/15m alongside CPU saturation at 94.2% on api-gateway (us-east-1). If unmitigated, memory capacity limits will breach in ~28 minutes, triggering Kubernetes OOM-Kills.",
                 ai_metrics_of_concern=[
                     {
@@ -98,180 +123,91 @@ async def _seed_initial_predictions_if_empty(db: AsyncSession, service: Predicti
                 updated_at=now - timedelta(minutes=15),
             ),
             Prediction(
-                title="Database Connection Pool Lock Contention on auth-service",
-                service="auth-service",
-                region="us-west-2",
-                prediction_score=0.94,
-                failure_probability=94.2,
-                expected_failure_time=now + timedelta(minutes=14),
-                risk_level="Critical",
+                id=uuid.uuid4(),
+                organization_id=organization_id,
+                title="PostgreSQL Read Replica Replication Lag Desynchronization",
+                service="database-cluster",
+                metric_name="replication_lag",
+                environment="production",
+                region="us-east-1",
+                prediction_score=0.82,
+                failure_probability=82.0,
+                confidence_score=0.91,
+                risk_level="High",
                 status="Active",
-                affected_services=["auth-service", "database-cluster"],
-                likely_root_cause="Unbounded bcrypt worker thread pool locking PostgreSQL connection pool during login spike.",
-                confidence_score=0.96,
+                trend_direction="INCREASING",
+                trend_strength=0.85,
+                rate_of_change=1.8,
+                anomaly_score=0.79,
+                expected_failure_time=now + timedelta(minutes=45),
+                estimated_time_to_threshold_minutes=45.0,
+                affected_services=["database-cluster", "analytics-pipeline", "reporting-service"],
+                likely_root_cause="WAL sender buffer saturation causing 42s replication lag on replica-02.",
                 recommended_preventive_actions=[
-                    "Increase max_connections limit in PgBouncer pool",
-                    "Scale auth-service pods from 6 to 15",
+                    "Increase max_wal_senders and wal_sender_timeout parameters",
+                    "Direct read queries temporarily to replica-01",
                 ],
                 triggering_metrics={
-                    "cpu_usage": "98.1%",
-                    "db_pool_active": "198 / 200",
-                    "login_latency": "1,820 ms",
+                    "replication_lag": "42.5 sec",
+                    "wal_generation_rate": "125 MB/s",
+                    "replica_io_wait": "84.2%",
                 },
-                ai_explanation="Auth worker node CPU utilization reached 98.1% with 198 of 200 database connections occupied by pending bcrypt verification jobs.",
+                data_sufficiency={"samples": 60, "minimum_required": 15, "sufficient": True, "confidence_factor": 1.0},
+                analysis_engine="local",
+                ai_explanation="Replication lag between primary DB cluster and replica-02 has grown exponentially from 1.2s to 42.5s due to heavy analytical transaction write load.",
                 ai_metrics_of_concern=[
                     {
-                        "name": "DB Pool Saturation",
-                        "current_value": "198 / 200",
-                        "threshold": "160",
-                        "anomaly_trend": "+35 connections / 10m",
-                        "risk_impact": "DB connection rejection",
+                        "name": "Replication Lag",
+                        "current_value": "42.5s",
+                        "threshold": "5.0s",
+                        "anomaly_trend": "+41.3s in 20m",
+                        "risk_impact": "Stale analytics read queries",
                     }
                 ],
-                ai_historical_pattern_comparison="92% match with INC-388 connection pool lock contention.",
-                ai_possible_impact="User authentication failure rate rising to > 15%.",
-                ai_immediate_preventive_actions=["Increase PgBouncer max_connections to 400"],
+                ai_historical_pattern_comparison="Matches Postgres IO bottleneck pattern observed during Q3 bulk data migrations.",
+                ai_possible_impact="Reporting queries returning stale financial ledger state.",
+                ai_immediate_preventive_actions=[
+                    "Reroute analytical reporting traffic to cold replica-03",
+                    "Temporarily pause non-critical batch index optimization jobs",
+                ],
                 ai_long_term_recommendations=[
-                    "Offload bcrypt password hashing to async worker queue"
+                    "Upgrade EBS GP3 IOPS allocation on replica storage volumes",
                 ],
-                created_at=now - timedelta(minutes=20),
-                updated_at=now - timedelta(minutes=20),
-            ),
-            Prediction(
-                title="Storage IOPS Throttling on storage-service",
-                service="storage-service",
-                region="eu-west-1",
-                prediction_score=0.64,
-                failure_probability=64.0,
-                expected_failure_time=now + timedelta(minutes=95),
-                risk_level="Medium",
-                status="Active",
-                affected_services=["storage-service"],
-                likely_root_cause="EBS volume burst balance depleted under heavy log write volume.",
-                confidence_score=0.88,
-                recommended_preventive_actions=[
-                    "Provision gp3 IOPS from 3,000 to 10,000",
-                    "Compress log export stream before flush",
-                ],
-                triggering_metrics={
-                    "iops_utilization": "92.0%",
-                    "ebs_burst_balance": "14%",
-                },
-                ai_explanation="EBS burst balance down to 14%. Disk I/O queues accumulating.",
-                ai_metrics_of_concern=[],
-                ai_historical_pattern_comparison="Similar to prior month storage throttling.",
-                ai_possible_impact="Delayed log archiving export.",
-                ai_immediate_preventive_actions=["Increase volume IOPS rating"],
-                ai_long_term_recommendations=["Implement log streaming compression"],
-                created_at=now - timedelta(minutes=45),
-                updated_at=now - timedelta(minutes=45),
-            ),
-            Prediction(
-                title="Kafka Consumer Rebalance Degradation on kafka-ingestion",
-                service="kafka-ingestion",
-                region="us-central1",
-                prediction_score=0.58,
-                failure_probability=58.5,
-                expected_failure_time=now + timedelta(minutes=140),
-                risk_level="Medium",
-                status="Mitigated",
-                affected_services=["kafka-ingestion"],
-                likely_root_cause="Batch poll records count exceeding max.poll.interval.ms processing time.",
-                confidence_score=0.90,
-                recommended_preventive_actions=["Tune max.poll.records to 150"],
-                triggering_metrics={"consumer_lag": "45,000 msgs"},
-                ai_explanation="Mitigated after tuning batch size.",
-                ai_metrics_of_concern=[],
-                ai_historical_pattern_comparison="Routine consumer lag pattern.",
-                ai_possible_impact="Minor telemetry latency.",
-                ai_immediate_preventive_actions=["Adjust poll timeout"],
-                ai_long_term_recommendations=["Automate partition rebalancing"],
-                created_at=now - timedelta(hours=2),
-                updated_at=now - timedelta(minutes=30),
+                created_at=now - timedelta(minutes=25),
+                updated_at=now - timedelta(minutes=25),
             ),
         ]
-        for pred in sample_predictions:
-            db.add(pred)
+        for p in sample_predictions:
+            db.add(p)
         await db.commit()
 
 
-@router.get("/stats", response_model=PredictionStatsResponse, summary="Get prediction KPI stats")
-async def get_prediction_stats(
-    db: AsyncSession = Depends(get_db),
-    service: PredictionService = Depends(get_prediction_service),
-):
-    """Retrieve top KPI cards stats: Predicted Failures, High Risk Services, Average Confidence %, Prevented Downtime."""
-    await _seed_initial_predictions_if_empty(db, service)
-    return await service.get_stats(db)
-
-
-@router.get(
-    "/heatmap",
-    response_model=InfrastructureRiskHeatmapResponse,
-    summary="Get Infrastructure Risk Heatmap",
-)
-async def get_risk_heatmap(
-    db: AsyncSession = Depends(get_db),
-    service: PredictionService = Depends(get_prediction_service),
-):
-    """Retrieve color-coded risk heatmap grid items across services and regions."""
-    await _seed_initial_predictions_if_empty(db, service)
-    heatmap_items = await service.get_risk_heatmap(db)
-    return InfrastructureRiskHeatmapResponse(items=heatmap_items)
-
-
-@router.get("/history", response_model=PredictionListResponse, summary="Get historical predictions")
-async def get_prediction_history(
-    service: str | None = Query(None),
-    region: str | None = Query(None),
-    risk: str | None = Query(None),
-    search: str | None = Query(None),
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    service_layer: PredictionService = Depends(get_prediction_service),
-):
-    """Retrieve historical predictions (including Mitigated, Dismissed, and Triggered)."""
-    await _seed_initial_predictions_if_empty(db, service_layer)
-    items, total, pages = await service_layer.list_predictions(
-        db,
-        service=service,
-        region=region,
-        risk=risk,
-        search=search,
-        page=page,
-        size=size,
-    )
-    return PredictionListResponse(
-        items=[PredictionResponse.model_validate(p) for p in items],
-        total=total,
-        page=page,
-        size=size,
-        pages=pages,
-    )
-
-
-@router.get("", response_model=PredictionListResponse, summary="List active predictions")
+@router.get("", response_model=PredictionListResponse)
 async def list_predictions(
     service: str | None = Query(None, description="Filter by service name"),
-    region: str | None = Query(None, description="Filter by region"),
-    risk: str | None = Query(
-        None, description="Filter by risk level (Critical, High, Medium, Low)"
-    ),
-    status: str | None = Query(None, description="Filter by status (Active, Mitigated, Dismissed)"),
-    search: str | None = Query(None, description="Search in title or root cause"),
-    sort_by: str = Query("created_at", description="Sort field"),
-    sort_dir: str = Query("desc", description="Sort direction"),
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    resource: str | None = Query(None, description="Filter by resource ID"),
+    metric: str | None = Query(None, description="Filter by metric name"),
+    environment: str | None = Query(None, description="Filter by environment"),
+    region: str | None = Query(None, description="Filter by cloud region"),
+    risk: str | None = Query(None, description="Filter by risk level (Critical, High, Medium, Low)"),
+    status: str | None = Query(None, description="Filter by status (Active, Mitigated, Dismissed, Triggered)"),
+    search: str | None = Query(None, description="Search term for title or root cause"),
+    sort_by: str = Query("created_at", description="Field to sort by"),
+    sort_dir: str = Query("desc", description="Sort direction (asc/desc)"),
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(10, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
-    service_layer: PredictionService = Depends(get_prediction_service),
-):
-    """Retrieve paginated predictions with search and risk filters."""
-    await _seed_initial_predictions_if_empty(db, service_layer)
-    items, total, pages = await service_layer.list_predictions(
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> PredictionListResponse:
+    """List predictive incident alerts with multi-dimensional filtering, search, and pagination."""
+    await _seed_initial_predictions_if_empty(db, pred_svc)
+
+    items, total, pages = await pred_svc.list_predictions(
         db,
         service=service,
+        resource=resource,
+        metric=metric,
+        environment=environment,
         region=region,
         risk=risk,
         status=status,
@@ -281,6 +217,7 @@ async def list_predictions(
         page=page,
         size=size,
     )
+
     return PredictionListResponse(
         items=[PredictionResponse.model_validate(p) for p in items],
         total=total,
@@ -290,50 +227,149 @@ async def list_predictions(
     )
 
 
-@router.post(
-    "/analyze",
-    response_model=PredictionResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Trigger predictive analysis",
-)
-async def analyze_predictions(
-    req: PredictionAnalyzeRequest,
+@router.get("/stats", response_model=PredictionStatsResponse)
+async def get_prediction_stats(
     db: AsyncSession = Depends(get_db),
-    service_layer: PredictionService = Depends(get_prediction_service),
-):
-    """Trigger Google Gemini Predictive AI Engine to analyze infrastructure telemetry."""
-    prediction = await service_layer.trigger_analysis(
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> PredictionStatsResponse:
+    """Retrieve high-level KPI stats for predictive intelligence banner."""
+    await _seed_initial_predictions_if_empty(db, pred_svc)
+    return await pred_svc.get_stats(db)
+
+
+@router.get("/analytics", response_model=PredictionAnalyticsResponse)
+async def get_prediction_analytics(
+    db: AsyncSession = Depends(get_db),
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> PredictionAnalyticsResponse:
+    """Retrieve comprehensive analytics breakdown by service, metric, risk, and anomaly event count."""
+    await _seed_initial_predictions_if_empty(db, pred_svc)
+    return await pred_svc.get_analytics(db)
+
+
+@router.get("/heatmap", response_model=InfrastructureRiskHeatmapResponse)
+async def get_infrastructure_risk_heatmap(
+    db: AsyncSession = Depends(get_db),
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> InfrastructureRiskHeatmapResponse:
+    """Retrieve aggregated risk heatmap coordinates across infrastructure services."""
+    await _seed_initial_predictions_if_empty(db, pred_svc)
+    items = await pred_svc.get_risk_heatmap(db)
+    return InfrastructureRiskHeatmapResponse(items=items)
+
+
+@router.get("/anomalies", response_model=list[AnomalyEventResponse])
+async def list_anomaly_events(
+    service: str | None = Query(None, description="Filter by service"),
+    severity: str | None = Query(None, description="Filter by severity"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> list[AnomalyEventResponse]:
+    """Retrieve persistent historical anomaly event ledger."""
+    items, _ = await pred_svc.get_anomalies(
+        db, service=service, severity=severity, page=page, size=size
+    )
+    return [AnomalyEventResponse.model_validate(a) for a in items]
+
+
+@router.post("/anomalies", response_model=AnomalyDetectionResponse)
+async def detect_metric_anomalies(
+    payload: AnomalyDetectionRequest,
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> AnomalyDetectionResponse:
+    """Execute deterministic multi-algorithm anomaly detection on submitted metric stream."""
+    return await pred_svc.detect_anomalies(payload)
+
+
+@router.post("/forecast", response_model=MetricForecastResponse)
+async def generate_metric_forecast(
+    payload: ForecastRequest,
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> MetricForecastResponse:
+    """Generate multi-horizon forecast with upper and lower confidence intervals."""
+    return await pred_svc.generate_forecast(payload)
+
+
+@router.post("/capacity", response_model=CapacityRiskResponse)
+async def evaluate_capacity_risk(
+    payload: CapacityRiskRequest,
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> CapacityRiskResponse:
+    """Evaluate resource exhaustion risk and estimate time to threshold breach."""
+    return await pred_svc.evaluate_capacity(payload)
+
+
+@router.post("/analyze", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED)
+async def trigger_predictive_analysis(
+    payload: PredictionAnalyzeRequest,
+    db: AsyncSession = Depends(get_db),
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> PredictionResponse:
+    """Trigger full Predictive AIOps Analysis with Grounded Gemini diagnostics."""
+    prediction = await pred_svc.trigger_analysis(
         db,
-        target_services=req.services,
-        lookback_hours=req.lookback_hours,
+        target_services=payload.services,
+        lookback_hours=payload.lookback_hours,
+        telemetry_map=payload.telemetry_map,
     )
     return PredictionResponse.model_validate(prediction)
 
 
-@router.get("/{prediction_id}", response_model=PredictionResponse, summary="Get prediction details")
-async def get_prediction(
+@router.get("/{prediction_id}", response_model=PredictionResponse)
+async def get_prediction_by_id(
     prediction_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    service_layer: PredictionService = Depends(get_prediction_service),
-):
-    """Retrieve single prediction record with complete AI explanation."""
-    prediction = await service_layer.get_by_id(db, prediction_id)
-    if not prediction:
-        raise HTTPException(status_code=404, detail=f"Prediction '{prediction_id}' not found.")
-    return PredictionResponse.model_validate(prediction)
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> PredictionResponse:
+    """Fetch detailed prediction record by ID."""
+    pred = await pred_svc.get_by_id(db, prediction_id)
+    if not pred:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Prediction with ID {prediction_id} not found",
+        )
+    return PredictionResponse.model_validate(pred)
 
 
-@router.patch(
-    "/{prediction_id}/status", response_model=PredictionResponse, summary="Update prediction status"
-)
+@router.patch("/{prediction_id}/status", response_model=PredictionResponse)
+@router.post("/{prediction_id}/status", response_model=PredictionResponse)
 async def update_prediction_status(
     prediction_id: uuid.UUID,
     payload: PredictionStatusUpdate,
     db: AsyncSession = Depends(get_db),
-    service_layer: PredictionService = Depends(get_prediction_service),
-):
-    """Update status of a prediction (e.g. Mitigated, Dismissed)."""
-    updated = await service_layer.update_status(db, prediction_id, payload.status.value)
-    if not updated:
-        raise HTTPException(status_code=404, detail=f"Prediction '{prediction_id}' not found.")
-    return PredictionResponse.model_validate(updated)
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> PredictionResponse:
+    """Update lifecycle status of a prediction alert."""
+    pred = await pred_svc.update_status(
+        db, prediction_id, payload.status.value
+    )
+    if not pred:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Prediction with ID {prediction_id} not found",
+        )
+    return PredictionResponse.model_validate(pred)
+
+
+@router.post("/{prediction_id}/create-incident", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED)
+async def create_incident_from_prediction(
+    prediction_id: uuid.UUID,
+    payload: CreateIncidentFromPredictionRequest = CreateIncidentFromPredictionRequest(),
+    db: AsyncSession = Depends(get_db),
+    pred_svc: PredictionService = Depends(get_prediction_service),
+) -> IncidentResponse:
+    """Escalate a high-risk prediction directly into an active Incident in Incident Command Center."""
+    inc = await pred_svc.create_incident_from_prediction(
+        db,
+        prediction_id=prediction_id,
+        custom_severity=payload.severity,
+        custom_title=payload.title,
+    )
+    if not inc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Prediction with ID {prediction_id} not found",
+        )
+    return IncidentResponse.model_validate(inc)

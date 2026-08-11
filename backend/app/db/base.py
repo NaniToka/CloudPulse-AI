@@ -28,7 +28,7 @@ from app.models.log_analysis import LogAnalysis  # noqa: F401
 from app.models.metric import MetricPoint  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.organization import Organization  # noqa: F401
-from app.models.prediction import Prediction  # noqa: F401
+from app.models.prediction import AnomalyEvent, Prediction  # noqa: F401
 from app.models.resource import Resource  # noqa: F401
 from app.models.runbook import AutomationStep, Runbook, RunbookExecution  # noqa: F401
 from app.models.security import ComplianceReport, SecurityScan  # noqa: F401

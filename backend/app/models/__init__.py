@@ -28,7 +28,7 @@ from app.models.log_analysis import LogAnalysis
 from app.models.metric import MetricPoint
 from app.models.notification import Notification
 from app.models.organization import Organization
-from app.models.prediction import Prediction
+from app.models.prediction import AnomalyEvent, Prediction
 from app.models.resource import Resource
 from app.models.runbook import AutomationStep, Runbook, RunbookExecution
 from app.models.security import ComplianceReport, SecurityScan
@@ -62,6 +62,7 @@ __all__ = [
     "AgentRecommendation",
     "AgentTask",
     "Alert",
+    "AnomalyEvent",
     "AuditLog",
     "AutomationStep",
     "ChatMessage",
