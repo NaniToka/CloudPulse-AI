@@ -164,7 +164,7 @@ class SecurityService:
                 severity=s["severity"],
                 category=s["category"],
                 resource_type=s.get("resource_type", "cloud_resource"),
-                is_publicly_exposed=("0.0.0.0" in str(s) or "public" in str(s).lower()),
+                is_publicly_exposed=("0.0.0.0" in str(s) or "public" in str(s).lower()),  # nosec B104
                 has_admin_privileges=("admin" in str(s).lower() or "privileged" in str(s).lower()),
                 confidence=s.get("confidence", 0.92),
             )
