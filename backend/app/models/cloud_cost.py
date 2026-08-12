@@ -1,7 +1,8 @@
 """
-CloudCost and OptimizationRecommendation ORM models.
+CloudCost, OptimizationRecommendation, and CostBudget ORM models.
 
-Stores individual cloud resource costs and AI-generated cost optimization recommendations.
+Stores individual cloud resource costs, AI-generated cost optimization recommendations,
+and FinOps budget tracking parameters.
 """
 
 from __future__ import annotations
@@ -85,3 +86,25 @@ class OptimizationRecommendation(UUIDMixin, TimestampMixin, Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<OptimizationRecommendation title={self.title!r} savings=${self.estimated_savings:.2f}>"
+
+
+class CostBudget(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "cost_budgets"
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider: Mapped[str] = mapped_column(String(50), default="all", nullable=False)
+    service: Mapped[str] = mapped_column(String(100), default="all", nullable=False)
+    environment: Mapped[str] = mapped_column(String(50), default="all", nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    period: Mapped[str] = mapped_column(String(20), default="monthly", nullable=False)  # monthly | quarterly | annual
+    threshold_percentages: Mapped[dict] = mapped_column(JSON, default=lambda: [50, 75, 90, 100], nullable=False)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<CostBudget name={self.name!r} amount=${self.amount:.2f}>"

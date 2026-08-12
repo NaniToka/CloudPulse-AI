@@ -1,5 +1,5 @@
 """
-Pydantic schemas for the Cloud Cost Optimizer module.
+Pydantic schemas for the Enterprise Cloud Cost Optimizer & FinOps Intelligence module.
 """
 
 from __future__ import annotations
@@ -30,6 +30,23 @@ class RegionCostItem(BaseModel):
     cost: float
     percentage: float
     resource_count: int
+
+
+class ProviderCostItem(BaseModel):
+    provider: str
+    cost: float
+    percentage: float
+    resource_count: int
+
+
+class ProviderCostsResponse(BaseModel):
+    providers: list[ProviderCostItem]
+    total_cost: float
+
+
+class RegionCostsResponse(BaseModel):
+    regions: list[RegionCostItem]
+    total_cost: float
 
 
 # ── Cloud Cost Resource Item ──────────────────────────────────────────────────
@@ -66,9 +83,7 @@ class RecommendationItem(BaseModel):
     resource_id: uuid.UUID | None = None
     resource_name: str
     service: str
-    recommendation_type: (
-        str  # idle_resource | wasted_resource | rightsizing | reserved_instance | auto_scaling
-    )
+    recommendation_type: str  # idle_resource | wasted_resource | rightsizing | reserved_instance | auto_scaling
     title: str
     description: str
     current_cost: float
@@ -103,9 +118,16 @@ class CostOverviewResponse(BaseModel):
     daily_trend: list[DailyCostItem]
     service_breakdown: list[ServiceCostItem]
     region_breakdown: list[RegionCostItem]
-    data_source: str = Field(default="Demo Provider", description="Data source provider")
+    provider_breakdown: list[ProviderCostItem] = Field(default_factory=list)
+    data_source: str = Field(default="Demo Data — No Cloud Credentials Connected", description="Data source indicator")
     environment: str = Field(default="Local Development", description="Execution environment")
 
+
+class CostTrendsResponse(BaseModel):
+    daily_trend: list[DailyCostItem]
+    monthly_trend: list[DailyCostItem] = Field(default_factory=list)
+    projected_cost: float
+    trend_direction: str
 
 
 # ── Service-wise Costs Response ───────────────────────────────────────────────
@@ -114,6 +136,89 @@ class CostOverviewResponse(BaseModel):
 class ServiceCostsResponse(BaseModel):
     services: list[ServiceCostItem]
     total_cost: float
+
+
+# ── Cost Anomaly Response ─────────────────────────────────────────────────────
+
+
+class CostAnomalyItem(BaseModel):
+    id: str
+    anomaly_score: float
+    severity: str  # CRITICAL | HIGH | MEDIUM | LOW
+    detected_date: str
+    provider: str
+    service: str
+    resource: str
+    expected_cost: float
+    actual_cost: float
+    difference: float
+    explanation: str
+
+
+class CostAnomaliesResponse(BaseModel):
+    anomalies: list[CostAnomalyItem]
+    total_anomalies: int
+    critical_anomalies: int
+
+
+# ── Cost Forecast Response ────────────────────────────────────────────────────
+
+
+class CostForecastResponse(BaseModel):
+    forecast_7_day: float
+    forecast_30_day: float
+    projected_month_end: float
+    confidence: float
+    historical_basis: str
+    trend_direction: str
+
+
+# ── Cost Budget Models ────────────────────────────────────────────────────────
+
+
+class CostBudgetItem(BaseModel):
+    id: uuid.UUID
+    name: str
+    provider: str
+    service: str
+    environment: str
+    amount: float
+    current_spend: float = 0.0
+    utilization_pct: float = 0.0
+    projected_spend: float = 0.0
+    remaining: float = 0.0
+    period: str
+    threshold_status: str  # NORMAL | WARNING_50 | WARNING_75 | CRITICAL_90 | EXCEEDED_100
+    threshold_percentages: list[int] = Field(default_factory=lambda: [50, 75, 90, 100])
+    thresholds_reached: list[int] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CostBudgetPayload(BaseModel):
+    name: str
+    amount: float = Field(..., gt=0.0)
+    provider: str = Field(default="all")
+    service: str = Field(default="all")
+    environment: str = Field(default="all")
+    period: str = Field(default="monthly")
+    threshold_percentages: list[int] = Field(default_factory=lambda: [50, 75, 90, 100])
+
+
+class CostBudgetListResponse(BaseModel):
+    budgets: list[CostBudgetItem]
+    total: int
+
+
+# ── Savings & Optimization Summary ─────────────────────────────────────────────
+
+
+class CostSavingsResponse(BaseModel):
+    total_monthly_savings: float
+    total_annual_savings: float  # monthly * 12
+    opportunity_count: int
 
 
 # ── AI Cost Analysis Response ─────────────────────────────────────────────────
@@ -131,3 +236,4 @@ class CostAnalyzeResponse(BaseModel):
     recommendations: list[RecommendationItem]
     efficiency_score: int
     analyzed_at: datetime
+    analysis_engine: str = Field(default="Local FinOps Intelligence")

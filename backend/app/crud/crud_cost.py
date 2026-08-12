@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.cloud_cost import CloudCost, OptimizationRecommendation
+from app.models.cloud_cost import CloudCost, CostBudget, OptimizationRecommendation
 
 # Service color mappings for charts
 SERVICE_COLORS: dict[str, str] = {
@@ -40,7 +40,130 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
 
     now = datetime.now(UTC)
     sample_resources = [
-        # GKE Cluster
+        # AWS Resources
+        (
+            "aws-prod-ec2-m5.2xlarge",
+            "AWS EC2",
+            "aws",
+            "us-east-1",
+            4850.00,
+            161.66,
+            720.0,
+            "hrs",
+            "production",
+            "active",
+        ),
+        (
+            "aws-rds-postgresql-primary",
+            "AWS RDS",
+            "aws",
+            "us-east-1",
+            3450.00,
+            115.00,
+            720.0,
+            "hrs",
+            "production",
+            "active",
+        ),
+        (
+            "aws-s3-logs-and-backups",
+            "AWS S3",
+            "aws",
+            "us-west-2",
+            1280.00,
+            42.66,
+            50.0,
+            "TB",
+            "production",
+            "active",
+        ),
+        (
+            "aws-cloudwatch-log-retention",
+            "AWS CloudWatch",
+            "aws",
+            "us-east-1",
+            950.00,
+            31.66,
+            85.0,
+            "GB/day",
+            "production",
+            "idle",
+        ),
+        # Azure Resources
+        (
+            "azure-vm-standard-d8s-v3",
+            "Azure Virtual Machines",
+            "azure",
+            "eastus",
+            3100.00,
+            103.33,
+            720.0,
+            "hrs",
+            "production",
+            "active",
+        ),
+        (
+            "azure-blob-storage-primary",
+            "Azure Storage",
+            "azure",
+            "eastus",
+            1450.00,
+            48.33,
+            40.0,
+            "TB",
+            "production",
+            "active",
+        ),
+        (
+            "azure-sql-database-prod",
+            "Azure SQL Database",
+            "azure",
+            "westeurope",
+            2600.00,
+            86.66,
+            720.0,
+            "hrs",
+            "production",
+            "active",
+        ),
+        # Kubernetes Resources
+        (
+            "k8s-compute-node-pool-cpu",
+            "Kubernetes Compute",
+            "kubernetes",
+            "us-central1",
+            5400.00,
+            180.00,
+            720.0,
+            "core-hrs",
+            "production",
+            "active",
+        ),
+        (
+            "k8s-persistent-volume-claims",
+            "Kubernetes Storage",
+            "kubernetes",
+            "us-central1",
+            1800.00,
+            60.00,
+            120.0,
+            "GB",
+            "production",
+            "active",
+        ),
+        (
+            "k8s-ingress-and-lb-networking",
+            "Kubernetes Networking",
+            "kubernetes",
+            "us-central1",
+            950.00,
+            31.66,
+            350.0,
+            "GB-ingress",
+            "production",
+            "active",
+        ),
+        # GKE & GCP Resources
         (
             "prod-gke-cluster-us-central1",
             "Google Kubernetes Engine",
@@ -65,7 +188,6 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
             "staging",
             "active",
         ),
-        # Compute Engine VMs
         (
             "analytics-n2-standard-16",
             "Google Compute Engine",
@@ -103,19 +225,6 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
             "overprovisioned",
         ),
         (
-            "test-bench-n1-standard-4",
-            "Google Compute Engine",
-            "gcp",
-            "us-west1",
-            2100.00,
-            70.00,
-            100.0,
-            "vCPU-hrs",
-            "staging",
-            "idle",
-        ),
-        # Cloud SQL
-        (
             "prod-postgres-db-primary",
             "Cloud SQL",
             "gcp",
@@ -128,19 +237,6 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
             "active",
         ),
         (
-            "staging-postgres-db-replica",
-            "Cloud SQL",
-            "gcp",
-            "us-east1",
-            2900.00,
-            96.66,
-            720.0,
-            "hrs",
-            "staging",
-            "active",
-        ),
-        # BigQuery
-        (
             "dw-data-warehouse-queries",
             "BigQuery",
             "gcp",
@@ -152,7 +248,6 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
             "production",
             "active",
         ),
-        # Cloud Storage
         (
             "prod-media-backup-bucket",
             "Cloud Storage",
@@ -165,19 +260,6 @@ async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> N
             "production",
             "active",
         ),
-        (
-            "archive-logs-multi-region",
-            "Cloud Storage",
-            "gcp",
-            "europe-west1",
-            1850.00,
-            61.66,
-            120.0,
-            "TB",
-            "production",
-            "active",
-        ),
-        # Cloud Functions
         (
             "event-processor-serverless",
             "Cloud Functions",
@@ -498,5 +580,98 @@ async def update_recommendation_status(
     res = await db.execute(stmt)
     record = res.scalar_one_or_none()
     if record:
-        await db.commit()
+        await db.flush()
     return record
+
+
+# ── Budget CRUD ───────────────────────────────────────────────────────────────
+
+
+async def seed_default_budgets_if_empty(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Seed sample FinOps budgets if user has no budget records."""
+    count_stmt = select(func.count()).select_from(CostBudget).where(CostBudget.user_id == user_id)
+    res = await db.execute(count_stmt)
+    if res.scalar_one() > 0:
+        return
+
+    now = datetime.now(UTC)
+    sample_budgets = [
+        ("Engineering Department Monthly Budget", "all", "all", "production", 100000.0, "monthly", [50, 75, 90, 100]),
+        ("AWS Infrastructure Budget", "aws", "EC2", "production", 15000.0, "monthly", [50, 75, 90, 100]),
+        ("Azure Services Budget", "azure", "all", "production", 8000.0, "monthly", [50, 75, 90, 100]),
+        ("Kubernetes Cluster Compute Budget", "kubernetes", "Compute", "production", 12000.0, "monthly", [50, 75, 90, 100]),
+    ]
+
+    for name, provider, service, env, amt, period, thresholds in sample_budgets:
+        b = CostBudget(
+            id=uuid.uuid4(),
+            name=name,
+            provider=provider,
+            service=service,
+            environment=env,
+            amount=amt,
+            period=period,
+            threshold_percentages=thresholds,
+            user_id=user_id,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(b)
+
+    await db.flush()
+
+
+async def get_budgets(db: AsyncSession, user_id: uuid.UUID) -> list[CostBudget]:
+    """Fetch all cost budgets for user."""
+    await seed_default_budgets_if_empty(db, user_id)
+    stmt = select(CostBudget).where(CostBudget.user_id == user_id).order_by(CostBudget.amount.desc())
+    res = await db.execute(stmt)
+    return list(res.scalars().all())
+
+
+async def create_budget(db: AsyncSession, user_id: uuid.UUID, data: dict[str, Any]) -> CostBudget:
+    """Create a new FinOps cost budget."""
+    b = CostBudget(
+        id=uuid.uuid4(),
+        name=data["name"],
+        provider=data.get("provider", "all"),
+        service=data.get("service", "all"),
+        environment=data.get("environment", "all"),
+        amount=float(data["amount"]),
+        period=data.get("period", "monthly"),
+        threshold_percentages=data.get("threshold_percentages", [50, 75, 90, 100]),
+        user_id=user_id,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    db.add(b)
+    await db.flush()
+    return b
+
+
+async def update_budget(
+    db: AsyncSession, user_id: uuid.UUID, budget_id: uuid.UUID, data: dict[str, Any]
+) -> CostBudget | None:
+    """Update an existing FinOps cost budget."""
+    stmt = select(CostBudget).where(CostBudget.id == budget_id, CostBudget.user_id == user_id)
+    res = await db.execute(stmt)
+    b = res.scalar_one_or_none()
+    if not b:
+        return None
+    if "name" in data and data["name"]:
+        b.name = data["name"]
+    if "amount" in data and data["amount"] is not None:
+        b.amount = float(data["amount"])
+    if "period" in data and data["period"]:
+        b.period = data["period"]
+    if "threshold_percentages" in data and data["threshold_percentages"]:
+        b.threshold_percentages = data["threshold_percentages"]
+    if "provider" in data and data["provider"]:
+        b.provider = data["provider"]
+    if "service" in data and data["service"]:
+        b.service = data["service"]
+
+    b.updated_at = datetime.now(UTC)
+    db.add(b)
+    await db.flush()
+    return b

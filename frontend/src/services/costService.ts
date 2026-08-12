@@ -1,11 +1,19 @@
 import apiClient from "@/lib/api";
 import type {
-  CostOverviewResponse,
-  ServiceCostsResponse,
-  RecommendationsResponse,
-  CostAnalyzeResponse,
   CloudCostListResponse,
+  CostAnomaliesResponse,
+  CostAnalyzeResponse,
+  CostBudgetItem,
+  CostBudgetListResponse,
+  CostBudgetPayload,
+  CostForecastResponse,
+  CostOverviewResponse,
+  CostSavingsResponse,
+  CostTrendsResponse,
+  ProviderCostsResponse,
   RecommendationItem,
+  RecommendationsResponse,
+  ServiceCostsResponse,
 } from "@/types/cost";
 
 export const costService = {
@@ -14,8 +22,43 @@ export const costService = {
     return response.data;
   },
 
+  async getTrends(): Promise<CostTrendsResponse> {
+    const response = await apiClient.get<CostTrendsResponse>("/cost/trends");
+    return response.data;
+  },
+
+  async getProviders(): Promise<ProviderCostsResponse> {
+    const response = await apiClient.get<ProviderCostsResponse>("/cost/providers");
+    return response.data;
+  },
+
   async getServiceCosts(): Promise<ServiceCostsResponse> {
     const response = await apiClient.get<ServiceCostsResponse>("/cost/services");
+    return response.data;
+  },
+
+  async getAnomalies(): Promise<CostAnomaliesResponse> {
+    const response = await apiClient.get<CostAnomaliesResponse>("/cost/anomalies");
+    return response.data;
+  },
+
+  async getForecast(): Promise<CostForecastResponse> {
+    const response = await apiClient.get<CostForecastResponse>("/cost/forecast");
+    return response.data;
+  },
+
+  async getBudgets(): Promise<CostBudgetListResponse> {
+    const response = await apiClient.get<CostBudgetListResponse>("/cost/budgets");
+    return response.data;
+  },
+
+  async createBudget(payload: CostBudgetPayload): Promise<CostBudgetItem> {
+    const response = await apiClient.post<CostBudgetItem>("/cost/budgets", payload);
+    return response.data;
+  },
+
+  async updateBudget(id: string, payload: CostBudgetPayload): Promise<CostBudgetItem> {
+    const response = await apiClient.put<CostBudgetItem>(`/cost/budgets/${id}`, payload);
     return response.data;
   },
 
@@ -23,6 +66,11 @@ export const costService = {
     const response = await apiClient.get<RecommendationsResponse>("/cost/recommendations", {
       params: { status },
     });
+    return response.data;
+  },
+
+  async getSavings(): Promise<CostSavingsResponse> {
+    const response = await apiClient.get<CostSavingsResponse>("/cost/savings");
     return response.data;
   },
 
@@ -42,7 +90,10 @@ export const costService = {
     return response.data;
   },
 
-  async updateRecommendationStatus(id: string, status: "active" | "dismissed" | "applied"): Promise<RecommendationItem> {
+  async updateRecommendationStatus(
+    id: string,
+    status: "active" | "dismissed" | "applied"
+  ): Promise<RecommendationItem> {
     const response = await apiClient.patch<RecommendationItem>(`/cost/recommendations/${id}/status`, null, {
       params: { status },
     });

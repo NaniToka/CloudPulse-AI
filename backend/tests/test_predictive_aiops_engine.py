@@ -4,22 +4,21 @@ Covers 20 distinct verification scenarios across statistical, predictive, lifecy
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.incident import Incident
 from app.models.organization import Organization
-from app.models.prediction import AnomalyEvent, Prediction
-from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.prediction import Prediction
+from app.models.service_dependency import ServiceDependency
 from app.services.anomaly_engine import anomaly_engine
 from app.services.baseline_engine import baseline_engine
 from app.services.capacity_risk_engine import capacity_risk_engine
 from app.services.forecasting_engine import forecasting_engine
-from app.services.predictive_aiops_engine import predictive_aiops_engine
 from app.services.prediction_service import prediction_service
+from app.services.predictive_aiops_engine import predictive_aiops_engine
 from app.services.telemetry_normalizer import telemetry_normalizer
 
 

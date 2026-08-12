@@ -39,7 +39,6 @@ from app.schemas.signal import NormalizedSignal, SignalSeverity, SignalSource, n
 from app.services.incident_correlation_engine import incident_correlation_engine
 from app.services.root_cause_analysis_service import root_cause_analysis_service
 
-
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 

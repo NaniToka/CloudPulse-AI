@@ -17,35 +17,32 @@ Covers:
 
 import uuid
 from datetime import UTC, datetime, timedelta
+
 import pytest
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.incident import Incident, IncidentTimelineEvent
 from app.models.organization import Organization
 from app.models.trace import ServiceDependency
-from app.models.user import User
 from app.schemas.incident import (
     IncidentAcknowledgeRequest,
     IncidentCreate,
     IncidentInvestigateRequest,
     IncidentMitigateRequest,
-    IncidentReopenRequest,
     IncidentResolve,
-    IncidentUpdate,
 )
+from app.schemas.signal import NormalizedSignal, SignalSeverity
 from app.services.incident_correlation_engine import incident_correlation_engine
-from app.services.incident_resolution_verification_service import incident_resolution_verification_service
+from app.services.incident_resolution_verification_service import (
+    incident_resolution_verification_service,
+)
 from app.services.incident_service import incident_service
 from app.services.root_cause_analysis_service import root_cause_analysis_service
-from app.schemas.signal import NormalizedSignal, SignalSeverity
 
 
 @pytest.mark.asyncio
 async def test_incident_declaration_and_lifecycle(db_session: AsyncSession):
     """Test full incident lifecycle state transitions."""
-    now = datetime.now(UTC)
-
     # 1. Create / Declare Incident
     payload = IncidentCreate(
         title="Elevated HTTP 504 Gateway Timeouts on API Gateway",

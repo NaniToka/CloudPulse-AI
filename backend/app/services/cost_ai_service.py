@@ -159,6 +159,7 @@ async def analyze_cloud_costs_with_gemini(
         result["recommendations"] = saved_recs
         result["efficiency_score"] = costs_overview.get("efficiency_score", 75)
         result["analyzed_at"] = datetime.now(UTC)
+        result["analysis_engine"] = "Gemini AI"
         return result
 
     except Exception as exc:
@@ -205,4 +206,5 @@ def _build_fallback_cost_analysis(costs_overview: dict[str, Any]) -> dict[str, A
         "recommendations": [],
         "efficiency_score": costs_overview.get("efficiency_score", 73),
         "analyzed_at": datetime.now(UTC),
+        "analysis_engine": "Local FinOps Intelligence",
     }

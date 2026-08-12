@@ -1,13 +1,22 @@
 """
-Cloud Cost Optimizer API endpoints.
+Enterprise FinOps & Cloud Cost Optimizer API endpoints.
 
-Routes
-------
-GET    /api/v1/cost/overview          — Monthly cost, trend, service & region breakdown
-GET    /api/v1/cost/services          — Detailed service-wise spending breakdown
-GET    /api/v1/cost/recommendations    — AI optimization recommendations
-POST   /api/v1/cost/analyze          — Trigger Gemini AI FinOps cost analysis
-GET    /api/v1/cost/resources        — Resource inventory list with cost & status
+Routes:
+-------
+GET    /api/v1/cost/overview        — Overall spending metrics, provider & region breakdowns
+GET    /api/v1/cost/trends          — Daily & monthly spending trends with projections
+GET    /api/v1/cost/providers       — Provider-level cost breakdown (AWS, Azure, GCP, K8s)
+GET    /api/v1/cost/services        — Service-level cost breakdown
+GET    /api/v1/cost/regions         — Regional spending breakdown
+GET    /api/v1/cost/resources       — Detailed resource inventory with cost & status
+GET    /api/v1/cost/anomalies       — Calculated cost anomalies & spending spikes
+GET    /api/v1/cost/forecast        — 7-day, 30-day, and month-end trend forecasts
+GET    /api/v1/cost/budgets         — List FinOps budgets with threshold evaluation
+POST   /api/v1/cost/budgets         — Create new cost budget
+PUT    /api/v1/cost/budgets/{id}    — Update existing budget parameters
+GET    /api/v1/cost/optimization    — List optimization recommendations
+GET    /api/v1/cost/savings         — Total monthly & annual savings opportunities
+POST   /api/v1/cost/analyze         — Trigger Gemini AI / Local FinOps cost analysis
 PATCH  /api/v1/cost/recommendations/{id}/status — Update recommendation status
 """
 
@@ -26,15 +35,35 @@ from app.schemas.cost import (
     CloudCostItem,
     CloudCostListResponse,
     CostAnalyzeResponse,
+    CostAnomaliesResponse,
+    CostAnomalyItem,
+    CostBudgetItem,
+    CostBudgetListResponse,
+    CostBudgetPayload,
+    CostForecastResponse,
     CostOverviewResponse,
+    CostSavingsResponse,
+    CostTrendsResponse,
     DailyCostItem,
+    ProviderCostItem,
+    ProviderCostsResponse,
     RecommendationItem,
     RecommendationsResponse,
     RegionCostItem,
+    RegionCostsResponse,
     ServiceCostItem,
     ServiceCostsResponse,
 )
 from app.services.cost_ai_service import analyze_cloud_costs_with_gemini
+from app.services.cost_engine import (
+    calculate_cost_forecast,
+    calculate_savings_summary,
+    detect_cost_anomalies,
+    evaluate_budget,
+    group_costs_by_provider,
+    group_costs_by_region,
+    group_costs_by_service,
+)
 
 log = structlog.get_logger(__name__)
 router = APIRouter()
@@ -48,7 +77,7 @@ router = APIRouter()
 @router.get(
     "/overview",
     response_model=CostOverviewResponse,
-    summary="Get cost overview metrics, trends, and service/region breakdowns",
+    summary="Get comprehensive cost overview metrics, trends, and multi-cloud breakdowns",
 )
 async def get_cost_overview(
     current_user: User = Depends(require_active_user),
@@ -56,6 +85,13 @@ async def get_cost_overview(
 ) -> CostOverviewResponse:
     log.info("get_cost_overview", user_id=str(current_user.id))
     data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=200)
+
+    resources_dicts = [
+        {"cost": c.cost, "provider": c.provider, "service": c.service, "region": c.region}
+        for c in costs
+    ]
+    provider_breakdown = group_costs_by_provider(resources_dicts)
 
     return CostOverviewResponse(
         monthly_cost=data["monthly_cost"],
@@ -69,10 +105,67 @@ async def get_cost_overview(
         daily_trend=[DailyCostItem(**d) for d in data["daily_trend"]],
         service_breakdown=[ServiceCostItem(**s) for s in data["service_breakdown"]],
         region_breakdown=[RegionCostItem(**r) for r in data["region_breakdown"]],
-        data_source=data.get("data_source", "Demo Provider"),
-        environment=data.get("environment", "Local Development"),
+        provider_breakdown=[ProviderCostItem(**p) for p in provider_breakdown],
+        data_source="Demo Data — No Cloud Credentials Connected",
+        environment="Local Development",
     )
 
+
+# ---------------------------------------------------------------------------
+# GET /cost/trends
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/trends",
+    response_model=CostTrendsResponse,
+    summary="Get daily & monthly spending trends with projections",
+)
+async def get_cost_trends(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostTrendsResponse:
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    daily_items = [DailyCostItem(**d) for d in data["daily_trend"]]
+    forecast = calculate_cost_forecast(data["daily_trend"], data["monthly_cost"])
+
+    return CostTrendsResponse(
+        daily_trend=daily_items,
+        monthly_trend=[
+            DailyCostItem(date="Previous Month", cost=data["previous_month_cost"]),
+            DailyCostItem(date="Current Month", cost=data["monthly_cost"]),
+            DailyCostItem(date="Projected Month-End", cost=data["projected_cost"]),
+        ],
+        projected_cost=data["projected_cost"],
+        trend_direction=forecast["trend_direction"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /cost/providers
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/providers",
+    response_model=ProviderCostsResponse,
+    summary="Get cloud provider spending breakdown (AWS, Azure, GCP, K8s)",
+)
+async def get_provider_costs(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProviderCostsResponse:
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    resources_dicts = [
+        {"cost": c.cost, "provider": c.provider, "service": c.service} for c in costs
+    ]
+    providers = [ProviderCostItem(**p) for p in group_costs_by_provider(resources_dicts)]
+    total = sum(p.cost for p in providers)
+
+    return ProviderCostsResponse(
+        providers=providers,
+        total_cost=round(total, 2),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -89,8 +182,9 @@ async def get_service_costs(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> ServiceCostsResponse:
-    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
-    services = [ServiceCostItem(**s) for s in data["service_breakdown"]]
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    resources_dicts = [{"cost": c.cost, "service": c.service} for c in costs]
+    services = [ServiceCostItem(**s) for s in group_costs_by_service(resources_dicts)]
     total = sum(s.cost for s in services)
 
     return ServiceCostsResponse(
@@ -100,7 +194,221 @@ async def get_service_costs(
 
 
 # ---------------------------------------------------------------------------
-# GET /cost/recommendations
+# GET /cost/regions
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/regions",
+    response_model=RegionCostsResponse,
+    summary="Get regional spending breakdown",
+)
+async def get_region_costs(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> RegionCostsResponse:
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    resources_dicts = [{"cost": c.cost, "region": c.region} for c in costs]
+    regions = [RegionCostItem(**r) for r in group_costs_by_region(resources_dicts)]
+    total = sum(r.cost for r in regions)
+
+    return RegionCostsResponse(
+        regions=regions,
+        total_cost=round(total, 2),
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /cost/anomalies
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/anomalies",
+    response_model=CostAnomaliesResponse,
+    summary="Detect spending anomalies and spikes",
+)
+async def get_cost_anomalies(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostAnomaliesResponse:
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    resources_dicts = [
+        {
+            "cost": c.cost,
+            "status": c.status,
+            "resource_name": c.resource_name,
+            "service": c.service,
+            "provider": c.provider,
+        }
+        for c in costs
+    ]
+    raw_anomalies = detect_cost_anomalies(resources_dicts)
+    anomaly_items = [CostAnomalyItem(**a) for a in raw_anomalies]
+    crit_count = sum(1 for a in anomaly_items if a.severity == "CRITICAL")
+
+    return CostAnomaliesResponse(
+        anomalies=anomaly_items,
+        total_anomalies=len(anomaly_items),
+        critical_anomalies=crit_count,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /cost/forecast
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/forecast",
+    response_model=CostForecastResponse,
+    summary="Get 7-day, 30-day, and month-end forecasts with confidence metrics",
+)
+async def get_cost_forecast(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostForecastResponse:
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    fc = calculate_cost_forecast(data["daily_trend"], data["monthly_cost"])
+    return CostForecastResponse(**fc)
+
+
+# ---------------------------------------------------------------------------
+# GET /cost/budgets
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/budgets",
+    response_model=CostBudgetListResponse,
+    summary="List FinOps budgets with threshold evaluation",
+)
+async def get_cost_budgets(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostBudgetListResponse:
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    budgets_db = await crud_cost.get_budgets(db, user_id=current_user.id)
+
+    out_budgets = []
+    for b in budgets_db:
+        ev = evaluate_budget(b.amount, data["monthly_cost"] * 0.85, data["projected_cost"])
+        out_budgets.append(
+            CostBudgetItem(
+                id=b.id,
+                name=b.name,
+                provider=b.provider,
+                service=b.service,
+                environment=b.environment,
+                amount=b.amount,
+                current_spend=ev["current_spend"],
+                utilization_pct=ev["utilization_pct"],
+                projected_spend=ev["projected_spend"],
+                remaining=ev["remaining"],
+                period=b.period,
+                threshold_status=ev["threshold_status"],
+                threshold_percentages=b.threshold_percentages or [50, 75, 90, 100],
+                thresholds_reached=ev["thresholds_reached"],
+                created_at=b.created_at,
+                updated_at=b.updated_at,
+            )
+        )
+
+    return CostBudgetListResponse(
+        budgets=out_budgets,
+        total=len(out_budgets),
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /cost/budgets
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/budgets",
+    response_model=CostBudgetItem,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new FinOps cost budget",
+)
+async def create_cost_budget(
+    payload: CostBudgetPayload,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostBudgetItem:
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    b = await crud_cost.create_budget(db, user_id=current_user.id, data=payload.model_dump())
+    ev = evaluate_budget(b.amount, data["monthly_cost"] * 0.85, data["projected_cost"])
+
+    return CostBudgetItem(
+        id=b.id,
+        name=b.name,
+        provider=b.provider,
+        service=b.service,
+        environment=b.environment,
+        amount=b.amount,
+        current_spend=ev["current_spend"],
+        utilization_pct=ev["utilization_pct"],
+        projected_spend=ev["projected_spend"],
+        remaining=ev["remaining"],
+        period=b.period,
+        threshold_status=ev["threshold_status"],
+        threshold_percentages=b.threshold_percentages,
+        thresholds_reached=ev["thresholds_reached"],
+        created_at=b.created_at,
+        updated_at=b.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PUT /cost/budgets/{id}
+# ---------------------------------------------------------------------------
+
+
+@router.put(
+    "/budgets/{budget_id}",
+    response_model=CostBudgetItem,
+    summary="Update existing budget parameters",
+)
+async def update_cost_budget(
+    budget_id: uuid.UUID,
+    payload: CostBudgetPayload,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostBudgetItem:
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    updated = await crud_cost.update_budget(
+        db, user_id=current_user.id, budget_id=budget_id, data=payload.model_dump()
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="FinOps budget not found",
+        )
+    ev = evaluate_budget(updated.amount, data["monthly_cost"] * 0.85, data["projected_cost"])
+
+    return CostBudgetItem(
+        id=updated.id,
+        name=updated.name,
+        provider=updated.provider,
+        service=updated.service,
+        environment=updated.environment,
+        amount=updated.amount,
+        current_spend=ev["current_spend"],
+        utilization_pct=ev["utilization_pct"],
+        projected_spend=ev["projected_spend"],
+        remaining=ev["remaining"],
+        period=updated.period,
+        threshold_status=ev["threshold_status"],
+        threshold_percentages=updated.threshold_percentages,
+        thresholds_reached=ev["thresholds_reached"],
+        created_at=updated.created_at,
+        updated_at=updated.updated_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /cost/recommendations & /cost/optimization
 # ---------------------------------------------------------------------------
 
 
@@ -108,6 +416,11 @@ async def get_service_costs(
     "/recommendations",
     response_model=RecommendationsResponse,
     summary="List AI optimization recommendations",
+)
+@router.get(
+    "/optimization",
+    response_model=RecommendationsResponse,
+    summary="List optimization opportunities and waste detection findings",
 )
 async def get_recommendations(
     status_filter: str | None = Query(default="active", alias="status"),
@@ -125,6 +438,26 @@ async def get_recommendations(
 
 
 # ---------------------------------------------------------------------------
+# GET /cost/savings
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/savings",
+    response_model=CostSavingsResponse,
+    summary="Get monthly and annual estimated savings opportunities",
+)
+async def get_cost_savings(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostSavingsResponse:
+    items, _ = await crud_cost.get_recommendations(db, user_id=current_user.id, status="active")
+    recs_dicts = [{"estimated_savings": r.estimated_savings, "status": r.status} for r in items]
+    summary = calculate_savings_summary(recs_dicts)
+    return CostSavingsResponse(**summary)
+
+
+# ---------------------------------------------------------------------------
 # POST /cost/analyze
 # ---------------------------------------------------------------------------
 
@@ -132,7 +465,7 @@ async def get_recommendations(
 @router.post(
     "/analyze",
     response_model=CostAnalyzeResponse,
-    summary="Trigger Gemini AI Cloud FinOps cost analysis",
+    summary="Trigger Gemini AI / Local FinOps cost analysis",
 )
 async def analyze_costs(
     current_user: User = Depends(require_active_user),
@@ -171,7 +504,6 @@ async def analyze_costs(
             detail=f"AI cost analysis failed: {str(exc)}",
         )
 
-    # Convert recommendation objects if present
     recs_out = []
     for r in analysis.get("recommendations", []):
         if isinstance(r, RecommendationItem):
@@ -191,6 +523,7 @@ async def analyze_costs(
         recommendations=recs_out,
         efficiency_score=int(analysis.get("efficiency_score", 75)),
         analyzed_at=analysis.get("analyzed_at"),
+        analysis_engine=analysis.get("analysis_engine", "Local FinOps Intelligence"),
     )
 
 

@@ -6,7 +6,6 @@ and CRUD history operations.
 
 from __future__ import annotations
 
-import io
 import json
 import uuid
 

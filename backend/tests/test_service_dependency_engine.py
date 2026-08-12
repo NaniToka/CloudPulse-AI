@@ -33,7 +33,6 @@ from app.models.incident import Incident
 from app.models.organization import Organization
 from app.models.service_dependency import ServiceDependency, ServiceNode
 from app.models.trace import Span, Trace
-from app.services.blast_radius_engine import blast_radius_engine
 from app.services.dependency_discovery_service import dependency_discovery_service
 from app.services.root_cause_intelligence_service import root_cause_intelligence_service
 from app.services.service_health_service import service_health_service
@@ -92,7 +91,7 @@ async def test_dependency_discovery_from_spans(db_session: AsyncSession):
 
     # Verify edge exists
     dep = await db_session.execute(
-        select_dep_stmt := ServiceDependency.__table__.select().where(
+        ServiceDependency.__table__.select().where(
             ServiceDependency.source_service == "api-gateway",
             ServiceDependency.target_service == "checkout-service",
         )
