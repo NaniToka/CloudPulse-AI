@@ -45,6 +45,7 @@ const navGroups = [
     items: [
       { icon: LayoutDashboard, label: "Dashboard",       to: "/dashboard"      },
       { icon: LayoutDashboard, label: "Executive Command", to: "/executive"    },
+      { icon: Bot,             label: "Autonomous Ops",   to: "/autonomous"   },
       { icon: Activity,        label: "Telemetry",       to: "/telemetry"      },
       { icon: Cpu,             label: "AIOps Agent",     to: "/aiops"          },
       { icon: Bot,             label: "RAG AI Chat",     to: "/chat"           },

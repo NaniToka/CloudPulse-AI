@@ -22,6 +22,7 @@ import LogsPage from "@/pages/logs/LogsPage";
 import CostPage from "@/pages/cost/CostPage";
 import { FinOpsGovernancePage } from "@/pages/cost/FinOpsGovernancePage";
 import { ExecutiveCommandCenterPage } from "@/pages/executive/ExecutiveCommandCenterPage";
+import { AutonomousOperationsPage } from "@/pages/autonomous/AutonomousOperationsPage";
 import IncidentsPage from "@/pages/incidents/IncidentsPage";
 import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
 import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
@@ -67,6 +68,7 @@ export default function App() {
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard"             element={<DashboardPage />}      />
             <Route path="/executive"             element={<ExecutiveCommandCenterPage />} />
+            <Route path="/autonomous"            element={<AutonomousOperationsPage />} />
             <Route path="/telemetry"             element={<TelemetryIntelligenceDashboardPage />} />
             <Route path="/twin"                  element={<DigitalTwinDashboardPage />} />
             <Route path="/twin/simulation/:id"   element={<SimulationStudioPage />} />

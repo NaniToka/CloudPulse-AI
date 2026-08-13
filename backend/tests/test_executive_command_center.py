@@ -9,15 +9,9 @@ Pytest suite for Executive Cloud Operations Command Center:
 """
 
 import uuid
-from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
-
-from app.services.executive_engine import (
-    calculate_cloud_operations_health_score,
-    calculate_top_priorities,
-)
 
 
 @pytest.fixture

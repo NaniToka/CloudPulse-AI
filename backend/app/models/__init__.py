@@ -10,6 +10,15 @@ from app.models.aiops import (
     AIOpsAgent,
 )
 from app.models.alert import Alert
+from app.models.autonomous import (
+    AutonomyPolicy,
+    ExecutionLock,
+    MaintenanceWindow,
+    RemediationApproval,
+    RemediationAuditLog,
+    RemediationExecution,
+    RemediationPlan,
+)
 from app.models.chat_message import ChatMessage
 from app.models.chat_session import ChatSession
 from app.models.cloud_account import CloudAccount
@@ -74,6 +83,7 @@ __all__ = [
     "AnomalyEvent",
     "AuditLog",
     "AutomationStep",
+    "AutonomyPolicy",
     "ChatMessage",
     "ChatSession",
     "CloudAccount",
@@ -81,6 +91,7 @@ __all__ = [
     "CloudRegion",
     "CloudResource",
     "ComplianceReport",
+    "ExecutionLock",
     "FinOpsCostPolicy",
     "FinOpsCostViolation",
     "FinOpsGovernanceAuditLog",
@@ -98,6 +109,7 @@ __all__ = [
     "K8sNode",
     "K8sPod",
     "LogAnalysis",
+    "MaintenanceWindow",
     "MetricPoint",
     "MetricRecord",
     "Notification",
@@ -106,6 +118,10 @@ __all__ = [
     "OrganizationMember",
     "Prediction",
     "Project",
+    "RemediationApproval",
+    "RemediationAuditLog",
+    "RemediationExecution",
+    "RemediationPlan",
     "Resource",
     "Runbook",
     "RunbookExecution",

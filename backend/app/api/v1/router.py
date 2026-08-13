@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     aiops,
     alerts,
     auth,
+    autonomous,
     cloud,
     cost,
     dependencies,
@@ -190,4 +191,9 @@ api_router.include_router(
     executive.router,
     prefix="/executive",
     tags=["Executive Cloud Operations Command Center"],
+)
+api_router.include_router(
+    autonomous.router,
+    prefix="/autonomous",
+    tags=["Autonomous Cloud Operations & Self-Healing Center"],
 )
