@@ -157,10 +157,16 @@ def detect_cost_anomalies(costs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 explanation = f"Spending spike detected on '{res_name}' ({ratio:.1f}x baseline average)."
 
             now_iso = datetime.now(UTC).strftime("%Y-%m-%d")
+            deterministic_id = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_DNS,
+                    f"anomaly:{provider}:{service}:{res_name}:{now_iso}",
+                )
+            )
 
             anomalies.append(
                 {
-                    "id": str(uuid.uuid4()),
+                    "id": deterministic_id,
                     "anomaly_score": score,
                     "severity": severity,
                     "detected_date": now_iso,

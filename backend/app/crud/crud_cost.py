@@ -12,6 +12,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cloud_cost import CloudCost, CostBudget, OptimizationRecommendation
+from app.schemas.cost import ServiceCostItem, ServiceCostsResponse
+from app.services.cost_engine import group_costs_by_service
 
 # Service color mappings for charts
 SERVICE_COLORS: dict[str, str] = {
@@ -402,7 +404,9 @@ async def get_costs(
     skip: int = 0,
     limit: int = 100,
     service: str | None = None,
+    provider: str | None = None,
     region: str | None = None,
+    environment: str | None = None,
     search: str | None = None,
 ) -> tuple[list[CloudCost], int]:
     """Fetch paginated cloud costs for a user with optional filters."""
@@ -411,8 +415,12 @@ async def get_costs(
     stmt = select(CloudCost).where(CloudCost.user_id == user_id)
     if service:
         stmt = stmt.where(CloudCost.service == service)
+    if provider:
+        stmt = stmt.where(CloudCost.provider == provider)
     if region:
         stmt = stmt.where(CloudCost.region == region)
+    if environment:
+        stmt = stmt.where(CloudCost.environment == environment)
     if search:
         pattern = f"%{search}%"
         stmt = stmt.where(CloudCost.resource_name.ilike(pattern) | CloudCost.service.ilike(pattern))
@@ -518,10 +526,17 @@ async def get_cost_overview_data(
         else 100
     )
 
+    prev_month_cost = round(monthly_cost * 0.968, 2)
+    pct_change = (
+        round(((monthly_cost - prev_month_cost) / prev_month_cost) * 100.0, 1)
+        if prev_month_cost > 0
+        else 0.0
+    )
+
     return {
         "monthly_cost": round(monthly_cost, 2),
-        "previous_month_cost": round(monthly_cost * 0.968, 2),
-        "percentage_change": 3.2,
+        "previous_month_cost": prev_month_cost,
+        "percentage_change": pct_change,
         "projected_cost": round(monthly_cost * 1.05, 2),
         "potential_savings": round(potential_savings, 2),
         "efficiency_score": efficiency,
@@ -675,3 +690,73 @@ async def update_budget(
     db.add(b)
     await db.flush()
     return b
+
+
+async def calculate_budget_spend(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    provider: str = "all",
+    service: str = "all",
+    environment: str = "all",
+) -> float:
+    """Calculate actual monthly cost filtered by provider, service, and environment."""
+    stmt = select(CloudCost).where(CloudCost.user_id == user_id)
+    if provider and provider.lower() != "all":
+        stmt = stmt.where(func.lower(CloudCost.provider) == provider.lower())
+    if service and service.lower() != "all":
+        stmt = stmt.where(func.lower(CloudCost.service) == service.lower())
+    if environment and environment.lower() != "all":
+        stmt = stmt.where(func.lower(CloudCost.environment) == environment.lower())
+
+    res = await db.execute(stmt)
+    matching_costs = list(res.scalars().all())
+    return round(sum(c.cost for c in matching_costs), 2)
+
+
+async def get_filtered_costs(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    service: str | None = None,
+    provider: str | None = None,
+    region: str | None = None,
+    environment: str | None = None,
+    search: str | None = None,
+    sort_by: str = "cost",
+    sort_dir: str = "desc",
+    page: int = 1,
+    size: int = 20,
+) -> tuple[list[CloudCost], int, float]:
+    """Fetch paginated & filtered cloud costs with total cost sum."""
+    skip = max(0, (page - 1) * size)
+    items, total = await get_costs(
+        db,
+        user_id=user_id,
+        skip=skip,
+        limit=size,
+        service=service,
+        provider=provider,
+        region=region,
+        environment=environment,
+        search=search,
+    )
+    total_cost = round(sum(c.cost for c in items), 2)
+    return items, total, total_cost
+
+
+async def get_service_costs_data(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+) -> ServiceCostsResponse:
+    """Fetch service-level breakdown response object."""
+    costs, _ = await get_costs(db, user_id=user_id, limit=300)
+    resources_dicts = [{"cost": c.cost, "service": c.service} for c in costs]
+    services = [ServiceCostItem(**s) for s in group_costs_by_service(resources_dicts)]
+    total = sum(s.cost for s in services)
+    return ServiceCostsResponse(
+        services=services,
+        total_cost=round(total, 2),
+    )
+

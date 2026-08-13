@@ -287,12 +287,19 @@ async def get_cost_budgets(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CostBudgetListResponse:
-    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
     budgets_db = await crud_cost.get_budgets(db, user_id=current_user.id)
 
     out_budgets = []
     for b in budgets_db:
-        ev = evaluate_budget(b.amount, data["monthly_cost"] * 0.85, data["projected_cost"])
+        current_spend = await crud_cost.calculate_budget_spend(
+            db,
+            user_id=current_user.id,
+            provider=b.provider,
+            service=b.service,
+            environment=b.environment,
+        )
+        projected_spend = round(current_spend * 1.05, 2)
+        ev = evaluate_budget(b.amount, current_spend, projected_spend)
         out_budgets.append(
             CostBudgetItem(
                 id=b.id,
@@ -336,9 +343,16 @@ async def create_cost_budget(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CostBudgetItem:
-    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
     b = await crud_cost.create_budget(db, user_id=current_user.id, data=payload.model_dump())
-    ev = evaluate_budget(b.amount, data["monthly_cost"] * 0.85, data["projected_cost"])
+    current_spend = await crud_cost.calculate_budget_spend(
+        db,
+        user_id=current_user.id,
+        provider=b.provider,
+        service=b.service,
+        environment=b.environment,
+    )
+    projected_spend = round(current_spend * 1.05, 2)
+    ev = evaluate_budget(b.amount, current_spend, projected_spend)
 
     return CostBudgetItem(
         id=b.id,
@@ -376,7 +390,6 @@ async def update_cost_budget(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CostBudgetItem:
-    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
     updated = await crud_cost.update_budget(
         db, user_id=current_user.id, budget_id=budget_id, data=payload.model_dump()
     )
@@ -385,7 +398,15 @@ async def update_cost_budget(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="FinOps budget not found",
         )
-    ev = evaluate_budget(updated.amount, data["monthly_cost"] * 0.85, data["projected_cost"])
+    current_spend = await crud_cost.calculate_budget_spend(
+        db,
+        user_id=current_user.id,
+        provider=updated.provider,
+        service=updated.service,
+        environment=updated.environment,
+    )
+    projected_spend = round(current_spend * 1.05, 2)
+    ev = evaluate_budget(updated.amount, current_spend, projected_spend)
 
     return CostBudgetItem(
         id=updated.id,
@@ -541,7 +562,9 @@ async def get_resource_costs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     service: str | None = None,
+    provider: str | None = None,
     region: str | None = None,
+    environment: str | None = None,
     search: str | None = None,
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
@@ -552,7 +575,9 @@ async def get_resource_costs(
         skip=skip,
         limit=limit,
         service=service,
+        provider=provider,
         region=region,
+        environment=environment,
         search=search,
     )
     return CloudCostListResponse(

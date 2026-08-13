@@ -102,14 +102,14 @@ class LocalDemoCostProvider(CloudCostProvider):
 
     async def get_overview(self, db: AsyncSession, user_id: uuid.UUID) -> CostOverviewResponse:
         await crud_cost.seed_default_costs_if_empty(db, user_id)
-        overview = await crud_cost.get_cost_overview_data(db, user_id)
-        overview.data_source = "Demo Provider"
-        overview.environment = "Local Development"
-        return overview
+        overview_data = await crud_cost.get_cost_overview_data(db, user_id)
+        overview_data["data_source"] = "Demo Provider"
+        overview_data["environment"] = "Local Development"
+        return CostOverviewResponse(**overview_data)
 
     async def get_services(self, db: AsyncSession, user_id: uuid.UUID) -> ServiceCostsResponse:
         await crud_cost.seed_default_costs_if_empty(db, user_id)
-        return await crud_cost.get_service_costs_data(db, user_id)
+        return await crud_cost.get_service_costs_data(db, user_id=user_id)
 
     async def get_recommendations(
         self,
@@ -120,16 +120,14 @@ class LocalDemoCostProvider(CloudCostProvider):
         effort: str | None = None,
     ) -> RecommendationsResponse:
         await crud_cost.seed_default_costs_if_empty(db, user_id)
-        items, total, total_savings = await crud_cost.get_recommendations(
+        items, total_savings = await crud_cost.get_recommendations(
             db,
             user_id=user_id,
             status=status,
-            recommendation_type=recommendation_type,
-            effort=effort,
         )
         return RecommendationsResponse(
             items=[RecommendationItem.model_validate(r) for r in items],
-            total=total,
+            total=len(items),
             total_savings=total_savings,
         )
 
@@ -168,9 +166,48 @@ class LocalDemoCostProvider(CloudCostProvider):
 
     async def analyze_costs(self, db: AsyncSession, user_id: uuid.UUID) -> CostAnalyzeResponse:
         await crud_cost.seed_default_costs_if_empty(db, user_id)
-        from app.services.cost_service import analyze_cloud_costs
+        overview = await crud_cost.get_cost_overview_data(db, user_id)
+        costs, _ = await crud_cost.get_costs(db, user_id=user_id, limit=50)
 
-        return await analyze_cloud_costs(db, user_id)
+        resources_dicts = [
+            {
+                "resource_name": c.resource_name,
+                "service": c.service,
+                "cost": c.cost,
+                "region": c.region,
+                "status": c.status,
+                "environment": c.environment,
+            }
+            for c in costs
+        ]
+
+        from app.services.cost_ai_service import analyze_cloud_costs_with_gemini
+        res = await analyze_cloud_costs_with_gemini(
+            db,
+            user_id=str(user_id),
+            costs_overview=overview,
+            resources=resources_dicts,
+        )
+
+        recs_out = [
+            r if isinstance(r, RecommendationItem) else RecommendationItem.model_validate(r)
+            for r in res.get("recommendations", [])
+        ]
+
+        return CostAnalyzeResponse(
+            cost_summary=res.get("cost_summary", ""),
+            highest_cost_services=res.get("highest_cost_services", []),
+            idle_resources=res.get("idle_resources", []),
+            wasted_resources=res.get("wasted_resources", []),
+            optimization_suggestions=res.get("optimization_suggestions", []),
+            reserved_instance_recommendations=res.get("reserved_instance_recommendations", []),
+            auto_scaling_recommendations=res.get("auto_scaling_recommendations", []),
+            estimated_monthly_savings=float(res.get("estimated_monthly_savings", 0.0)),
+            recommendations=recs_out,
+            efficiency_score=int(res.get("efficiency_score", 75)),
+            analyzed_at=res.get("analyzed_at"),
+            analysis_engine=res.get("analysis_engine", "Local FinOps Intelligence"),
+        )
 
 
 class AWSCloudCostProvider(LocalDemoCostProvider):

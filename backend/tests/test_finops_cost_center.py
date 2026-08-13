@@ -217,3 +217,68 @@ async def test_api_get_cost_savings(client: AsyncClient, auth_headers: dict[str,
     assert "total_monthly_savings" in data
     assert "total_annual_savings" in data
     assert data["total_annual_savings"] == round(data["total_monthly_savings"] * 12.0, 2)
+
+
+@pytest.mark.asyncio
+async def test_deterministic_anomaly_ids():
+    """Verify anomaly detection produces stable IDs across consecutive calls."""
+    sample_costs = [
+        {"cost": 4200.0, "status": "idle", "resource_name": "dev-node-x", "service": "GKE", "provider": "gcp"},
+    ]
+    res1 = detect_cost_anomalies(sample_costs)
+    res2 = detect_cost_anomalies(sample_costs)
+    assert len(res1) == 1 and len(res2) == 1
+    assert res1[0]["id"] == res2[0]["id"]
+
+
+@pytest.mark.asyncio
+async def test_resource_inventory_filtering(client: AsyncClient, auth_headers: dict[str, str]):
+    """Test GET /api/v1/cost/resources with provider and environment query filters."""
+    resp = await client.get("/api/v1/cost/resources?provider=aws&environment=production", headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert "items" in data
+    assert all(item["provider"] == "aws" for item in data["items"])
+    assert all(item["environment"] == "production" for item in data["items"])
+
+
+@pytest.mark.asyncio
+async def test_invalid_budget_validation(client: AsyncClient, auth_headers: dict[str, str]):
+    """Test that invalid budget amounts and threshold percentages are rejected with 422 HTTP code."""
+    # Negative amount
+    resp = await client.post(
+        "/api/v1/cost/budgets",
+        json={"name": "Invalid Budget", "amount": -500.0},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+    # Invalid threshold out of bounds (> 100)
+    resp2 = await client.post(
+        "/api/v1/cost/budgets",
+        json={"name": "Invalid Threshold", "amount": 1000.0, "threshold_percentages": [150]},
+        headers=auth_headers,
+    )
+    assert resp2.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_non_existent_budget_update(client: AsyncClient, auth_headers: dict[str, str]):
+    """Test PUT /api/v1/cost/budgets/{id} with non-existent UUID returns 404."""
+    random_id = uuid.uuid4()
+    resp = await client.put(
+        f"/api/v1/cost/budgets/{random_id}",
+        json={"name": "Ghost Budget", "amount": 1000.0},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_local_demo_cost_provider_methods():
+    """Verify LocalDemoCostProvider methods work cleanly without missing attributes."""
+    from app.services.cloud_cost_provider import LocalDemoCostProvider
+    provider = LocalDemoCostProvider()
+    assert provider.provider_name == "LocalDemoCostProvider"
+    assert provider.is_demo is True
+

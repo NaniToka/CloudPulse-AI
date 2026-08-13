@@ -7,7 +7,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ── Shared Sub-Schemas ────────────────────────────────────────────────────────
 
@@ -198,13 +198,23 @@ class CostBudgetItem(BaseModel):
 
 
 class CostBudgetPayload(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=255)
     amount: float = Field(..., gt=0.0)
     provider: str = Field(default="all")
     service: str = Field(default="all")
     environment: str = Field(default="all")
     period: str = Field(default="monthly")
     threshold_percentages: list[int] = Field(default_factory=lambda: [50, 75, 90, 100])
+
+    @field_validator("threshold_percentages")
+    @classmethod
+    def validate_thresholds(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError("threshold_percentages cannot be empty")
+        for val in v:
+            if val < 1 or val > 100:
+                raise ValueError(f"Threshold percentage {val} must be between 1 and 100")
+        return sorted(list(set(v)))
 
 
 class CostBudgetListResponse(BaseModel):

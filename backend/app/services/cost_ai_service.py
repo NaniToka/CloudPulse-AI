@@ -169,27 +169,38 @@ async def analyze_cloud_costs_with_gemini(
 
 def _build_fallback_cost_analysis(costs_overview: dict[str, Any]) -> dict[str, Any]:
     """Fallback FinOps response if Gemini is unconfigured or unavailable."""
-    monthly = costs_overview.get("monthly_cost", 84230.0)
-    savings = costs_overview.get("potential_savings", 31850.0)
+    monthly = float(costs_overview.get("monthly_cost", 0.0))
+    savings = float(costs_overview.get("potential_savings", 0.0))
+    pct_reduction = round((savings / monthly * 100.0) if monthly > 0 else 0.0, 1)
+
+    svc_breakdown = costs_overview.get("service_breakdown", [])
+    top_services = (
+        [
+            f"{s['service']} (${s['cost']:,.2f} / month - {s['percentage']}%)"
+            for s in svc_breakdown[:3]
+        ]
+        if svc_breakdown
+        else [
+            "Google Kubernetes Engine ($36,650.00 / month)",
+            "Google Compute Engine ($22,600.00 / month)",
+            "Cloud SQL ($11,200.00 / month)",
+        ]
+    )
 
     return {
         "cost_summary": (
             f"Total monthly spend is ${monthly:,.2f} across multi-region services. "
             f"Automated analysis identified ${savings:,.2f} in immediate monthly savings opportunities "
-            f"(~{round(savings / monthly * 100 if monthly > 0 else 0)}% total reduction)."
+            f"(~{pct_reduction}% total reduction)."
         ),
-        "highest_cost_services": [
-            "Google Kubernetes Engine ($28,450.00 / month)",
-            "Google Compute Engine ($22,600.00 / month)",
-            "Cloud SQL ($14,100.00 / month)",
-        ],
+        "highest_cost_services": top_services,
         "idle_resources": [
             "dev-worker-n1-standard-8 ($3,800.00 / month - <2% CPU utilization)",
-            "test-bench-n1-standard-4 ($2,100.00 / month - unattached disk & low memory)",
+            "aws-cloudwatch-log-retention ($950.00 / month - idle log retention)",
         ],
         "wasted_resources": [
-            "120 TB uncompressed log archives in Standard Cloud Storage ($1,250.00 / month waste)",
-            "Overprovisioned Cloud SQL Instance 64 vCPU allocated ($4,900.00 / month waste)",
+            "archive-logs-multi-region 120 TB logs ($1,250.00 / month waste)",
+            "prod-postgres-db-primary 64 vCPU allocated ($4,900.00 / month waste)",
         ],
         "optimization_suggestions": [
             "Terminate unattached dev VM nodes after 7 days of inactivity.",
@@ -204,7 +215,7 @@ def _build_fallback_cost_analysis(costs_overview: dict[str, Any]) -> dict[str, A
         ],
         "estimated_monthly_savings": savings,
         "recommendations": [],
-        "efficiency_score": costs_overview.get("efficiency_score", 73),
+        "efficiency_score": costs_overview.get("efficiency_score", 75),
         "analyzed_at": datetime.now(UTC),
         "analysis_engine": "Local FinOps Intelligence",
     }
