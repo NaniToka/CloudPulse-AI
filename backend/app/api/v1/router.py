@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     auth,
     autonomous,
     cloud,
+    command_center,
     cost,
     dependencies,
     executive,
@@ -202,4 +203,9 @@ api_router.include_router(
     slo.router,
     prefix="/slo",
     tags=["Enterprise SLO, SLA & Error Budget Intelligence Center"],
+)
+api_router.include_router(
+    command_center.router,
+    prefix="/command-center",
+    tags=["Enterprise Executive Intelligence & Operations Command Center"],
 )

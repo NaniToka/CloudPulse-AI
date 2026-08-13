@@ -25,6 +25,12 @@ from app.models.cloud_account import CloudAccount
 from app.models.cloud_cost import CloudCost, OptimizationRecommendation
 from app.models.cloud_region import CloudRegion
 from app.models.cloud_resource import CloudResource
+from app.models.command_center import (
+    CommandInsightRecord as CommandInsightRecord,
+)
+from app.models.command_center import (
+    ExecutiveCommandSnapshot as ExecutiveCommandSnapshot,
+)
 from app.models.digital_twin import (
     InfrastructureTwin,
     SimulationExecution,

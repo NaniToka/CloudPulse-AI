@@ -44,7 +44,7 @@ const navGroups = [
     label: "Overview",
     items: [
       { icon: LayoutDashboard, label: "Dashboard",       to: "/dashboard"      },
-      { icon: LayoutDashboard, label: "Executive Command", to: "/executive"    },
+      { icon: LayoutDashboard, label: "Executive Command", to: "/command-center" },
       { icon: Bot,             label: "Autonomous Ops",   to: "/autonomous"   },
       { icon: ShieldCheck,     label: "SLO & Error Budgets", to: "/slo"       },
       { icon: Activity,        label: "Telemetry",       to: "/telemetry"      },
