@@ -29,6 +29,7 @@ from app.api.v1.endpoints import (
     predictions,
     projects,
     rag_chat,
+    reliability,
     runbooks,
     security,
     servers,
@@ -208,4 +209,9 @@ api_router.include_router(
     command_center.router,
     prefix="/command-center",
     tags=["Enterprise Executive Intelligence & Operations Command Center"],
+)
+api_router.include_router(
+    reliability.router,
+    prefix="/reliability",
+    tags=["Enterprise Service Reliability Engine & SLO Intelligence 2.0"],
 )

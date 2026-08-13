@@ -62,6 +62,15 @@ from app.models.slo import (
     SloMeasurement,
     SloViolationRecord,
 )
+from app.models.slo import (
+    ReliabilityRecommendationRecord as ReliabilityRecommendationRecord,
+)
+from app.models.slo import (
+    ReliabilityRiskRecord as ReliabilityRiskRecord,
+)
+from app.models.slo import (
+    ServiceReliabilityProfile as ServiceReliabilityProfile,
+)
 from app.models.sre import ServiceObjective
 from app.models.telemetry import (
     MetricRecord,

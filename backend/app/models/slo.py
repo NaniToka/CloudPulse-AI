@@ -5,8 +5,9 @@ ORM Models for Enterprise SLO, SLA & Error Budget Intelligence Center.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -99,3 +100,58 @@ class BurnRateAlert(UUIDMixin, TimestampMixin, Base):
     allowed_failure_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.001)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="ACTIVE")
+
+
+class ServiceReliabilityProfile(UUIDMixin, TimestampMixin, Base):
+    """
+    Comprehensive Service Reliability Profile for Service Reliability Engine 2.0.
+    """
+
+    __tablename__ = "service_reliability_profiles"
+
+    service_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False, default="AWS")
+    region: Mapped[str] = mapped_column(String(50), nullable=False, default="us-east-1")
+    availability_pct: Mapped[float] = mapped_column(Float, nullable=False, default=100.0)
+    latency_p95_ms: Mapped[float] = mapped_column(Float, nullable=False, default=50.0)
+    latency_p99_ms: Mapped[float] = mapped_column(Float, nullable=False, default=120.0)
+    error_rate_pct: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    slo_target: Mapped[float] = mapped_column(Float, nullable=False, default=99.9)
+    current_slo: Mapped[float] = mapped_column(Float, nullable=False, default=99.9)
+    error_budget_total_sec: Mapped[float] = mapped_column(Float, nullable=False, default=2592.0)
+    error_budget_remaining_sec: Mapped[float] = mapped_column(Float, nullable=False, default=2592.0)
+    error_budget_consumed_pct: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    burn_rate: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    reliability_score: Mapped[float] = mapped_column(Float, nullable=False, default=100.0)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="HEALTHY", index=True)  # HEALTHY, AT_RISK, BREACHING, BREACHED
+
+
+class ReliabilityRiskRecord(UUIDMixin, TimestampMixin, Base):
+    """
+    Evaluated reliability risks per service.
+    """
+
+    __tablename__ = "reliability_risk_records"
+
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    risk_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="LOW", index=True)  # LOW, MEDIUM, HIGH, CRITICAL
+    top_factors: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+
+
+class ReliabilityRecommendationRecord(UUIDMixin, TimestampMixin, Base):
+    """
+    Actionable reliability recommendations generated deterministically or by AI.
+    """
+
+    __tablename__ = "reliability_recommendation_records"
+
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="MEDIUM", index=True)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="General Reliability")
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    recommended_action: Mapped[str] = mapped_column(Text, nullable=False)
+    expected_impact: Mapped[str] = mapped_column(Text, nullable=False)
+
