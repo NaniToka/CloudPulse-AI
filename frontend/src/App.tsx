@@ -46,6 +46,7 @@ import SimulationStudioPage from "@/pages/twin/SimulationStudioPage";
 import TelemetryIntelligenceDashboardPage from "@/pages/telemetry/TelemetryIntelligenceDashboardPage";
 import ServiceDependencyExplorerPage from "@/pages/dependencies/ServiceDependencyExplorerPage";
 import SrePage from "@/pages/sre/SrePage";
+import GovernancePage from "@/pages/governance/GovernancePage";
 
 export default function App() {
   return (
@@ -87,6 +88,7 @@ export default function App() {
             <Route path="/cost"          element={<CostPage />}           />
             <Route path="/incidents"     element={<IncidentsPage />}      />
             <Route path="/sre"           element={<SrePage />}            />
+            <Route path="/governance"    element={<GovernancePage />}     />
             <Route path="/dependencies"  element={<ServiceDependencyExplorerPage />} />
             <Route path="/runbooks"      element={<RunbookDashboardPage />} />
             <Route path="/predictions"   element={<PredictiveAnalyticsPage />} />

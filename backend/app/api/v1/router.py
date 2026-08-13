@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     cloud,
     cost,
     dependencies,
+    governance,
     incidents,
     kubernetes,
     logs,
@@ -172,4 +173,9 @@ api_router.include_router(
     sre.router,
     prefix="/sre",
     tags=["SRE & Reliability Intelligence Center"],
+)
+api_router.include_router(
+    governance.router,
+    prefix="/governance",
+    tags=["Cloud Governance & Compliance Center"],
 )

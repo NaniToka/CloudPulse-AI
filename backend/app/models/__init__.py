@@ -22,6 +22,7 @@ from app.models.digital_twin import (
     SimulationScenario,
     WhatIfQuery,
 )
+from app.models.governance import GovernancePolicy, GovernanceViolation
 from app.models.incident import Incident, IncidentTimelineEvent
 from app.models.kubernetes import K8sCluster, K8sDeployment, K8sEvent, K8sNode, K8sPod
 from app.models.log_analysis import LogAnalysis
@@ -73,6 +74,8 @@ __all__ = [
     "CloudRegion",
     "CloudResource",
     "ComplianceReport",
+    "GovernancePolicy",
+    "GovernanceViolation",
     "Incident",
     "IncidentTimelineEvent",
     "InfrastructureTwin",
