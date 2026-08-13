@@ -50,6 +50,12 @@ from app.models.resource import Resource
 from app.models.runbook import AutomationStep, Runbook, RunbookExecution
 from app.models.security import ComplianceReport, SecurityScan
 from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.slo import (
+    BurnRateAlert,
+    ErrorBudgetLog,
+    SloMeasurement,
+    SloViolationRecord,
+)
 from app.models.sre import ServiceObjective
 from app.models.telemetry import (
     MetricRecord,
@@ -84,6 +90,7 @@ __all__ = [
     "AuditLog",
     "AutomationStep",
     "AutonomyPolicy",
+    "BurnRateAlert",
     "ChatMessage",
     "ChatSession",
     "CloudAccount",
@@ -91,6 +98,7 @@ __all__ = [
     "CloudRegion",
     "CloudResource",
     "ComplianceReport",
+    "ErrorBudgetLog",
     "ExecutionLock",
     "FinOpsCostPolicy",
     "FinOpsCostViolation",
@@ -131,6 +139,8 @@ __all__ = [
     "ServiceObjective",
     "SimulationExecution",
     "SimulationScenario",
+    "SloMeasurement",
+    "SloViolationRecord",
     "Span",
     "Team",
     "TeamMember",

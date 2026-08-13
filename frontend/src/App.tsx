@@ -23,6 +23,7 @@ import CostPage from "@/pages/cost/CostPage";
 import { FinOpsGovernancePage } from "@/pages/cost/FinOpsGovernancePage";
 import { ExecutiveCommandCenterPage } from "@/pages/executive/ExecutiveCommandCenterPage";
 import { AutonomousOperationsPage } from "@/pages/autonomous/AutonomousOperationsPage";
+import { SloIntelligencePage } from "@/pages/slo/SloIntelligencePage";
 import IncidentsPage from "@/pages/incidents/IncidentsPage";
 import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
 import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="/finops/governance" element={<FinOpsGovernancePage />} />
             <Route path="/incidents"     element={<IncidentsPage />}      />
             <Route path="/sre"           element={<SrePage />}            />
+            <Route path="/slo"           element={<SloIntelligencePage />} />
             <Route path="/governance"    element={<GovernancePage />}     />
             <Route path="/dependencies"  element={<ServiceDependencyExplorerPage />} />
             <Route path="/runbooks"      element={<RunbookDashboardPage />} />

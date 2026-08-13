@@ -31,6 +31,7 @@ from app.api.v1.endpoints import (
     runbooks,
     security,
     servers,
+    slo,
     sre,
     teams,
     traces,
@@ -196,4 +197,9 @@ api_router.include_router(
     autonomous.router,
     prefix="/autonomous",
     tags=["Autonomous Cloud Operations & Self-Healing Center"],
+)
+api_router.include_router(
+    slo.router,
+    prefix="/slo",
+    tags=["Enterprise SLO, SLA & Error Budget Intelligence Center"],
 )
