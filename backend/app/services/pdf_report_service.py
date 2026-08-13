@@ -236,3 +236,52 @@ def generate_log_analysis_pdf(analysis_data: dict[str, Any]) -> bytes:
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
+
+
+def generate_pdf_bytes(title: str, content: str) -> bytes:
+    """
+    Generates a generic ReportLab PDF from title and text content.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "PDFTitle",
+        parent=styles["Heading1"],
+        fontSize=18,
+        leading=22,
+        textColor=PRIMARY_COLOR,
+        spaceAfter=12,
+    )
+    body_style = ParagraphStyle(
+        "PDFBody",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=6,
+    )
+
+    story = [
+        Paragraph(title, title_style),
+        HRFlowable(width="100%", thickness=1, color=BRAND_BLUE, spaceAfter=14),
+    ]
+
+    for line in content.split("\n"):
+        if line.strip():
+            story.append(Paragraph(line.strip(), body_style))
+        else:
+            story.append(Spacer(1, 4))
+
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
