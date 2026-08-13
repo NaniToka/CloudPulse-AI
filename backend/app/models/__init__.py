@@ -22,6 +22,13 @@ from app.models.digital_twin import (
     SimulationScenario,
     WhatIfQuery,
 )
+from app.models.finops_governance import (
+    FinOpsCostPolicy,
+    FinOpsCostViolation,
+    FinOpsGovernanceAuditLog,
+    FinOpsPolicyException,
+    FinOpsRemediationAction,
+)
 from app.models.governance import GovernancePolicy, GovernanceViolation
 from app.models.incident import Incident, IncidentTimelineEvent
 from app.models.kubernetes import K8sCluster, K8sDeployment, K8sEvent, K8sNode, K8sPod
@@ -74,6 +81,11 @@ __all__ = [
     "CloudRegion",
     "CloudResource",
     "ComplianceReport",
+    "FinOpsCostPolicy",
+    "FinOpsCostViolation",
+    "FinOpsGovernanceAuditLog",
+    "FinOpsPolicyException",
+    "FinOpsRemediationAction",
     "GovernancePolicy",
     "GovernanceViolation",
     "Incident",

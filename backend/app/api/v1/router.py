@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     cloud,
     cost,
     dependencies,
+    finops_governance,
     governance,
     incidents,
     kubernetes,
@@ -178,4 +179,9 @@ api_router.include_router(
     governance.router,
     prefix="/governance",
     tags=["Cloud Governance & Compliance Center"],
+)
+api_router.include_router(
+    finops_governance.router,
+    prefix="/finops",
+    tags=["FinOps Governance & Cost Control Center"],
 )

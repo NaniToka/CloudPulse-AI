@@ -60,7 +60,8 @@ const navGroups = [
       { icon: Server,     label: "Infrastructure", to: "/infrastructure" },
       { icon: HardDrive,  label: "Servers",        to: "/servers"        },
       { icon: Terminal,   label: "Logs",           to: "/logs"           },
-      { icon: DollarSign, label: "Cost Optimizer", to: "/cost"           },
+      { icon: DollarSign, label: "Cost Optimizer",   to: "/cost"           },
+      { icon: ShieldCheck,label: "FinOps Governance", to: "/finops/governance"},
     ],
   },
   {

@@ -20,6 +20,7 @@ import InfrastructurePage from "@/pages/infrastructure/InfrastructurePage";
 import ServersPage from "@/pages/servers/ServersPage";
 import LogsPage from "@/pages/logs/LogsPage";
 import CostPage from "@/pages/cost/CostPage";
+import { FinOpsGovernancePage } from "@/pages/cost/FinOpsGovernancePage";
 import IncidentsPage from "@/pages/incidents/IncidentsPage";
 import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
 import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="/servers"       element={<ServersPage />}        />
             <Route path="/logs"          element={<LogsPage />}           />
             <Route path="/cost"          element={<CostPage />}           />
+            <Route path="/finops/governance" element={<FinOpsGovernancePage />} />
             <Route path="/incidents"     element={<IncidentsPage />}      />
             <Route path="/sre"           element={<SrePage />}            />
             <Route path="/governance"    element={<GovernancePage />}     />

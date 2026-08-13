@@ -793,12 +793,12 @@ async def get_dependency_impact(
               dependency=d.source_service,
               target_service=d.target_service,
               health="DEGRADED" if d.error_rate > 1.0 else "HEALTHY",
-              latency_ms=round(d.latency_p99_ms * 0.7, 1),
+              latency_ms=round(d.latency_ms * 0.7, 1),
               error_rate=round(d.error_rate, 2),
               affected_services=[d.target_service],
               reliability_risk=(
                   "Cascading Latency Bottleneck"
-                  if d.latency_p99_ms > 200
+                  if d.latency_ms > 200
                   else "Normal"
               ),
           )
