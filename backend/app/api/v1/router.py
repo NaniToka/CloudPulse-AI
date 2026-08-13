@@ -27,6 +27,7 @@ from app.api.v1.endpoints import (
     runbooks,
     security,
     servers,
+    sre,
     teams,
     traces,
     twin,
@@ -166,4 +167,9 @@ api_router.include_router(
     aiops.router,
     prefix="/aiops",
     tags=["Autonomous AIOps Agent"],
+)
+api_router.include_router(
+    sre.router,
+    prefix="/sre",
+    tags=["SRE & Reliability Intelligence Center"],
 )

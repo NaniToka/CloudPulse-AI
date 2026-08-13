@@ -33,6 +33,7 @@ from app.models.resource import Resource
 from app.models.runbook import AutomationStep, Runbook, RunbookExecution
 from app.models.security import ComplianceReport, SecurityScan
 from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.sre import ServiceObjective
 from app.models.telemetry import (
     MetricRecord,
     TelemetryEvent,
@@ -96,6 +97,7 @@ __all__ = [
     "SecurityScan",
     "ServiceDependency",
     "ServiceNode",
+    "ServiceObjective",
     "SimulationExecution",
     "SimulationScenario",
     "Span",

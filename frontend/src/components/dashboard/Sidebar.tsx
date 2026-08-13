@@ -68,6 +68,7 @@ const navGroups = [
     items: [
       { icon: Zap,           label: "Workflows",            to: "/workflows"            },
       { icon: ShieldCheck,   label: "AI Security Center",   to: "/security",  badge: 4  },
+      { icon: Activity,      label: "SRE Center",           to: "/sre"                  },
       { icon: Network,       label: "Service Dependencies", to: "/dependencies"         },
       { icon: GitCommit,     label: "Trace Explorer",       to: "/tracing"              },
       { icon: BookOpen,      label: "AI Runbooks",          to: "/runbooks"             },
