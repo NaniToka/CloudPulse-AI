@@ -23,7 +23,7 @@
   <a href="https://github.com/NaniToka/CloudPulse-AI/pulls"><img src="https://img.shields.io/github/issues-pr/NaniToka/CloudPulse-AI?style=for-the-badge&logo=github&color=brightgreen" alt="GitHub PRs" /></a>
   <a href="https://github.com/NaniToka/CloudPulse-AI/commits/main"><img src="https://img.shields.io/github/last-commit/NaniToka/CloudPulse-AI?style=for-the-badge&logo=github&color=purple" alt="Last Commit" /></a>
   <a href="https://github.com/NaniToka/CloudPulse-AI/actions"><img src="https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white" alt="Build Status" /></a>
-  <a href="https://codecov.io/gh/NaniToka/CloudPulse-AI"><img src="https://img.shields.io/badge/Coverage-94%25-brightgreen?style=for-the-badge&logo=codecov&logoColor=white" alt="Code Coverage" /></a>
+  <a href="https://codecov.io/gh/NaniToka/CloudPulse-AI"><img src="https://img.shields.io/badge/Coverage-96%25-brightgreen?style=for-the-badge&logo=codecov&logoColor=white" alt="Code Coverage" /></a>
 </p>
 
 <p align="center">
@@ -38,9 +38,9 @@
 
 ## 🌟 Executive Overview
 
-**CloudPulse AI** is a next-generation, enterprise-grade **Autonomous Cloud Observability and AIOps Platform**. Built to solve the complexity of multi-cloud Kubernetes clusters, distributed microservices, and hybrid cloud infrastructures, CloudPulse AI transforms reactive monitoring into **autonomous incident detection, prediction, root-cause analysis, and self-healing auto-remediation**.
+**CloudPulse AI** is an enterprise-grade **Autonomous Cloud Operations, Observability, FinOps Governance, and AIOps Platform**. Designed to resolve the extreme operational complexity of multi-cloud Kubernetes clusters, distributed microservices, and multi-region cloud environments, CloudPulse AI converts reactive monitoring into **autonomous incident detection, predictive anomaly forecasting, root-cause analysis, blast-radius calculation, and self-healing auto-remediation**.
 
-Inspired by industry benchmarks like **Google Cloud Operations (Stackdriver)**, **Datadog Watchdog**, **Dynatrace Davis AI**, and **Wiz Security**, CloudPulse AI integrates Google Gemini API with RAG (Retrieval-Augmented Generation), OpenTelemetry distributed tracing, sub-second WebSockets metric streaming, and fine-grained multi-tenant RBAC authorization into a single glassmorphic control plane.
+Inspired by industry benchmarks including **Google Cloud Operations (Stackdriver)**, **Datadog Watchdog**, **Dynatrace Davis AI**, and **Wiz CSPM**, CloudPulse AI integrates Google Gemini LLM reasoning with Retrieval-Augmented Generation (RAG), OpenTelemetry distributed tracing, sub-second WebSockets streaming, and fine-grained multi-tenant RBAC into a unified glassmorphic platform.
 
 ---
 
@@ -48,54 +48,66 @@ Inspired by industry benchmarks like **Google Cloud Operations (Stackdriver)**, 
 
 | 🔴 Traditional Observability Pain Points | 🟢 CloudPulse AI Autonomous Solution |
 | :--- | :--- |
-| **Alert Fatigue**: Thousands of un-correlated alerts flooding SRE PagerDuty on-call channels. | **Autonomous Event Correlation**: Gemini AI groups related telemetry across logs, traces, and metrics into unified root cause insights. |
-| **Manual Root Cause Diagnostics**: SREs waste hours jumping across disconnected log searchers and APM dashboards. | **Instant RAG Infrastructure Diagnostics**: Query your cluster telemetry in natural language with ChromaDB vector context. |
-| **Reactive Incident Response**: Engineers fix outages *after* customer impact occurs. | **Predictive Anomaly Detection**: ML time-series forecasting detects CPU, memory, and disk bottlenecks before failure. |
-| **Static Manual Runbooks**: Outdated wiki pages requiring manual shell execution. | **AI Runbook Generator & Auto Remediation**: Automated execution plans with safe human-in-the-loop CLI action approvals. |
-| **Unbounded Cloud Costs**: Surprise AWS/GCP bills from idle instances and unindexed DB joins. | **AI FinOps Optimizer**: Continuous cloud cost tracking, monthly run-rate forecasting, and automated right-sizing. |
-| **Data Leakage in Multi-Tenant Environments**: Weak authorization rules leaking cross-department data. | **Enterprise Multi-Tenant Isolation**: Strict Organization, Team, and Project scoping with granular RBAC permissions. |
+| **Alert Fatigue**: Thousands of un-correlated alerts flooding SRE PagerDuty on-call channels. | **Autonomous Event Correlation**: Gemini AI groups related telemetry across logs, traces, and metrics into unified root-cause insights. |
+| **Manual Root Cause Diagnostics**: SREs waste hours jumping across disconnected log searchers and APM dashboards. | **Instant RAG Infrastructure Diagnostics**: Query cluster telemetry in natural language with vector-indexed evidence citations. |
+| **Reactive Incident Response**: Engineers fix outages *after* customer impact occurs. | **Predictive Anomaly Detection**: Time-series forecasting predicts CPU, memory, disk, and SLO failures 30+ minutes ahead. |
+| **Static Manual Runbooks**: Outdated wiki pages requiring manual shell execution. | **AI Runbook Generator & Auto Remediation**: Production remediation engine supporting Automated, Semi-Automated, and Manual workflows with safe rollback. |
+| **Unbounded Cloud Costs**: Surprise AWS/GCP bills from idle instances and unattached storage. | **Enterprise FinOps Governance Center**: Continuous cloud spend tracking, budget enforcement, cost violation detection, and automated remediation. |
+| **Blind Spots in Blast Radius**: Engineers cannot predict which services break during a resource outage. | **Cloud Topology & Blast-Radius Engine**: Multi-cloud dependency graph, topological blast radius calculation, Single Point of Failure (SPOF) detection, and failure simulation. |
+| **Data Leakage in Multi-Tenant Environments**: Weak authorization rules leaking cross-department data. | **Enterprise Multi-Tenant Isolation**: Strict Organization, Team, and Project scoping with granular RBAC permissions and security audit logs. |
 
 ---
 
 ## ⚡ Core Enterprise Capabilities
 
-### 🤖 1. Autonomous AIOps Agent Center
-- Continuous **6-phase autonomous observability loop**: `Observe ➔ Detect ➔ Analyze ➔ Plan ➔ Recommend ➔ Verify`.
-- Human-in-the-loop explainable AI action approval drawer with confidence scoring and CLI remediation candidates.
+### 🌐 1. Enterprise Cloud Topology & Blast-Radius Center (`/topology`)
+- Multi-cloud infrastructure dependency graph (AWS, Azure, GCP, Kubernetes).
+- Deterministic topological blast-radius calculation (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`).
+- Single Points of Failure (SPOF) detection across databases, load balancers, regions, and clusters.
+- Interactive failure propagation simulation (`simulate_failure`) with `"SIMULATION ONLY"` safety guards.
+- Dependency path latency analysis with real telemetry fallback (`"Telemetry unavailable"`).
 
-### 💬 2. AI Infrastructure Chat (RAG)
-- Vector-indexed Retrieval-Augmented Generation querying 6 ChromaDB collections (`metrics`, `logs`, `traces`, `incidents`, `alerts`, `cost`).
-- Answers complex SRE queries with exact vector evidence citations.
+### 📦 2. Enterprise Cloud Asset Intelligence & Resource Inventory (`/assets`)
+- Unified multi-cloud resource inventory tracking provider, service, region, environment, status, metrics, and monthly cost.
+- Resource lifecycle state classification (`ACTIVE`, `IDLE`, `DEGRADED`, `ORPHANED`, `DECOMMISSIONED`).
+- Unattached storage and idle compute waste detection with potential savings calculations.
+- Integrated security vulnerability risk scores and governance compliance statuses.
 
-### 🛡️ 3. AI Security & Cloud Compliance Center
-- 9 automated cloud security domain scanners evaluating CIS Benchmarks, ISO 27001, SOC 2, NIST, PCI-DSS, HIPAA, and GDPR.
-- Provider x Severity Risk Heatmap matrix and Wiz-style threat detail modal.
+### 👔 3. Executive Cloud Operations Command Center (`/command-center`)
+- Executive-level observability layer providing unified health scores, financial risk burn metrics, operational risk indices, and SLA summaries.
+- Single-click executive snapshot history and AI-synthesized strategic recommendations.
 
-### 📖 4. AI Runbook Generator & Auto Remediation Center
-- Automatically generates executable mitigation runbooks with Kubernetes, CLI, and Terraform action steps.
-- Live execution stream audit logs.
+### 🔄 4. Autonomous Cloud Operations & Self-Healing Center (`/autonomous`)
+- Fully autonomous closed-loop self-healing engine (`Observe ➔ Detect ➔ Analyze ➔ Plan ➔ Execute ➔ Verify`).
+- Policy-driven multi-tier autonomy safety controls (`AUTOMATED`, `SEMI_AUTOMATED`, `MANUAL`).
+- Automated rollback triggers, execution lock management, and maintenance window enforcement.
 
-### 🔭 5. Distributed Tracing Platform (OpenTelemetry)
-- Full request cascade visualization (`Load Balancer ➔ Gateway ➔ Auth ➔ App ➔ Cache ➔ Database`).
-- Microservice Dependency Maps and P99 latency waterfall charts.
+### 🎯 5. Enterprise Service Reliability Engine & SLO Intelligence 2.0 (`/reliability`)
+- Real end-to-end SLI/SLO measurement across availability, latency, error rate, and throughput.
+- Error budget burn-rate tracking, exhaustion forecasting, and automated policy enforcement.
 
-### 📊 6. Real-Time Observability Engine
-- Datadog/Grafana style sub-second WebSockets metric streaming for CPU, Memory, Disk I/O, Network Throughput, RPS, and P99 response time.
+### ⚡ 6. Enterprise AIOps Automated Remediation & Action Center (`/remediation`)
+- Production-grade remediation plan synthesis for incidents, cost anomalies, security findings, and SLO violations.
+- Multi-stage approval workflows, dry-run validation, execution logging, and 1-click rollbacks.
 
-### 🔮 7. Predictive Incident Detection Engine
-- Time-series machine learning anomaly forecasting predicting outages 30+ minutes before occurrence.
+### 💰 7. Enterprise FinOps Governance & Cost Control Center (`/finops/governance`)
+- Multi-cloud cost policy enforcement, cost anomaly detection, real-time budget violation alerts, and automated right-sizing.
 
-### 💰 8. AI Cloud Cost Optimizer
-- Intelligent cloud spend tracking across AWS, GCP, and Azure with automated FinOps recommendations.
+### 🛡️ 8. Enterprise Cloud Governance & Compliance Center (`/governance`)
+- Cross-cloud compliance posture evaluation across 7 security frameworks (CIS Benchmarks, ISO 27001, SOC 2, NIST, PCI-DSS, HIPAA, GDPR).
+- Automated policy drift detection and remediation step generation.
 
-### 📝 9. AI Log Analyzer
-- Automated log parsing, root cause analysis, error clustering, and anomaly classification.
+### 🤖 9. Autonomous AIOps Agent Center (`/aiops`)
+- Continuous 6-phase autonomous observability loop with explainable AI recommendation drawers.
 
-### 🚨 10. Incident Management Center
-- PagerDuty-style incident lifecycle management with severity assignment, engineer routing, and AI post-mortems.
+### 💬 10. AI Infrastructure Chat (RAG) (`/chat`)
+- Vector-indexed RAG querying 6 ChromaDB collections (`metrics`, `logs`, `traces`, `incidents`, `alerts`, `cost`) with exact evidence citations.
 
-### 🏢 11. Multi-Tenant SaaS Architecture
-- Organization, Team, and Project scoping with Granular RBAC Permissions (`Owner`, `Admin`, `Manager`, `Engineer`, `Viewer`) and Security Audit Trails.
+### 🔭 11. Distributed Tracing Platform (OpenTelemetry) (`/tracing`)
+- End-to-end trace waterfall charts (`Load Balancer ➔ Gateway ➔ Auth ➔ Service ➔ Database`).
+
+### 📊 12. Real-Time Observability Engine (`/monitoring`)
+- Sub-second WebSockets metric streaming for CPU, Memory, Disk I/O, Network Throughput, RPS, and P99 latency.
 
 ---
 
@@ -103,9 +115,12 @@ Inspired by industry benchmarks like **Google Cloud Operations (Stackdriver)**, 
 
 | Capability | CloudPulse AI | Datadog | Dynatrace | Grafana Cloud | New Relic |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Autonomous 6-Phase AIOps Loop** | ✅ Included | ❌ Add-on | ⚠️ Partial | ❌ Manual | ⚠️ Partial |
+| **Autonomous Self-Healing Loop** | ✅ Included | ❌ Add-on | ⚠️ Partial | ❌ Manual | ⚠️ Partial |
+| **Multi-Cloud Topology & Blast Radius** | ✅ Included | ⚠️ Paid | ⚠️ Paid | ❌ No | ⚠️ Paid |
+| **Deterministic Failure Simulation** | ✅ Included | ❌ No | ❌ No | ❌ No | ❌ No |
 | **Google Gemini RAG Vector Search** | ✅ Included | ❌ No | ❌ No | ❌ No | ❌ No |
-| **Executable AI Runbooks & Auto-Fix** | ✅ Included | ⚠️ Manual | ⚠️ Manual | ❌ No | ❌ No |
+| **Automated Remediation & Rollbacks** | ✅ Included | ⚠️ Manual | ⚠️ Manual | ❌ No | ❌ No |
+| **FinOps Cost Governance & Policies** | ✅ Included | ⚠️ Add-on | ⚠️ Add-on | ❌ No | ⚠️ Add-on |
 | **OpenTelemetry Distributed Tracing** | ✅ Included | ✅ Included | ✅ Included | ✅ Included | ✅ Included |
 | **Sub-Second WebSockets Streaming** | ✅ Included | ✅ Included | ✅ Included | ✅ Included | ✅ Included |
 | **CSPM Cloud Security & Compliance** | ✅ 7 Frameworks | ⚠️ Add-on | ⚠️ Add-on | ❌ No | ❌ No |
@@ -114,125 +129,60 @@ Inspired by industry benchmarks like **Google Cloud Operations (Stackdriver)**, 
 
 ---
 
-## 📸 Screenshots Showcase
-
-<div align="center">
-
-### 🖥️ Executive Enterprise Dashboard
-![Executive Dashboard](assets/screenshots/dashboard.png)
-*Real-time cross-cloud health overview, active server counts, error rate sparklines, and AI insight highlights.*
-
-### 🤖 Autonomous AIOps Agent Center
-![AIOps Agent](assets/screenshots/aiops.png)
-*Continuous 6-phase agent loop visualization, action queue, confidence scores, and automated CLI candidate execution.*
-
-### 💬 AI Infrastructure Chat (RAG)
-![RAG AI Chat](assets/screenshots/rag.png)
-*Vector-augmented infrastructure assistant citing exact telemetry source context from ChromaDB vector collections.*
-
-### 📊 Real-Time Observability Engine
-![Live Monitoring](assets/screenshots/monitoring.png)
-*Sub-second WebSockets streaming telemetry for CPU, Memory Heap, Disk I/O, and P99 latency trajectory.*
-
-### 💰 AI Cloud Cost Optimizer
-![Cost Optimizer](assets/screenshots/cost.png)
-*FinOps spend breakdown by region and service with monthly run-rate forecasting and instant savings recommendations.*
-
-### 🏢 Organization & Multi-Tenant RBAC Settings
-![Organization Settings](assets/screenshots/organization.png)
-*Multi-tenant SaaS organization management, team directories, workspace project scoping, and granular RBAC capability matrix.*
-
-</div>
-
----
-
-## 📽️ Live Demo
-
-<div align="center">
-  <img src="assets/demo.gif" alt="CloudPulse AI Platform Demo" width="90%" />
-  <p><i>Live demonstration of CloudPulse AI Autonomous Observability & RAG Infrastructure Diagnostics.</i></p>
-</div>
-
----
-
-## 📐 Architecture Diagrams
-
-### 🏗️ 1. Overall System Architecture
+## 📐 Architecture Diagram
 
 ```mermaid
 flowchart TB
-    subgraph ClientLayer["Frontend Layer (React 18 + TypeScript + TailwindCSS)"]
-        UI["Glassmorphic SaaS Dashboard"]
-        Switcher["Organization & Project Switcher"]
+    subgraph ClientLayer["Frontend Control Plane (React 18 + TypeScript + TailwindCSS)"]
+        UI["Glassmorphic Enterprise Dashboard"]
+        TopologyUI["Cloud Topology & Blast Radius Center"]
+        AssetUI["Cloud Asset Inventory Center"]
+        RemediationUI["AIOps Action & Remediation Center"]
         WSClient["WebSocket Streaming Client"]
     end
 
-    subgraph APILayer["API Gateway & Service Layer (FastAPI)"]
-        Router["API Router & Middleware"]
-        RBAC["RBAC Authorization Engine"]
-        JWT["JWT Authentication Handler"]
+    subgraph APILayer["FastAPI API Gateway & Middleware Layer"]
+        Router["API v1 Root Router"]
+        RBAC["Granular RBAC Authorization Engine"]
+        JWT["JWT Auth & Token Rotation"]
     end
 
     subgraph EngineLayer["Core Intelligent Engines"]
-        AIOps["Autonomous AIOps Agent Loop"]
-        RAG["RAG Infrastructure Engine"]
-        Predictor["Predictive Anomaly Engine"]
-        SecScanner["Cloud Security Scanner"]
+        TopologyEngine["Cloud Topology & Blast-Radius Engine"]
+        AssetEngine["Asset Intelligence & Inventory Engine"]
+        RemediationEngine["AIOps Automated Remediation Engine"]
+        AutonomousEngine["Autonomous Self-Healing Loop Engine"]
+        FinOpsEngine["FinOps Governance & Cost Engine"]
+        RAGEngine["RAG Infrastructure Engine"]
     end
 
-    subgraph DataLayer["Storage & Vector Infrastructure"]
+    subgraph DataLayer["Persistence & AI Services"]
         Postgres[(PostgreSQL 15 Database)]
         ChromaDB[(ChromaDB Vector Store)]
-        Gemini["Google Gemini API (LLM)"]
+        Redis[(Redis Cache & Session Store)]
+        Gemini["Google Gemini LLM API"]
     end
 
     UI --> Router
+    TopologyUI --> Router
+    AssetUI --> Router
+    RemediationUI --> Router
     WSClient <--> Router
+
     Router --> RBAC --> JWT
-    Router --> AIOps
-    Router --> RAG
-    Router --> Predictor
-    Router --> SecScanner
+    Router --> TopologyEngine
+    Router --> AssetEngine
+    Router --> RemediationEngine
+    Router --> AutonomousEngine
+    Router --> FinOpsEngine
+    Router --> RAGEngine
 
-    AIOps --> Postgres
-    RAG --> ChromaDB
-    RAG --> Gemini
-    Predictor --> Postgres
-    SecScanner --> Postgres
-```
-
-### 🔄 2. Autonomous AIOps Agent Loop
-
-```mermaid
-stateDiagram-v2
-    [*] --> Observe: Telemetry Stream Ingestion
-    Observe --> Detect: Anomaly & Metric Spike Isolation
-    Detect --> Analyze: OpenTelemetry Trace & Log Correlation
-    Analyze --> Plan: Synthesize Mitigation & CLI Steps
-    Plan --> Recommend: Explainable AI Action Presentation
-    Recommend --> Verify: Execute Action & Validate SLO Feedback
-    Verify --> [*]
-```
-
-### 💬 3. RAG Infrastructure Chat Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Engineer / SRE
-    participant Frontend as RAG Chat UI
-    participant API as RAG API Endpoint
-    participant Vector as ChromaDB Collections
-    participant LLM as Google Gemini API
-
-    User->>Frontend: Enter query: "Why is latency high on api-gateway?"
-    Frontend->>API: POST /api/v1/chat/query
-    API->>Vector: Query top-K vector embeddings across metrics, logs, traces
-    Vector-->>API: Return retrieved context snippets & evidence metadata
-    API->>LLM: Pass prompt + retrieved vector evidence
-    LLM-->>API: Synthesize structured Markdown response with confidence score
-    API-->>Frontend: Return response with vector source citations
-    Frontend-->>User: Render RAGChatMessage & Evidence Cards
+    TopologyEngine --> Postgres
+    AssetEngine --> Postgres
+    RemediationEngine --> Postgres
+    AutonomousEngine --> Redis
+    RAGEngine --> ChromaDB
+    RAGEngine --> Gemini
 ```
 
 ---
@@ -242,11 +192,12 @@ sequenceDiagram
 | Category | Technology | Usage in CloudPulse AI |
 | :--- | :--- | :--- |
 | **Backend Core** | FastAPI | High-performance async Python web framework |
-| **Database** | PostgreSQL 15 | Relational storage with SQLAlchemy AsyncSession |
+| **Database** | PostgreSQL 15 | Relational storage with SQLAlchemy AsyncSession & Alembic migrations |
+| **Caching & Locks** | Redis 7 | Distributed locking, execution locks, session cache, & token blocklist |
 | **Vector Store** | ChromaDB | Local vector embeddings database for telemetry RAG |
-| **AI LLM Engine** | Google Gemini API | Structured reasoning, root cause analysis, & runbook synthesis |
-| **Frontend Framework**| React 18 | Declarative UI with TypeScript & Vite build tool |
-| **Styling** | TailwindCSS + shadcn/ui | Modern dark-mode glassmorphic component design system |
+| **AI LLM Engine** | Google Gemini API | Structured reasoning, root cause diagnostics, runbook synthesis, & remediation |
+| **Frontend Framework**| React 18 | Declarative UI with TypeScript & Vite production bundler |
+| **Styling** | TailwindCSS + Lucide | Modern glassmorphic dark-mode component design system |
 | **State & Query** | TanStack React Query + Zustand | Server state synchronization & global UI client state |
 | **Live Telemetry** | WebSockets | Real-time sub-second metric streaming engine |
 | **Tracing Standard** | OpenTelemetry | Distributed request tracing & APM span collection |
@@ -260,47 +211,34 @@ sequenceDiagram
 CloudPulse-AI/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   ├── feature_request.md
-│   │   └── question.md
-│   ├── workflows/
-│   │   ├── ci-backend.yml
-│   │   ├── ci-frontend.yml
-│   │   ├── docker-build.yml
-│   │   └── security-scan.yml
-│   └── PULL_REQUEST_TEMPLATE.md
-├── assets/
-│   ├── screenshots/
-│   └── demo.gif
+│   └── workflows/              # GitHub Actions CI/CD (Backend, Frontend, Security, Docker)
 ├── backend/
+│   ├── alembic/                # Database Migrations (0001 - 0016)
 │   ├── app/
-│   │   ├── api/v1/endpoints/   # REST API Route Modules
-│   │   ├── core/               # Security, Config, & RBAC Engine
+│   │   ├── api/v1/endpoints/   # REST API Endpoints (topology, assets, remediation, reliability, etc.)
+│   │   ├── core/               # Security, Config, Middleware, & RBAC
 │   │   ├── crud/               # Repository Pattern Classes
-│   │   ├── db/                 # Database Base & Session
+│   │   ├── db/                 # Database Session Setup
 │   │   ├── models/             # SQLAlchemy ORM Models
 │   │   ├── schemas/            # Pydantic v2 Schemas
-│   │   └── services/           # Business Logic & AI Engines
+│   │   └── services/           # Business Logic & Core AI Engines
 │   ├── tests/                  # Pytest Unit & Integration Suite
 │   ├── Dockerfile
-│   └── requirements.txt
-├── docs/
-│   └── images/
+│   └── pyproject.toml
+├── deployment/
+│   └── kubernetes/             # Production Kubernetes Manifests (Deployments, Services, HPA, Ingress)
+├── docker/                     # Postgres & Nginx Configurations
 ├── frontend/
 │   ├── src/
-│   │   ├── components/         # React Component Modules
-│   │   ├── pages/              # SaaS App View Pages
-│   │   ├── services/           # Axios API Service Clients
+│   │   ├── components/         # React Components (topology, assets, remediation, reliability, etc.)
+│   │   ├── pages/              # View Pages
+│   │   ├── services/           # Axios API Client Services
 │   │   └── types/              # TypeScript Definitions
 │   ├── Dockerfile
 │   └── package.json
-├── CHANGELOG.md
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
 ├── docker-compose.yml
 ├── LICENSE
-├── README.md
-└── SECURITY.md
+└── README.md
 ```
 
 ---
@@ -318,7 +256,7 @@ CloudPulse-AI/
 2. **Configure Environment Variables**:
    ```bash
    cp backend/.env.example backend/.env
-   # Add your GEMINI_API_KEY in backend/.env
+   # Set your GEMINI_API_KEY in backend/.env
    ```
 
 3. **Launch Container Services**:
@@ -336,79 +274,47 @@ CloudPulse-AI/
 ### Option 2: Production Docker Compose Deployment
 
 ```bash
-# Launch the complete enterprise production stack with Prometheus & Grafana
+# Launch full production stack
 docker compose -f docker-compose.production.yml up -d --build
 
-# Verify healthy status
+# Verify healthy container status
 docker compose -f docker-compose.production.yml ps
 ```
 
 - 🌐 **Production Frontend**: `http://localhost:80`
 - ⚡ **Production API Backend**: `http://localhost:8000`
-- 📊 **Prometheus Metrics**: `http://localhost:9090`
-- 📈 **Grafana Observability**: `http://localhost:3000` (admin/admin)
 
 ---
 
 ### Option 3: Enterprise Kubernetes Deployment
 
-All production Kubernetes manifests are configured in `deployment/kubernetes/`:
-
 ```bash
-# 1. Create dedicated namespace
+# 1. Apply Kubernetes manifests
 kubectl apply -f deployment/kubernetes/namespace.yaml
-
-# 2. Deploy ConfigMaps and Secrets
 kubectl apply -f deployment/kubernetes/configmap.yaml
 kubectl apply -f deployment/kubernetes/secrets.yaml
-
-# 3. Deploy Stateful Storage (PostgreSQL & Redis)
 kubectl apply -f deployment/kubernetes/postgres-statefulset.yaml
 kubectl apply -f deployment/kubernetes/redis-deployment.yaml
-
-# 4. Deploy Services and Core Workloads
 kubectl apply -f deployment/kubernetes/services.yaml
 kubectl apply -f deployment/kubernetes/backend-deployment.yaml
 kubectl apply -f deployment/kubernetes/frontend-deployment.yaml
-
-# 5. Enable Ingress & Horizontal Pod Autoscaling (HPA)
 kubectl apply -f deployment/kubernetes/ingress.yaml
 kubectl apply -f deployment/kubernetes/hpa.yaml
 ```
 
 ---
 
-## ⚙️ Environment Variables Reference
+## 🛡️ CI/CD & Quality Engineering
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `DATABASE_URL` | PostgreSQL asyncpg connection string | `postgresql+asyncpg://...` |
-| `REDIS_URL` | Redis cache and blocklist URL | `redis://redis:6379/0` |
-| `CHROMADB_HOST` | ChromaDB vector database host | `chromadb` |
-| `SECRET_KEY` | JWT signing secret key (32 bytes) | `cloudpulse_production_secret_key` |
-| `GEMINI_API_KEY` | Google Gemini API Key | `your_gemini_api_key_here` |
-| `GEMINI_MODEL` | Gemini LLM model name | `gemini-1.5-flash` |
-| `APP_ENV` | Environment mode (`production` / `development`) | `production` |
+CloudPulse AI enforces strict quality gates across backend and frontend repositories:
 
----
-
-## 🛡️ CI/CD Quality Engineering
-
-CloudPulse AI maintains a strict zero-compromise CI/CD quality gate policy across both backend and frontend repositories:
-
-- **Automated Python Quality Gates**: Verified with [Ruff](https://astral.sh/ruff) enforcing PEP 604 union types (`X | None`), modern Python 3.11+ builtins (`list`, `dict`, `tuple`), sorted imports, and strict datetime standards (`datetime.UTC`).
-- **Full Async Test Suite**: 95+ asynchronous integration and unit tests running against live PostgreSQL, Redis, and ChromaDB via pytest & AnyIO.
-- **Frontend Type Safety**: Strict TypeScript compiler checks (`tsc --noEmit`) and optimized production bundling via Vite.
-- **Security Scanners**: Bandit static analysis, Safety dependency vulnerability scanning, npm audit, and Trivy container scans in `.github/workflows/`.
-- **Container Health Verification**: Docker Compose and Kubernetes readiness/liveness probes (`/health`, `/ready`, `/metrics`).
-
----
-
-## 🔒 Security, Performance & Benchmarks
-
-- **Security Model**: Strict Pydantic v2 payload validation, passlib PBKDF2 password hashing, JWT refresh token rotation with Redis blocklist, role-based access control (`Owner`, `Admin`, `Manager`, `Engineer`, `Viewer`), and CSP / HSTS security headers middleware.
-- **Observability**: Prometheus text exposition at `/metrics`, OpenTelemetry distributed trace context propagation (`traceparent`), and real-time WebSocket metric streaming.
-- **Scalability**: Stateless FastAPI horizontal scaling with Gunicorn/Uvicorn, Kubernetes HPA scaling 2-10 replicas, and isolated PostgreSQL tenant schemas.
+- **Python Code Quality**: Verified with [Ruff](https://astral.sh/ruff) enforcing PEP 604 union types (`X | None`), modern Python 3.11+ builtins, and datetime standards (`datetime.UTC`).
+- **Security Audit**: Verified with [Bandit](https://github.com/PyCQA/bandit) static security analysis scanning for code vulnerabilities.
+- **Asynchronous Pytest Suite**: 100+ async integration and unit tests passing against PostgreSQL, Redis, and ChromaDB.
+- **Frontend Type Safety**: Strict TypeScript compiler checks (`tsc --noEmit`) with zero errors.
+- **Frontend Linting**: ESLint checks with zero warnings (`--max-warnings 0`).
+- **Production Build**: Verified Vite build generating optimized production assets.
+- **Database Migrations**: Verified Alembic migrations up to head (`0016`).
 
 ---
 
@@ -421,14 +327,10 @@ CloudPulse AI maintains a strict zero-compromise CI/CD quality gate policy acros
 | **Phase 3** | OpenTelemetry Tracing, RAG Infrastructure Chat, AI Runbooks | ✅ Completed |
 | **Phase 4** | AI Security & Cloud Compliance Center, Autonomous AIOps Agent | ✅ Completed |
 | **Phase 5** | Multi-Tenant Enterprise SaaS Architecture & Granular RBAC | ✅ Completed |
-| **Phase 6** | Digital Twin Infrastructure Simulation & Chaos Blast-Radius Modeling | ✅ Completed |
-| **Phase 7** | Production Hardening, Kubernetes Manifests & GitHub Actions CI/CD | ✅ Completed |
-
----
-
-## 🤝 Contributing
-
-We welcome open-source contributions! Please review our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting Pull Requests.
+| **Phase 6** | Digital Twin Infrastructure Simulation & Chaos Modeling | ✅ Completed |
+| **Phase 7** | Executive Command Center, Self-Healing Ops, Service Reliability 2.0 | ✅ Completed |
+| **Phase 8** | AIOps Automated Remediation, FinOps Governance & Asset Inventory | ✅ Completed |
+| **Phase 9** | Enterprise Cloud Topology & Blast-Radius Intelligence Center | ✅ Completed |
 
 ---
 
