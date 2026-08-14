@@ -46,6 +46,7 @@ const navGroups = [
       { icon: LayoutDashboard, label: "Dashboard",       to: "/dashboard"      },
       { icon: LayoutDashboard, label: "Executive Command", to: "/command-center" },
       { icon: Bot,             label: "Autonomous Ops",   to: "/autonomous"   },
+      { icon: Zap,             label: "AIOps Action Center", to: "/remediation" },
       { icon: ShieldCheck,     label: "SLO & Error Budgets", to: "/reliability" },
       { icon: Activity,        label: "Telemetry",       to: "/telemetry"      },
       { icon: Cpu,             label: "AIOps Agent",     to: "/aiops"          },

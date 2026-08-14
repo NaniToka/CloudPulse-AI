@@ -26,6 +26,7 @@ import { CommandCenterPage } from "@/pages/commandCenter/CommandCenterPage";
 import { AutonomousOperationsPage } from "@/pages/autonomous/AutonomousOperationsPage";
 import { SloIntelligencePage } from "@/pages/slo/SloIntelligencePage";
 import { ServiceReliabilityPage } from "@/pages/reliability/ServiceReliabilityPage";
+import { AIOpsActionCenterPage } from "@/pages/remediation/AIOpsActionCenterPage";
 import IncidentsPage from "@/pages/incidents/IncidentsPage";
 import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
 import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
@@ -100,6 +101,7 @@ export default function App() {
             <Route path="/sre"           element={<SrePage />}            />
             <Route path="/slo"           element={<SloIntelligencePage />} />
             <Route path="/reliability"   element={<ServiceReliabilityPage />} />
+            <Route path="/remediation"   element={<AIOpsActionCenterPage />} />
             <Route path="/governance"    element={<GovernancePage />}     />
             <Route path="/dependencies"  element={<ServiceDependencyExplorerPage />} />
             <Route path="/runbooks"      element={<RunbookDashboardPage />} />

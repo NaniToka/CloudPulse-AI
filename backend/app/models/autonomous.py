@@ -201,3 +201,22 @@ class ExecutionLock(UUIDMixin, TimestampMixin, Base):
     execution_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     locked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class RemediationPolicyRecord(UUIDMixin, TimestampMixin, Base):
+    """
+    Granular trigger-condition-action policy for automated AIOps remediation.
+    """
+
+    __tablename__ = "remediation_policies"
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    trigger_signal: Mapped[str] = mapped_column(String(100), nullable=False)  # INCIDENT, ANOMALY, CAPACITY, FINOPS, SLO
+    condition_logic: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    action_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="MEDIUM")  # LOW, MEDIUM, HIGH, CRITICAL
+    execution_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="APPROVED")  # DRY_RUN, SIMULATION, MANUAL, APPROVED, AUTOMATED
+    cooldown_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by: Mapped[str] = mapped_column(String(255), nullable=False, default="system")
+

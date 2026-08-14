@@ -19,6 +19,9 @@ from app.models.autonomous import (
     RemediationExecution,
     RemediationPlan,
 )
+from app.models.autonomous import (
+    RemediationPolicyRecord as RemediationPolicyRecord,
+)
 from app.models.chat_message import ChatMessage
 from app.models.chat_session import ChatSession
 from app.models.cloud_account import CloudAccount

@@ -30,6 +30,7 @@ from app.api.v1.endpoints import (
     projects,
     rag_chat,
     reliability,
+    remediation,
     runbooks,
     security,
     servers,
@@ -214,4 +215,9 @@ api_router.include_router(
     reliability.router,
     prefix="/reliability",
     tags=["Enterprise Service Reliability Engine & SLO Intelligence 2.0"],
+)
+api_router.include_router(
+    remediation.router,
+    prefix="/remediation",
+    tags=["Enterprise AIOps Automated Remediation & Action Center"],
 )
