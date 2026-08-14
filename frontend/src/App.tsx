@@ -28,6 +28,7 @@ import { SloIntelligencePage } from "@/pages/slo/SloIntelligencePage";
 import { ServiceReliabilityPage } from "@/pages/reliability/ServiceReliabilityPage";
 import { AIOpsActionCenterPage } from "@/pages/remediation/AIOpsActionCenterPage";
 import { AssetIntelligencePage } from "@/pages/assets/AssetIntelligencePage";
+import { CloudTopologyPage } from "@/pages/topology/CloudTopologyPage";
 import IncidentsPage from "@/pages/incidents/IncidentsPage";
 import PredictiveAnalyticsPage from "@/pages/predictions/PredictiveAnalyticsPage";
 import RealTimeMonitoringPage from "@/pages/monitoring/RealTimeMonitoringPage";
@@ -99,6 +100,7 @@ export default function App() {
             <Route path="/cost"          element={<CostPage />}           />
             <Route path="/finops/governance" element={<FinOpsGovernancePage />} />
             <Route path="/assets"        element={<AssetIntelligencePage />} />
+            <Route path="/topology"      element={<CloudTopologyPage />} />
             <Route path="/incidents"     element={<IncidentsPage />}      />
             <Route path="/sre"           element={<SrePage />}            />
             <Route path="/slo"           element={<SloIntelligencePage />} />

@@ -68,6 +68,7 @@ const navGroups = [
       { icon: DollarSign, label: "Cost Optimizer",   to: "/cost"           },
       { icon: ShieldCheck,label: "FinOps Governance", to: "/finops/governance"},
       { icon: Layers,     label: "Asset Inventory",   to: "/assets"         },
+      { icon: Network,    label: "Cloud Topology",    to: "/topology"       },
     ],
   },
   {

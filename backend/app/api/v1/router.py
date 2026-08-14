@@ -38,6 +38,7 @@ from app.api.v1.endpoints import (
     slo,
     sre,
     teams,
+    topology,
     traces,
     twin,
     users,
@@ -226,4 +227,9 @@ api_router.include_router(
     assets.router,
     prefix="/assets",
     tags=["Enterprise Cloud Asset Intelligence Center"],
+)
+api_router.include_router(
+    topology.router,
+    prefix="/topology",
+    tags=["Enterprise Cloud Topology & Blast-Radius Intelligence Center"],
 )
