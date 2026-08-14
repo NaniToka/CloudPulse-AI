@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     ai,
     aiops,
     alerts,
+    assets,
     auth,
     autonomous,
     cloud,
@@ -220,4 +221,9 @@ api_router.include_router(
     remediation.router,
     prefix="/remediation",
     tags=["Enterprise AIOps Automated Remediation & Action Center"],
+)
+api_router.include_router(
+    assets.router,
+    prefix="/assets",
+    tags=["Enterprise Cloud Asset Intelligence Center"],
 )

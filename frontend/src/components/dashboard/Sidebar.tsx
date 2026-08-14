@@ -24,6 +24,7 @@ import {
   Cloud,
   Box,
   Network,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -66,6 +67,7 @@ const navGroups = [
       { icon: Terminal,   label: "Logs",           to: "/logs"           },
       { icon: DollarSign, label: "Cost Optimizer",   to: "/cost"           },
       { icon: ShieldCheck,label: "FinOps Governance", to: "/finops/governance"},
+      { icon: Layers,     label: "Asset Inventory",   to: "/assets"         },
     ],
   },
   {
