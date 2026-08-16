@@ -4,7 +4,6 @@ Pydantic Schemas for Enterprise Cloud Topology & Blast-Radius Intelligence.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from typing import Any
 

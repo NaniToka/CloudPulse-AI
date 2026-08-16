@@ -16,8 +16,10 @@ SQLite compatibility notes
 - ``postgresql.UUID`` columns are silently handled by SQLAlchemy's
   generic dialect fallback (stored as CHAR(32)).
 - ``postgresql.JSON`` falls back to TEXT.
-- ``sa.true() / sa.false()`` server defaults are handled correctly.
 """
+import os
+
+os.environ["APP_ENV"] = "testing"
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -26,6 +28,10 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+
+from app.core.config import settings
+
+settings.APP_ENV = "testing"
 
 from app.core.dependencies import get_db
 from app.db.base import Base  # registers all models

@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_active_user
@@ -38,7 +38,6 @@ from app.schemas.assets import (
     AssetProviderDistributionResponse,
     AssetRegionDistributionResponse,
     AssetRegionStat,
-    AssetRelationshipItem,
     AssetResourceItem,
     AssetServiceDistributionResponse,
     AssetServiceStat,

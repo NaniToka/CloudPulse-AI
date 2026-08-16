@@ -15,17 +15,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.cloud_resource import CloudResource
-from app.models.incident import Incident
-from app.models.service_dependency import ServiceDependency, ServiceNode
+from app.models.service_dependency import ServiceNode
 from app.schemas.topology import (
     BlastRadiusAnalysisResponse,
     DependencyPathItem,
     DependencyPathResponse,
     DependencyPathSegment,
+    FailureSimulationRequest,
     FailureSimulationResponse,
     SpofItem,
     SpofListResponse,
@@ -34,8 +33,6 @@ from app.schemas.topology import (
     TopologyNodeItem,
     TopologyOverviewResponse,
 )
-from app.services.blast_radius_engine import blast_radius_engine
-from app.services.dependency_discovery_service import dependency_discovery_service
 
 log = structlog.get_logger(__name__)
 

@@ -17,17 +17,11 @@ from app.schemas.assets import (
     AssetOverviewResponse,
     AssetProviderDistributionResponse,
     AssetProviderStat,
-    AssetRegionDistributionResponse,
-    AssetRegionStat,
     AssetRelationshipItem,
     AssetResourceItem,
-    AssetServiceDistributionResponse,
-    AssetServiceStat,
     AssetTopologyEdge,
     AssetTopologyNode,
     AssetTopologyResponse,
-    AssetTypeDistributionResponse,
-    AssetTypeStat,
     OrphanedResourceItem,
     OrphanedResourcesResponse,
 )
@@ -35,7 +29,6 @@ from app.schemas.assets import (
 
 def get_local_demo_assets() -> list[dict[str, Any]]:
     """Return realistic, deterministic multi-cloud & Kubernetes resource inventory dataset."""
-    now_str = datetime.now(UTC).isoformat()
     return [
         # --- AWS Resources ---
         {

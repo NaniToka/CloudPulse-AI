@@ -17,6 +17,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from app.core.config import settings
 from app.core.telemetry import SpanContext
 
 log = structlog.get_logger(__name__)
@@ -95,10 +96,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.clients: dict[str, list[float]] = {}
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Skip rate limiting for static assets, docs, health, metrics, and test clients
+        # Skip rate limiting for static assets, docs, health, metrics, and test environment
         path = request.url.path
-        if path.startswith(
-            ("/docs", "/redoc", "/openapi.json", "/health", "/ready", "/metrics", "/static")
+        if (
+            settings.APP_ENV in ("testing", "test")
+            or not request.client
+            or request.client.host == "testclient"
+            or path.startswith(
+                ("/docs", "/redoc", "/openapi.json", "/health", "/ready", "/metrics", "/static")
+            )
         ):
             return await call_next(request)
 
