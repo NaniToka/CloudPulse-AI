@@ -15,6 +15,7 @@
  */
 
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { useAuthStore } from "@/store/authStore";
 
 // Vite exposes env variables on import.meta.env.  The tsconfig already
 // includes "dom" so the type is correct — no cast needed.
@@ -41,6 +42,12 @@ function getRefreshToken(): string | null {
 function clearTokens(): void {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
+  localStorage.removeItem("cloudpulse-auth");
+  try {
+    useAuthStore.getState().logout();
+  } catch {
+    // Ignore store initialization errors
+  }
 }
 
 function setAccessToken(token: string): void {
@@ -105,7 +112,9 @@ apiClient.interceptors.response.use(
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       clearTokens();
-      window.location.href = "/login";
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
       return Promise.reject(error);
     }
 
@@ -139,7 +148,9 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       flushQueue(refreshError, null);
       clearTokens();
-      window.location.href = "/login";
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
