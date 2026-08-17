@@ -440,27 +440,45 @@ async def get_cost_overview_data(
     db: AsyncSession,
     *,
     user_id: uuid.UUID,
+    provider: str | None = None,
+    date_range: str | None = None,
 ) -> dict[str, Any]:
-    """Calculate aggregated monthly spend, forecast, service breakdown, and trends."""
+    """Calculate aggregated monthly spend, forecast, service breakdown, and trends with provider & date filters."""
     await seed_default_costs_if_empty(db, user_id)
 
-    # 1. Total monthly cost & counts
-    costs_res = await db.execute(select(CloudCost).where(CloudCost.user_id == user_id))
+    # 1. Total monthly cost & counts filtered by provider
+    stmt = select(CloudCost).where(CloudCost.user_id == user_id)
+    if provider and provider.lower() != "all":
+        p_clean = provider.lower()
+        if p_clean in ("aws", "amazon"):
+            stmt = stmt.where(func.lower(CloudCost.provider).like("%aws%"))
+        elif p_clean in ("azure", "microsoft"):
+            stmt = stmt.where(func.lower(CloudCost.provider).like("%azure%"))
+        elif p_clean in ("gcp", "google"):
+            stmt = stmt.where(func.lower(CloudCost.provider).like("%gcp%") | func.lower(CloudCost.provider).like("%google%"))
+        elif p_clean in ("k8s", "kubernetes"):
+            stmt = stmt.where(func.lower(CloudCost.provider).like("%k8s%") | func.lower(CloudCost.provider).like("%kubernetes%"))
+        else:
+            stmt = stmt.where(func.lower(CloudCost.provider) == p_clean)
+
+    costs_res = await db.execute(stmt)
     all_costs = list(costs_res.scalars().all())
 
-    monthly_cost = sum(c.cost for c in all_costs)
+    monthly_cost = round(sum(c.cost for c in all_costs), 2)
     idle_count = sum(1 for c in all_costs if c.status in ("idle", "overprovisioned"))
     active_count = len(all_costs)
 
     # 2. Recommendations potential savings
-    recs_res = await db.execute(
-        select(OptimizationRecommendation).where(
-            OptimizationRecommendation.user_id == user_id,
-            OptimizationRecommendation.status == "active",
-        )
+    recs_stmt = select(OptimizationRecommendation).where(
+        OptimizationRecommendation.user_id == user_id,
+        OptimizationRecommendation.status == "active",
     )
+    if provider and provider.lower() != "all":
+        recs_stmt = recs_stmt.where(func.lower(OptimizationRecommendation.service).like(f"%{provider.lower()}%") | func.lower(OptimizationRecommendation.resource_name).like(f"%{provider.lower()}%"))
+
+    recs_res = await db.execute(recs_stmt)
     active_recs = list(recs_res.scalars().all())
-    potential_savings = sum(r.estimated_savings for r in active_recs)
+    potential_savings = round(sum(max(0.0, min(r.current_cost, r.estimated_savings)) for r in active_recs), 2)
 
     # 3. Service Breakdown
     service_totals: dict[str, dict[str, Any]] = {}
@@ -503,13 +521,13 @@ async def get_cost_overview_data(
             }
         )
 
-    # 5. Daily Trend (30 days)
-    daily_base = monthly_cost / 30.0
+    # 5. Daily Trend (respecting requested days)
+    days_count = 7 if date_range == "7_days" else (90 if date_range == "quarter" else 30)
+    daily_base = (monthly_cost / days_count) if days_count > 0 else 0.0
     daily_trend = []
     now = datetime.now(UTC)
-    for i in range(29, -1, -1):
+    for i in range(days_count - 1, -1, -1):
         day_dt = now - timedelta(days=i)
-        # Small realistic variance around daily average
         variance = 1.0 + ((i % 7) - 3) * 0.03
         d_cost = round(daily_base * variance, 2)
         daily_trend.append(
@@ -519,7 +537,7 @@ async def get_cost_overview_data(
             }
         )
 
-    # Efficiency Score calculation (100 - (potential_savings / monthly_cost * 100))
+    # Efficiency Score calculation safely
     efficiency = (
         max(0, min(100, int(100 - (potential_savings / monthly_cost * 50))))
         if monthly_cost > 0
@@ -545,7 +563,7 @@ async def get_cost_overview_data(
         "daily_trend": daily_trend,
         "service_breakdown": service_breakdown,
         "region_breakdown": region_breakdown,
-        "data_source": "Demo Provider",
+        "data_source": "Demo Data — Local Development",
         "environment": "Local Development",
     }
 

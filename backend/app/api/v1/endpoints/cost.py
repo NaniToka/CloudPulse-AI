@@ -80,12 +80,14 @@ router = APIRouter()
     summary="Get comprehensive cost overview metrics, trends, and multi-cloud breakdowns",
 )
 async def get_cost_overview(
+    provider: str | None = Query(None, description="Filter by cloud provider (aws, azure, gcp, kubernetes)"),
+    date_range: str | None = Query(None, description="Date range (7_days, 30_days, quarter)"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CostOverviewResponse:
-    log.info("get_cost_overview", user_id=str(current_user.id))
-    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
-    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=200)
+    log.info("get_cost_overview", user_id=str(current_user.id), provider=provider, date_range=date_range)
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id, provider=provider, date_range=date_range)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=200)
 
     resources_dicts = [
         {"cost": c.cost, "provider": c.provider, "service": c.service, "region": c.region}
@@ -106,7 +108,7 @@ async def get_cost_overview(
         service_breakdown=[ServiceCostItem(**s) for s in data["service_breakdown"]],
         region_breakdown=[RegionCostItem(**r) for r in data["region_breakdown"]],
         provider_breakdown=[ProviderCostItem(**p) for p in provider_breakdown],
-        data_source="Demo Data — No Cloud Credentials Connected",
+        data_source="Demo Data — Local Development",
         environment="Local Development",
     )
 
@@ -122,10 +124,12 @@ async def get_cost_overview(
     summary="Get daily & monthly spending trends with projections",
 )
 async def get_cost_trends(
+    provider: str | None = Query(None, description="Filter by cloud provider"),
+    date_range: str | None = Query(None, description="Date range filter"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CostTrendsResponse:
-    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id, provider=provider, date_range=date_range)
     daily_items = [DailyCostItem(**d) for d in data["daily_trend"]]
     forecast = calculate_cost_forecast(data["daily_trend"], data["monthly_cost"])
 
@@ -152,19 +156,20 @@ async def get_cost_trends(
     summary="Get cloud provider spending breakdown (AWS, Azure, GCP, K8s)",
 )
 async def get_provider_costs(
+    provider: str | None = Query(None, description="Filter by cloud provider"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> ProviderCostsResponse:
-    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
     resources_dicts = [
         {"cost": c.cost, "provider": c.provider, "service": c.service} for c in costs
     ]
     providers = [ProviderCostItem(**p) for p in group_costs_by_provider(resources_dicts)]
-    total = sum(p.cost for p in providers)
+    total = round(sum(p.cost for p in providers), 2)
 
     return ProviderCostsResponse(
         providers=providers,
-        total_cost=round(total, 2),
+        total_cost=total,
     )
 
 
@@ -179,17 +184,18 @@ async def get_provider_costs(
     summary="Get detailed service-wise spending breakdown",
 )
 async def get_service_costs(
+    provider: str | None = Query(None, description="Filter by cloud provider"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> ServiceCostsResponse:
-    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
     resources_dicts = [{"cost": c.cost, "service": c.service} for c in costs]
     services = [ServiceCostItem(**s) for s in group_costs_by_service(resources_dicts)]
-    total = sum(s.cost for s in services)
+    total = round(sum(s.cost for s in services), 2)
 
     return ServiceCostsResponse(
         services=services,
-        total_cost=round(total, 2),
+        total_cost=total,
     )
 
 
@@ -204,17 +210,18 @@ async def get_service_costs(
     summary="Get regional spending breakdown",
 )
 async def get_region_costs(
+    provider: str | None = Query(None, description="Filter by cloud provider"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> RegionCostsResponse:
-    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
     resources_dicts = [{"cost": c.cost, "region": c.region} for c in costs]
     regions = [RegionCostItem(**r) for r in group_costs_by_region(resources_dicts)]
-    total = sum(r.cost for r in regions)
+    total = round(sum(r.cost for r in regions), 2)
 
     return RegionCostsResponse(
         regions=regions,
-        total_cost=round(total, 2),
+        total_cost=total,
     )
 
 
@@ -229,10 +236,11 @@ async def get_region_costs(
     summary="Detect spending anomalies and spikes",
 )
 async def get_cost_anomalies(
+    provider: str | None = Query(None, description="Filter by cloud provider"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CostAnomaliesResponse:
-    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, limit=300)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
     resources_dicts = [
         {
             "cost": c.cost,
@@ -265,10 +273,11 @@ async def get_cost_anomalies(
     summary="Get 7-day, 30-day, and month-end forecasts with confidence metrics",
 )
 async def get_cost_forecast(
+    provider: str | None = Query(None, description="Filter by cloud provider"),
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> CostForecastResponse:
-    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id)
+    data = await crud_cost.get_cost_overview_data(db, user_id=current_user.id, provider=provider)
     fc = calculate_cost_forecast(data["daily_trend"], data["monthly_cost"])
     return CostForecastResponse(**fc)
 

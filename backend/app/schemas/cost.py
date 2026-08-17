@@ -58,9 +58,9 @@ class CloudCostItem(BaseModel):
     service: str
     provider: str
     region: str
-    cost: float
-    daily_cost: float
-    usage_amount: float
+    cost: float = Field(..., ge=0.0)
+    daily_cost: float = Field(default=0.0, ge=0.0)
+    usage_amount: float = Field(default=0.0, ge=0.0)
     usage_unit: str
     environment: str
     status: str
@@ -68,6 +68,29 @@ class CloudCostItem(BaseModel):
     timestamp: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CloudCostCreate(BaseModel):
+    resource_name: str = Field(..., min_length=1, max_length=255)
+    service: str = Field(..., min_length=1, max_length=100)
+    provider: str = Field(..., min_length=1, max_length=50)
+    region: str = Field(default="us-central1", min_length=1, max_length=100)
+    cost: float = Field(..., ge=0.0, description="Monthly cost must be non-negative")
+    daily_cost: float = Field(default=0.0, ge=0.0)
+    usage_amount: float = Field(default=0.0, ge=0.0)
+    usage_unit: str = Field(default="hrs")
+    environment: str = Field(default="production")
+    status: str = Field(default="active")
+    tags: dict[str, str] = Field(default_factory=dict)
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
+        cleaned = v.strip().lower()
+        if cleaned not in ("aws", "azure", "gcp", "google", "k8s", "kubernetes", "other"):
+            raise ValueError("Provider must be one of: aws, azure, gcp, kubernetes, other")
+        return cleaned
 
 
 class CloudCostListResponse(BaseModel):

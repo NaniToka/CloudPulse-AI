@@ -17,33 +17,33 @@ import type {
 } from "@/types/cost";
 
 export const costService = {
-  async getOverview(): Promise<CostOverviewResponse> {
-    const response = await apiClient.get<CostOverviewResponse>("/cost/overview");
+  async getOverview(params?: { provider?: string; date_range?: string }): Promise<CostOverviewResponse> {
+    const response = await apiClient.get<CostOverviewResponse>("/cost/overview", { params });
     return response.data;
   },
 
-  async getTrends(): Promise<CostTrendsResponse> {
-    const response = await apiClient.get<CostTrendsResponse>("/cost/trends");
+  async getTrends(params?: { provider?: string; date_range?: string }): Promise<CostTrendsResponse> {
+    const response = await apiClient.get<CostTrendsResponse>("/cost/trends", { params });
     return response.data;
   },
 
-  async getProviders(): Promise<ProviderCostsResponse> {
-    const response = await apiClient.get<ProviderCostsResponse>("/cost/providers");
+  async getProviders(params?: { provider?: string }): Promise<ProviderCostsResponse> {
+    const response = await apiClient.get<ProviderCostsResponse>("/cost/providers", { params });
     return response.data;
   },
 
-  async getServiceCosts(): Promise<ServiceCostsResponse> {
-    const response = await apiClient.get<ServiceCostsResponse>("/cost/services");
+  async getServiceCosts(params?: { provider?: string }): Promise<ServiceCostsResponse> {
+    const response = await apiClient.get<ServiceCostsResponse>("/cost/services", { params });
     return response.data;
   },
 
-  async getAnomalies(): Promise<CostAnomaliesResponse> {
-    const response = await apiClient.get<CostAnomaliesResponse>("/cost/anomalies");
+  async getAnomalies(params?: { provider?: string }): Promise<CostAnomaliesResponse> {
+    const response = await apiClient.get<CostAnomaliesResponse>("/cost/anomalies", { params });
     return response.data;
   },
 
-  async getForecast(): Promise<CostForecastResponse> {
-    const response = await apiClient.get<CostForecastResponse>("/cost/forecast");
+  async getForecast(params?: { provider?: string }): Promise<CostForecastResponse> {
+    const response = await apiClient.get<CostForecastResponse>("/cost/forecast", { params });
     return response.data;
   },
 
