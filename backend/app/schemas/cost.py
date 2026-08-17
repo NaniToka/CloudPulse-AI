@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -270,3 +271,123 @@ class CostAnalyzeResponse(BaseModel):
     efficiency_score: int
     analyzed_at: datetime
     analysis_engine: str = Field(default="Local FinOps Intelligence")
+
+
+# ── Executive FinOps Intelligence & Reporting Schemas ─────────────────────────
+
+
+class CostHealthScoreResponse(BaseModel):
+    score: int = Field(..., ge=0, le=100)
+    status: str  # Healthy | Watch | At Risk | Critical
+    factors: list[str]
+    explanation: str
+
+
+class ExecutiveCostSummaryResponse(BaseModel):
+    monthly_cost: float
+    previous_month_cost: float
+    percentage_change: float
+    summary_statements: list[str]
+
+
+class CostDriverItem(BaseModel):
+    name: str
+    cost: float = 0.0
+    reason: str
+
+
+class CostDriversResponse(BaseModel):
+    top_provider: CostDriverItem
+    top_service: CostDriverItem
+    top_region: CostDriverItem
+    top_resource: CostDriverItem
+    fastest_growing_service: CostDriverItem
+    largest_anomaly: dict[str, Any]
+    largest_savings_opportunity: dict[str, Any]
+
+
+class ProviderPeriodChange(BaseModel):
+    provider: str
+    current_cost: float
+    previous_cost: float
+    difference: float
+
+
+class ServicePeriodChange(BaseModel):
+    service: str
+    current_cost: float
+    previous_cost: float
+    difference: float
+
+
+class PeriodComparisonResponse(BaseModel):
+    current_spend: float
+    previous_spend: float
+    total_spend_difference: float
+    percentage_difference: float
+    provider_changes: list[ProviderPeriodChange]
+    service_changes: list[ServicePeriodChange]
+
+
+class CostExplorerNode(BaseModel):
+    id: str
+    name: str
+    level: str  # provider | service | region | resource
+    cost: float
+    percentage_of_total: float
+    resource_count: int = 1
+    children: list[CostExplorerNode] = Field(default_factory=list)
+
+
+class CostExplorerResponse(BaseModel):
+    nodes: list[CostExplorerNode]
+    total_cost: float
+
+
+class SavingsBreakdownItem(BaseModel):
+    key: str
+    savings: float
+
+
+class SavingsCenterResponse(BaseModel):
+    total_monthly_savings: float
+    total_annual_savings: float  # monthly * 12
+    opportunity_count: int
+    average_savings_per_opportunity: float
+    by_provider: list[dict[str, Any]]
+    by_category: list[dict[str, Any]]
+    by_service: list[dict[str, Any]]
+
+
+class FinOpsReportRequest(BaseModel):
+    date_range: str = Field(default="30_days")  # 7_days | 30_days | current_month | custom
+    provider: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+
+
+class FinOpsReportResponse(BaseModel):
+    generated_at: str
+    date_range: str
+    data_source: str
+    health_score: CostHealthScoreResponse
+    executive_summary: str
+    summary_statements: list[str]
+    total_monthly_cost: float
+    previous_month_cost: float
+    percentage_change: float
+    projected_cost: float
+    potential_monthly_savings: float
+    potential_annual_savings: float
+    cost_drivers: CostDriversResponse
+    period_comparison: PeriodComparisonResponse
+    provider_breakdown: list[ProviderCostItem]
+    service_breakdown: list[ServiceCostItem]
+    region_breakdown: list[RegionCostItem]
+    anomalies: list[CostAnomalyItem]
+    forecast: CostForecastResponse
+    budget_status: dict[str, Any]
+    budget_crossing_projection: dict[str, Any]
+    savings_center: SavingsCenterResponse
+    recommendations: list[RecommendationItem]
+

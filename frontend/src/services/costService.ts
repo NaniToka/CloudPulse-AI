@@ -6,13 +6,20 @@ import type {
   CostBudgetItem,
   CostBudgetListResponse,
   CostBudgetPayload,
+  CostDriversResponse,
+  CostExplorerResponse,
   CostForecastResponse,
+  CostHealthScoreResponse,
   CostOverviewResponse,
   CostSavingsResponse,
   CostTrendsResponse,
+  ExecutiveCostSummaryResponse,
+  FinOpsReportResponse,
+  PeriodComparisonResponse,
   ProviderCostsResponse,
   RecommendationItem,
   RecommendationsResponse,
+  SavingsCenterResponse,
   ServiceCostsResponse,
 } from "@/types/cost";
 
@@ -99,4 +106,50 @@ export const costService = {
     });
     return response.data;
   },
+
+  async getHealthScore(params?: { provider?: string }): Promise<CostHealthScoreResponse> {
+    const response = await apiClient.get<CostHealthScoreResponse>("/cost/health-score", { params });
+    return response.data;
+  },
+
+  async getExecutiveSummary(params?: { provider?: string }): Promise<ExecutiveCostSummaryResponse> {
+    const response = await apiClient.get<ExecutiveCostSummaryResponse>("/cost/executive-summary", { params });
+    return response.data;
+  },
+
+  async getDrivers(params?: { provider?: string }): Promise<CostDriversResponse> {
+    const response = await apiClient.get<CostDriversResponse>("/cost/drivers", { params });
+    return response.data;
+  },
+
+  async getPeriodComparison(params?: { provider?: string }): Promise<PeriodComparisonResponse> {
+    const response = await apiClient.get<PeriodComparisonResponse>("/cost/period-comparison", { params });
+    return response.data;
+  },
+
+  async getExplorer(params?: { provider?: string }): Promise<CostExplorerResponse> {
+    const response = await apiClient.get<CostExplorerResponse>("/cost/explorer", { params });
+    return response.data;
+  },
+
+  async getSavingsCenter(): Promise<SavingsCenterResponse> {
+    const response = await apiClient.get<SavingsCenterResponse>("/cost/savings-center");
+    return response.data;
+  },
+
+  async generateReport(payload: { date_range?: string; provider?: string }): Promise<FinOpsReportResponse> {
+    const response = await apiClient.post<FinOpsReportResponse>("/cost/reports/generate", payload);
+    return response.data;
+  },
+
+  getPdfReportDownloadUrl(dateRange = "30_days", provider?: string): string {
+    const p = provider ? `&provider=${encodeURIComponent(provider)}` : "";
+    return `/api/v1/cost/reports/pdf?date_range=${encodeURIComponent(dateRange)}${p}`;
+  },
+
+  getExportCsvUrl(provider?: string): string {
+    const p = provider ? `?provider=${encodeURIComponent(provider)}` : "";
+    return `/api/v1/cost/export${p}`;
+  },
 };
+

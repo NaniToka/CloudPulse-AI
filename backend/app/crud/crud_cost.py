@@ -12,6 +12,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cloud_cost import CloudCost, CostBudget, OptimizationRecommendation
+from app.models.user import User
 from app.schemas.cost import ServiceCostItem, ServiceCostsResponse
 from app.services.cost_engine import group_costs_by_service
 
@@ -35,6 +36,13 @@ DEFAULT_COLOR = "#94a3b8"
 
 async def seed_default_costs_if_empty(db: AsyncSession, user_id: uuid.UUID) -> None:
     """Seed sample cloud cost data if user has no cost records."""
+    if not user_id:
+        return
+    user_stmt = select(User.id).where(User.id == user_id)
+    user_res = await db.execute(user_stmt)
+    if not user_res.scalar_one_or_none():
+        return
+
     count_stmt = select(func.count()).select_from(CloudCost).where(CloudCost.user_id == user_id)
     res = await db.execute(count_stmt)
     if res.scalar_one() > 0:

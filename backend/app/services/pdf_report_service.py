@@ -285,3 +285,145 @@ def generate_pdf_bytes(title: str, content: str) -> bytes:
     buffer.close()
     return pdf_bytes
 
+
+def generate_finops_report_pdf(report_data: dict[str, Any]) -> bytes:
+    """
+    Generates a comprehensive 12-section FinOps Executive Intelligence PDF report.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "DocTitleFinOps",
+        parent=styles["Heading1"],
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        leading=24,
+        textColor=PRIMARY_COLOR,
+        spaceAfter=2,
+    )
+    subtitle_style = ParagraphStyle(
+        "DocSubFinOps",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=9.5,
+        leading=13,
+        textColor=colors.HexColor("#64748b"),
+        spaceAfter=10,
+    )
+    section_heading = ParagraphStyle(
+        "SectionHeadFinOps",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        leading=16,
+        textColor=PRIMARY_COLOR,
+        spaceBefore=10,
+        spaceAfter=4,
+    )
+    body_style = ParagraphStyle(
+        "BodyFinOps",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=13,
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=4,
+    )
+
+    story = []
+
+    # Title & Header
+    story.append(Paragraph("CloudPulse AI — FinOps Executive Intelligence Report", title_style))
+    date_str = report_data.get("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M UTC"))
+    range_str = report_data.get("date_range", "30_days")
+    story.append(Paragraph(f"Period: {range_str} | Generated: {date_str} | Data Source: {report_data.get('data_source', 'Local Development')}", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=BRAND_BLUE, spaceAfter=10))
+
+    # Section 1: Executive Summary
+    story.append(Paragraph("1. Executive Summary", section_heading))
+    summary_text = report_data.get("executive_summary", "FinOps Executive Summary overview.")
+    story.append(Paragraph(summary_text, body_style))
+    story.append(Spacer(1, 6))
+
+    # Section 2 & 3: Spend Overview & Trends
+    story.append(Paragraph("2. Spend Overview & Financial Metrics", section_heading))
+    monthly_cost = report_data.get("total_monthly_cost", 0.0)
+    prev_cost = report_data.get("previous_month_cost", 0.0)
+    pct_change = report_data.get("percentage_change", 0.0)
+    potential_sav = report_data.get("potential_monthly_savings", 0.0)
+    health_score = report_data.get("health_score", {}).get("score", 85)
+
+    kpi_data = [
+        ["Metric", "Value"],
+        ["Total Monthly Spend", f"${monthly_cost:,.2f}"],
+        ["Previous Period Spend", f"${prev_cost:,.2f}"],
+        ["Period Change", f"{pct_change:+.1f}%"],
+        ["Potential Monthly Savings", f"${potential_sav:,.2f}"],
+        ["FinOps Health Score", f"{health_score} / 100"],
+    ]
+    t = Table(kpi_data, colWidths=[200, 240])
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), BRAND_BLUE),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("GRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+            ]
+        )
+    )
+    story.append(t)
+    story.append(Spacer(1, 8))
+
+    # Section 4 & 5: Provider & Service Breakdowns
+    story.append(Paragraph("3. Multi-Cloud Provider & Service Breakdown", section_heading))
+    providers = report_data.get("provider_breakdown", [])
+    if providers:
+        p_rows = [["Provider", "Monthly Cost ($)", "Percentage (%)", "Resources"]]
+        for p in providers:
+            p_rows.append([p.get("provider", "other"), f"${p.get('cost', 0.0):,.2f}", f"{p.get('percentage', 0.0):.1f}%", str(p.get("resource_count", 0))])
+        pt = Table(p_rows, colWidths=[110, 120, 110, 100])
+        pt.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")), ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("GRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR)]))
+        story.append(pt)
+
+    story.append(Spacer(1, 8))
+
+    # Section 7: Cost Anomalies
+    story.append(Paragraph("4. Spending Anomalies & Spikes", section_heading))
+    anomalies = report_data.get("anomalies", [])
+    if anomalies:
+        for a in anomalies[:4]:
+            story.append(Paragraph(f"• <b>[{a.get('severity', 'HIGH')}]</b> {a.get('resource', 'Unknown')}: Actual ${a.get('actual_cost', 0.0):,.2f} vs Expected ${a.get('expected_cost', 0.0):,.2f} ({a.get('explanation', '')})", body_style))
+    else:
+        story.append(Paragraph("No active cost anomalies detected.", body_style))
+
+    story.append(Spacer(1, 8))
+
+    # Section 10 & 11: Savings & Recommendations
+    story.append(Paragraph("5. Optimization & Savings Summary", section_heading))
+    annual_savings = report_data.get("potential_annual_savings", potential_sav * 12.0)
+    story.append(Paragraph(f"Total Monthly Savings: <b>${potential_sav:,.2f}</b> | Total Annual Savings: <b>${annual_savings:,.2f}</b>", body_style))
+    recs = report_data.get("recommendations", [])
+    if recs:
+        for r in recs[:4]:
+            story.append(Paragraph(f"• <b>{r.get('title', 'Optimization')}</b> — Save ${r.get('estimated_savings', 0.0):,.2f}/mo. {r.get('description', '')}", body_style))
+
+    story.append(Spacer(1, 12))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#cbd5e1"), spaceAfter=6))
+    story.append(Paragraph("Generated by CloudPulse-AI FinOps Executive Intelligence Engine | https://cloudpulse.io", subtitle_style))
+
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+

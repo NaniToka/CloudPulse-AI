@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { DollarSign, Download, RefreshCw, FileSpreadsheet, AlertCircle, Info } from "lucide-react";
+import { DollarSign, Download, RefreshCw, FileSpreadsheet, AlertCircle, Info, Filter, Calendar } from "lucide-react";
 import PageHeader from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import MonthlyCostCard from "@/components/cost/MonthlyCostCard";
@@ -14,10 +14,12 @@ import CostLoadingSkeleton from "@/components/cost/CostLoadingSkeleton";
 import FinOpsBudgetPanel from "@/components/cost/FinOpsBudgetPanel";
 import CostAnomalyPanel from "@/components/cost/CostAnomalyPanel";
 import CostForecastCard from "@/components/cost/CostForecastCard";
+import ExecutiveHealthCard from "@/components/cost/ExecutiveHealthCard";
+import CostDriversPanel from "@/components/cost/CostDriversPanel";
+import InteractiveCostExplorer from "@/components/cost/InteractiveCostExplorer";
+import SavingsCenterPanel from "@/components/cost/SavingsCenterPanel";
 
 import { costService } from "@/services/costService";
-import { exportCostReportToPdf } from "@/lib/costPdfExport";
-import { exportToCsv } from "@/lib/csvExport";
 
 import type {
   CostOverviewResponse,
@@ -27,10 +29,26 @@ import type {
   CostBudgetItem,
   CostAnomalyItem,
   CostForecastResponse,
+  CostHealthScoreResponse,
+  ExecutiveCostSummaryResponse,
+  CostDriversResponse,
+  PeriodComparisonResponse,
+  CostExplorerResponse,
+  SavingsCenterResponse,
 } from "@/types/cost";
 
 export default function CostPage() {
+  const [selectedProvider, setSelectedProvider] = useState<string>("all");
+  const [selectedDateRange, setSelectedDateRange] = useState<string>("30_days");
+
   const [overview, setOverview] = useState<CostOverviewResponse | null>(null);
+  const [healthScore, setHealthScore] = useState<CostHealthScoreResponse | null>(null);
+  const [executiveSummary, setExecutiveSummary] = useState<ExecutiveCostSummaryResponse | null>(null);
+  const [drivers, setDrivers] = useState<CostDriversResponse | null>(null);
+  const [comparison, setComparison] = useState<PeriodComparisonResponse | null>(null);
+  const [explorer, setExplorer] = useState<CostExplorerResponse | null>(null);
+  const [savingsCenter, setSavingsCenter] = useState<SavingsCenterResponse | null>(null);
+
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [resources, setResources] = useState<CloudCostItem[]>([]);
   const [budgets, setBudgets] = useState<CostBudgetItem[]>([]);
@@ -42,21 +60,51 @@ export default function CostPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const [overviewData, recsData, resourcesData, budgetData, anomalyData, forecastData] = await Promise.all([
-        costService.getOverview(),
+      const filterParams = {
+        provider: selectedProvider === "all" ? undefined : selectedProvider,
+        date_range: selectedDateRange,
+      };
+
+      const [
+        overviewData,
+        healthData,
+        summaryData,
+        driversData,
+        comparisonData,
+        explorerData,
+        savingsCenterData,
+        recsData,
+        resourcesData,
+        budgetData,
+        anomalyData,
+        forecastData,
+      ] = await Promise.all([
+        costService.getOverview(filterParams),
+        costService.getHealthScore(filterParams),
+        costService.getExecutiveSummary(filterParams),
+        costService.getDrivers(filterParams),
+        costService.getPeriodComparison(filterParams),
+        costService.getExplorer(filterParams),
+        costService.getSavingsCenter(),
         costService.getRecommendations(),
-        costService.getResources({ limit: 100 }),
+        costService.getResources({ limit: 100, service: undefined }),
         costService.getBudgets(),
-        costService.getAnomalies(),
-        costService.getForecast(),
+        costService.getAnomalies(filterParams),
+        costService.getForecast(filterParams),
       ]);
 
       setOverview(overviewData);
+      setHealthScore(healthData);
+      setExecutiveSummary(summaryData);
+      setDrivers(driversData);
+      setComparison(comparisonData);
+      setExplorer(explorerData);
+      setSavingsCenter(savingsCenterData);
       setRecommendations(recsData.items);
       setResources(resourcesData.items);
       setBudgets(budgetData.budgets);
@@ -68,11 +116,11 @@ export default function CostPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedProvider, selectedDateRange]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleRunAiAnalysis = async () => {
     try {
@@ -97,7 +145,7 @@ export default function CostPage() {
     try {
       await costService.updateRecommendationStatus(id, status);
       setRecommendations((prev) => prev.filter((r) => r.id !== id));
-      const updatedOverview = await costService.getOverview();
+      const updatedOverview = await costService.getOverview({ provider: selectedProvider === "all" ? undefined : selectedProvider });
       setOverview(updatedOverview);
     } catch (err) {
       console.error("Failed to update recommendation status", err);
@@ -105,22 +153,13 @@ export default function CostPage() {
   };
 
   const handleExportPdf = () => {
-    exportCostReportToPdf(overview, aiAnalysis, recommendations);
+    const url = costService.getPdfReportDownloadUrl(selectedDateRange, selectedProvider === "all" ? undefined : selectedProvider);
+    window.open(url, "_blank");
   };
 
   const handleExportCsv = () => {
-    if (!resources || resources.length === 0) return;
-    const csvRows = resources.map((r) => ({
-      ResourceName: r.resource_name,
-      Service: r.service,
-      Provider: r.provider.toUpperCase(),
-      Region: r.region,
-      Environment: r.environment,
-      MonthlyCost: r.cost,
-      DailyCost: r.daily_cost,
-      Status: r.status,
-    }));
-    exportToCsv("cloudpulse_cost_analysis.csv", csvRows);
+    const url = costService.getExportCsvUrl(selectedProvider === "all" ? undefined : selectedProvider);
+    window.open(url, "_blank");
   };
 
   if (isLoading) {
@@ -158,16 +197,37 @@ export default function CostPage() {
     <div className="space-y-6 max-w-[1600px] mx-auto">
       <PageHeader
         title="FinOps & Cost Intelligence Center"
-        subtitle="Enterprise multi-cloud spend optimization, anomaly detection, forecasting & budget intelligence"
+        subtitle="Executive multi-cloud spend optimization, health scoring, cost driver attribution & budget intelligence"
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              <span className="text-muted-foreground">Env:</span>
-              <span className="text-foreground font-semibold">{overview?.environment || "Local Development"}</span>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground">Provider:</span>
-              <span className="text-brand-blue font-semibold">{overview?.data_source || "Demo Data — No Cloud Credentials Connected"}</span>
+            {/* Provider Filter */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-elevated border border-white/10 text-xs">
+              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+              <select
+                value={selectedProvider}
+                onChange={(e) => setSelectedProvider(e.target.value)}
+                className="bg-transparent text-foreground font-medium focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-slate-900">All Providers</option>
+                <option value="aws" className="bg-slate-900">AWS</option>
+                <option value="azure" className="bg-slate-900">Azure</option>
+                <option value="gcp" className="bg-slate-900">GCP</option>
+                <option value="kubernetes" className="bg-slate-900">Kubernetes</option>
+              </select>
+            </div>
+
+            {/* Date Range Filter */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-elevated border border-white/10 text-xs">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              <select
+                value={selectedDateRange}
+                onChange={(e) => setSelectedDateRange(e.target.value)}
+                className="bg-transparent text-foreground font-medium focus:outline-none cursor-pointer"
+              >
+                <option value="7_days" className="bg-slate-900">Last 7 Days</option>
+                <option value="30_days" className="bg-slate-900">Last 30 Days</option>
+                <option value="quarter" className="bg-slate-900">Current Quarter</option>
+              </select>
             </div>
 
             <Button
@@ -176,8 +236,8 @@ export default function CostPage() {
               onClick={handleExportPdf}
               className="gap-2 text-xs bg-bg-elevated border-white/[0.08]"
             >
-              <Download className="h-3.5 w-3.5" />
-              Export PDF
+              <Download className="h-3.5 w-3.5 text-brand-blue" />
+              Executive PDF Report
             </Button>
 
             <Button
@@ -186,7 +246,7 @@ export default function CostPage() {
               onClick={handleExportCsv}
               className="gap-2 text-xs bg-bg-elevated border-white/[0.08]"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
               Export CSV
             </Button>
 
@@ -207,12 +267,15 @@ export default function CostPage() {
       <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-center justify-between text-xs font-mono text-amber-300">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>Notice: Live Cloud Provider APIs disconnected. Displaying deterministic local fixture dataset across AWS, Azure, GCP, and Kubernetes.</span>
+          <span>Notice: Live Cloud Credentials Disconnected. Displaying deterministic local fixture dataset across AWS, Azure, GCP, and Kubernetes.</span>
         </div>
         <span className="px-2 py-0.5 rounded bg-amber-500/20 text-[10px] font-bold">LOCAL FIXTURE DATA</span>
       </div>
 
-      {/* 1. Key Metrics & Monthly Cost Card */}
+      {/* 1. Executive Health Score Card & Intelligence Summary */}
+      <ExecutiveHealthCard healthScore={healthScore} executiveSummary={executiveSummary} />
+
+      {/* 2. Top Executive Key Metrics */}
       {overview && (
         <MonthlyCostCard
           monthlyCost={overview.monthly_cost}
@@ -223,7 +286,16 @@ export default function CostPage() {
         />
       )}
 
-      {/* 2. Spend Forecast & Cost Anomalies */}
+      {/* 3. Major Cost Drivers & Period Comparison */}
+      <CostDriversPanel drivers={drivers} comparison={comparison} />
+
+      {/* 4. Savings Center Panel */}
+      <SavingsCenterPanel savingsCenter={savingsCenter} />
+
+      {/* 5. Interactive Cost Explorer */}
+      <InteractiveCostExplorer explorer={explorer} />
+
+      {/* 6. Spend Forecast & Cost Anomalies */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-6">
           <CostForecastCard forecast={forecast} />
@@ -233,10 +305,10 @@ export default function CostPage() {
         </div>
       </div>
 
-      {/* 3. Budget Intelligence Panel */}
+      {/* 7. Budget Intelligence Panel */}
       <FinOpsBudgetPanel budgets={budgets} />
 
-      {/* 4. Charts Row (Cost Trend + Service Pie + Region Breakdown) */}
+      {/* 8. Charts Row (Cost Trend + Service Pie + Region Breakdown) */}
       {overview && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           <div className="xl:col-span-8 space-y-6">
@@ -254,21 +326,22 @@ export default function CostPage() {
         </div>
       )}
 
-      {/* 5. AI Recommendation Panel */}
+      {/* 9. AI Recommendation Panel */}
       <AiRecommendationPanel
         analysis={aiAnalysis}
         onAnalyze={handleRunAiAnalysis}
         isAnalyzing={isAnalyzing}
       />
 
-      {/* 6. Optimization Opportunities (Cards) */}
+      {/* 10. Optimization Opportunities (Cards) */}
       <OptimizationOpportunities
         recommendations={recommendations}
         onStatusChange={handleStatusChange}
       />
 
-      {/* 7. Resource Cost Inventory Table */}
+      {/* 11. Resource Cost Inventory Table */}
       <ResourceTable resources={resources} />
     </div>
   );
 }
+

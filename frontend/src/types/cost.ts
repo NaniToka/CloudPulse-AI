@@ -186,3 +186,108 @@ export interface ServiceCostsResponse {
   services: ServiceCostItem[];
   total_cost: number;
 }
+
+export interface CostHealthScoreResponse {
+  score: number;
+  status: "Healthy" | "Watch" | "At Risk" | "Critical" | string;
+  factors: string[];
+  explanation: string;
+}
+
+export interface ExecutiveCostSummaryResponse {
+  monthly_cost: number;
+  previous_month_cost: number;
+  percentage_change: number;
+  summary_statements: string[];
+}
+
+export interface CostDriverItem {
+  name: string;
+  cost: number;
+  reason: string;
+}
+
+export interface CostDriversResponse {
+  top_provider: CostDriverItem;
+  top_service: CostDriverItem;
+  top_region: CostDriverItem;
+  top_resource: CostDriverItem;
+  fastest_growing_service: CostDriverItem;
+  largest_anomaly: Record<string, unknown>;
+  largest_savings_opportunity: Record<string, unknown>;
+}
+
+export interface ProviderPeriodChange {
+  provider: string;
+  current_cost: number;
+  previous_cost: number;
+  difference: number;
+}
+
+export interface ServicePeriodChange {
+  service: string;
+  current_cost: number;
+  previous_cost: number;
+  difference: number;
+}
+
+export interface PeriodComparisonResponse {
+  current_spend: number;
+  previous_spend: number;
+  total_spend_difference: number;
+  percentage_difference: number;
+  provider_changes: ProviderPeriodChange[];
+  service_changes: ServicePeriodChange[];
+}
+
+export interface CostExplorerNode {
+  id: string;
+  name: string;
+  level: "provider" | "service" | "region" | "resource" | string;
+  cost: number;
+  percentage_of_total: number;
+  resource_count: number;
+  children?: CostExplorerNode[];
+}
+
+export interface CostExplorerResponse {
+  nodes: CostExplorerNode[];
+  total_cost: number;
+}
+
+export interface SavingsCenterResponse {
+  total_monthly_savings: number;
+  total_annual_savings: number;
+  opportunity_count: number;
+  average_savings_per_opportunity: number;
+  by_provider: Array<{ provider: string; savings: number }>;
+  by_category: Array<{ category: string; savings: number }>;
+  by_service: Array<{ service: string; savings: number }>;
+}
+
+export interface FinOpsReportResponse {
+  generated_at: string;
+  date_range: string;
+  data_source: string;
+  health_score: CostHealthScoreResponse;
+  executive_summary: string;
+  summary_statements: string[];
+  total_monthly_cost: number;
+  previous_month_cost: number;
+  percentage_change: number;
+  projected_cost: number;
+  potential_monthly_savings: number;
+  potential_annual_savings: number;
+  cost_drivers: CostDriversResponse;
+  period_comparison: PeriodComparisonResponse;
+  provider_breakdown: ProviderCostItem[];
+  service_breakdown: ServiceCostItem[];
+  region_breakdown: RegionCostItem[];
+  anomalies: CostAnomalyItem[];
+  forecast: CostForecastResponse;
+  budget_status: Record<string, unknown>;
+  budget_crossing_projection: Record<string, unknown>;
+  savings_center: SavingsCenterResponse;
+  recommendations: RecommendationItem[];
+}
+

@@ -23,6 +23,8 @@ PATCH  /api/v1/cost/recommendations/{id}/status — Update recommendation status
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -40,26 +42,40 @@ from app.schemas.cost import (
     CostBudgetItem,
     CostBudgetListResponse,
     CostBudgetPayload,
+    CostDriversResponse,
+    CostExplorerNode,
+    CostExplorerResponse,
     CostForecastResponse,
+    CostHealthScoreResponse,
     CostOverviewResponse,
     CostSavingsResponse,
     CostTrendsResponse,
     DailyCostItem,
+    ExecutiveCostSummaryResponse,
+    FinOpsReportRequest,
+    FinOpsReportResponse,
+    PeriodComparisonResponse,
     ProviderCostItem,
     ProviderCostsResponse,
     RecommendationItem,
     RecommendationsResponse,
     RegionCostItem,
     RegionCostsResponse,
+    SavingsCenterResponse,
     ServiceCostItem,
     ServiceCostsResponse,
 )
 from app.services.cost_ai_service import analyze_cloud_costs_with_gemini
 from app.services.cost_engine import (
+    analyze_cost_drivers,
     calculate_cost_forecast,
+    calculate_finops_health_score,
+    calculate_period_comparison,
+    calculate_savings_center_breakdown,
     calculate_savings_summary,
     detect_cost_anomalies,
     evaluate_budget,
+    generate_executive_cost_summary,
     group_costs_by_provider,
     group_costs_by_region,
     group_costs_by_service,
@@ -629,3 +645,304 @@ async def update_recommendation_status(
             detail="Optimization recommendation not found",
         )
     return RecommendationItem.model_validate(updated)
+
+
+# ---------------------------------------------------------------------------
+# Executive FinOps Intelligence Endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/health-score",
+    response_model=CostHealthScoreResponse,
+    summary="Get deterministic FinOps Health Score and posture factors",
+)
+async def get_cost_health_score(
+    provider: str | None = Query(None),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostHealthScoreResponse:
+    overview = await crud_cost.get_cost_overview_data(db, user_id=current_user.id, provider=provider)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
+    resources_dicts = [{"cost": c.cost, "status": c.status, "resource_name": c.resource_name, "service": c.service, "provider": c.provider} for c in costs]
+    anomalies = detect_cost_anomalies(resources_dicts)
+    crit_count = sum(1 for a in anomalies if a["severity"] == "CRITICAL")
+    budgets_db = await crud_cost.get_budgets(db, user_id=current_user.id)
+    tot_budget = sum(b.amount for b in budgets_db) if budgets_db else 0.0
+    budget_ev = evaluate_budget(tot_budget, overview["monthly_cost"], overview["projected_cost"])
+
+    score_data = calculate_finops_health_score(
+        monthly_cost=overview["monthly_cost"],
+        potential_savings=overview["potential_savings"],
+        anomalies_count=len(anomalies),
+        critical_anomalies_count=crit_count,
+        budget_utilization_pct=budget_ev["utilization_pct"],
+        projected_variance_pct=abs(overview["percentage_change"]),
+    )
+    return CostHealthScoreResponse(**score_data)
+
+
+@router.get(
+    "/executive-summary",
+    response_model=ExecutiveCostSummaryResponse,
+    summary="Get data-derived executive intelligence statements",
+)
+async def get_executive_cost_summary(
+    provider: str | None = Query(None),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> ExecutiveCostSummaryResponse:
+    overview = await crud_cost.get_cost_overview_data(db, user_id=current_user.id, provider=provider)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
+    recs, _ = await crud_cost.get_recommendations(db, user_id=current_user.id, status="active")
+    resources_dicts = [{"cost": c.cost, "status": c.status, "resource_name": c.resource_name, "service": c.service, "provider": c.provider} for c in costs]
+    recs_dicts = [{"estimated_savings": r.estimated_savings, "status": r.status} for r in recs]
+    anomalies = detect_cost_anomalies(resources_dicts)
+
+    summary = generate_executive_cost_summary(
+        monthly_cost=overview["monthly_cost"],
+        previous_month_cost=overview["previous_month_cost"],
+        percentage_change=overview["percentage_change"],
+        service_breakdown=overview["service_breakdown"],
+        recommendations=recs_dicts,
+        anomalies=anomalies,
+    )
+    return ExecutiveCostSummaryResponse(**summary)
+
+
+@router.get(
+    "/drivers",
+    response_model=CostDriversResponse,
+    summary="Identify major cost drivers with values and explicit reasons",
+)
+async def get_cost_drivers(
+    provider: str | None = Query(None),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostDriversResponse:
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
+    recs, _ = await crud_cost.get_recommendations(db, user_id=current_user.id, status="active")
+    resources_dicts = [{"cost": c.cost, "status": c.status, "resource_name": c.resource_name, "service": c.service, "provider": c.provider} for c in costs]
+    recs_dicts = [{"title": r.title, "description": r.description, "estimated_savings": r.estimated_savings, "status": r.status} for r in recs]
+    anomalies = detect_cost_anomalies(resources_dicts)
+
+    drivers = analyze_cost_drivers(resources_dicts, anomalies, recs_dicts)
+    return CostDriversResponse(**drivers)
+
+
+@router.get(
+    "/period-comparison",
+    response_model=PeriodComparisonResponse,
+    summary="Compare current vs previous period spend and changes across providers & services",
+)
+async def get_period_comparison(
+    provider: str | None = Query(None),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> PeriodComparisonResponse:
+    overview = await crud_cost.get_cost_overview_data(db, user_id=current_user.id, provider=provider)
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=300)
+    resources_dicts = [{"cost": c.cost, "provider": c.provider, "service": c.service} for c in costs]
+
+    comparison = calculate_period_comparison(resources_dicts, overview["previous_month_cost"])
+    return PeriodComparisonResponse(**comparison)
+
+
+@router.get(
+    "/explorer",
+    response_model=CostExplorerResponse,
+    summary="Hierarchical tree drill-down cost explorer (Provider -> Service -> Region -> Resource)",
+)
+async def get_cost_explorer(
+    provider: str | None = Query(None),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> CostExplorerResponse:
+    costs, _ = await crud_cost.get_costs(db, user_id=current_user.id, provider=provider, limit=500)
+    total_cost = round(sum(c.cost for c in costs), 2)
+
+    # Build hierarchical tree: Provider -> Service -> Region -> Resource
+    tree: dict[str, dict[str, dict[str, list[dict[str, Any]]]]] = {}
+
+    for c in costs:
+        p_name = c.provider.upper()
+        s_name = c.service
+        r_name = c.region
+
+        if p_name not in tree:
+            tree[p_name] = {}
+        if s_name not in tree[p_name]:
+            tree[p_name][s_name] = {}
+        if r_name not in tree[p_name][s_name]:
+            tree[p_name][s_name][r_name] = []
+
+        tree[p_name][s_name][r_name].append(
+            {
+                "id": str(c.id),
+                "name": c.resource_name,
+                "level": "resource",
+                "cost": round(c.cost, 2),
+                "percentage_of_total": round((c.cost / total_cost * 100.0), 1) if total_cost > 0 else 0.0,
+                "resource_count": 1,
+                "children": [],
+            }
+        )
+
+    provider_nodes = []
+    for p_name, services in tree.items():
+        p_cost = sum(r["cost"] for s in services.values() for reg in s.values() for r in reg)
+        p_pct = round((p_cost / total_cost * 100.0), 1) if total_cost > 0 else 0.0
+
+        service_nodes = []
+        for s_name, regions in services.items():
+            s_cost = sum(r["cost"] for reg in regions.values() for r in reg)
+            s_pct = round((s_cost / total_cost * 100.0), 1) if total_cost > 0 else 0.0
+
+            region_nodes = []
+            for r_name, res_list in regions.items():
+                reg_cost = sum(r["cost"] for r in res_list)
+                reg_pct = round((reg_cost / total_cost * 100.0), 1) if total_cost > 0 else 0.0
+
+                region_nodes.append(
+                    CostExplorerNode(
+                        id=f"reg-{p_name}-{s_name}-{r_name}",
+                        name=r_name,
+                        level="region",
+                        cost=round(reg_cost, 2),
+                        percentage_of_total=reg_pct,
+                        resource_count=len(res_list),
+                        children=[CostExplorerNode(**r) for r in res_list],
+                    )
+                )
+
+            service_nodes.append(
+                CostExplorerNode(
+                    id=f"svc-{p_name}-{s_name}",
+                    name=s_name,
+                    level="service",
+                    cost=round(s_cost, 2),
+                    percentage_of_total=s_pct,
+                    resource_count=sum(len(res) for res in regions.values()),
+                    children=region_nodes,
+                )
+            )
+
+        provider_nodes.append(
+            CostExplorerNode(
+                id=f"prov-{p_name}",
+                name=p_name,
+                level="provider",
+                cost=round(p_cost, 2),
+                percentage_of_total=p_pct,
+                resource_count=sum(len(res) for s in services.values() for res in s.values()),
+                children=service_nodes,
+            )
+        )
+
+    return CostExplorerResponse(nodes=provider_nodes, total_cost=total_cost)
+
+
+@router.get(
+    "/savings-center",
+    response_model=SavingsCenterResponse,
+    summary="Get complete Savings Center summary and category/provider/service breakdowns",
+)
+async def get_savings_center(
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> SavingsCenterResponse:
+    recs, _ = await crud_cost.get_recommendations(db, user_id=current_user.id, status="active")
+    recs_dicts = [
+        {
+            "estimated_savings": r.estimated_savings,
+            "status": r.status,
+            "provider": getattr(r, "provider", "AWS"),
+            "recommendation_type": r.recommendation_type,
+            "service": r.service,
+        }
+        for r in recs
+    ]
+    breakdown = calculate_savings_center_breakdown(recs_dicts)
+    return SavingsCenterResponse(**breakdown)
+
+
+# ---------------------------------------------------------------------------
+# FinOps PDF Report & Export Endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/reports/generate",
+    response_model=FinOpsReportResponse,
+    summary="Generate 12-section FinOps Executive Intelligence Report payload",
+)
+async def generate_finops_report(
+    payload: FinOpsReportRequest,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> FinOpsReportResponse:
+    from app.services.cost_report_service import generate_finops_executive_report_data
+
+    report_data = await generate_finops_executive_report_data(
+        db, user_id=current_user.id, provider=payload.provider, date_range=payload.date_range
+    )
+    return FinOpsReportResponse(**report_data)
+
+
+@router.get(
+    "/reports/pdf",
+    summary="Download downloadable PDF FinOps Executive Intelligence Report",
+)
+async def download_finops_pdf_report(
+    date_range: str = Query("30_days"),
+    provider: str | None = Query(None),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from fastapi.responses import Response
+
+    from app.services.cost_report_service import generate_finops_pdf_report
+
+    pdf_bytes = await generate_finops_pdf_report(
+        db, user_id=current_user.id, provider=provider, date_range=date_range
+    )
+    filename = f"FinOps_Executive_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/export",
+    summary="Export FinOps cost inventory in CSV or PDF format",
+)
+async def export_finops_data(
+    format_type: str = Query("csv", alias="format"),
+    provider: str | None = Query(None),
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from fastapi.responses import Response
+
+    if format_type.lower() == "pdf":
+        from app.services.cost_report_service import generate_finops_pdf_report
+
+        pdf_bytes = await generate_finops_pdf_report(db, user_id=current_user.id, provider=provider)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="FinOps_Export.pdf"'},
+        )
+    else:
+        from app.services.cost_report_service import export_finops_csv
+
+        csv_str = await export_finops_csv(db, user_id=current_user.id, provider=provider)
+        return Response(
+            content=csv_str,
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="FinOps_Export.csv"'},
+        )
+
