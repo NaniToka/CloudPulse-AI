@@ -27,6 +27,7 @@ from app.api.v1.endpoints import (
     metrics,
     notifications,
     organizations,
+    platform,
     predictions,
     projects,
     rag_chat,
@@ -232,4 +233,9 @@ api_router.include_router(
     topology.router,
     prefix="/topology",
     tags=["Enterprise Cloud Topology & Blast-Radius Intelligence Center"],
+)
+api_router.include_router(
+    platform.router,
+    prefix="/platform",
+    tags=["Production Readiness, Platform Health & Engineering Quality Center"],
 )

@@ -101,5 +101,45 @@ class PrometheusMetricsCollector:
 
         return "\n".join(lines) + "\n"
 
+    def get_metrics_summary(self) -> dict[str, float | int | list[dict[str, float | int | str]]]:
+        """Returns structured summary of application metrics for platform health inspection."""
+        total_reqs = sum(self.request_counts.values())
+        error_count = sum(count for code, count in self.status_counts.items() if int(code) >= 400)
+        error_rate_pct = round((error_count / total_reqs * 100.0), 2) if total_reqs > 0 else 0.0
+        uptime = max(0.1, time.time() - self.start_time)
+        requests_per_min = round(total_reqs / (uptime / 60.0), 2)
+
+        all_latencies: list[float] = []
+        slowest: list[dict[str, float | int | str]] = []
+
+        for key, times in self.request_latencies.items():
+            if times:
+                all_latencies.extend(times)
+                avg_sec = sum(times) / len(times)
+                method, path = key.split(":", 1) if ":" in key else ("GET", key)
+                slowest.append(
+                    {
+                        "method": method,
+                        "endpoint": path,
+                        "avg_latency_ms": round(avg_sec * 1000.0, 2),
+                        "requests": self.request_counts.get(key, len(times)),
+                    }
+                )
+
+        slowest.sort(key=lambda x: float(x["avg_latency_ms"]), reverse=True)
+        avg_latency_ms = (
+            round((sum(all_latencies) / len(all_latencies)) * 1000.0, 2) if all_latencies else 0.0
+        )
+
+        return {
+            "total_requests": total_reqs,
+            "error_count": error_count,
+            "error_rate_pct": error_rate_pct,
+            "requests_per_minute": requests_per_min,
+            "avg_latency_ms": avg_latency_ms,
+            "uptime_seconds": round(uptime, 1),
+            "slowest_endpoints": slowest[:5],
+        }
+
 
 metrics_collector = PrometheusMetricsCollector.get_instance()

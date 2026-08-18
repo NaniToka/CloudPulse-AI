@@ -56,6 +56,7 @@ import TelemetryIntelligenceDashboardPage from "@/pages/telemetry/TelemetryIntel
 import ServiceDependencyExplorerPage from "@/pages/dependencies/ServiceDependencyExplorerPage";
 import SrePage from "@/pages/sre/SrePage";
 import GovernancePage from "@/pages/governance/GovernancePage";
+import { PlatformHealthPage } from "@/pages/platform/PlatformHealthPage";
 
 export default function App() {
   return (
@@ -113,6 +114,7 @@ export default function App() {
             <Route path="/alerts"        element={<AlertsPage />}         />
             <Route path="/notifications" element={<NotificationsPage />}  />
             <Route path="/settings"      element={<SettingsPage />}       />
+            <Route path="/platform-health" element={<PlatformHealthPage />} />
           </Route>
         </Route>
 

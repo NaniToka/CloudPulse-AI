@@ -89,6 +89,7 @@ const navGroups = [
   {
     label: "System",
     items: [
+      { icon: Activity,      label: "Platform Health", to: "/platform-health" },
       { icon: Building2,     label: "Organization",  to: "/organization"  },
       { icon: Settings,      label: "Settings",      to: "/settings"      },
       { icon: MessageSquare, label: "Notifications",  to: "/notifications", badge: 7 },
