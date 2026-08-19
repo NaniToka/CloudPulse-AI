@@ -103,6 +103,16 @@ async def init_db(db: AsyncSession) -> None:
         await db.execute(text("ALTER TABLE security_scans ADD COLUMN IF NOT EXISTS ai_analysis JSON DEFAULT '{}';"))
         await db.execute(text("ALTER TABLE security_scans ADD COLUMN IF NOT EXISTS first_detected_at TIMESTAMP WITH TIME ZONE;"))
         await db.execute(text("ALTER TABLE security_scans ADD COLUMN IF NOT EXISTS last_detected_at TIMESTAMP WITH TIME ZONE;"))
+
+        # Service nodes & dependencies migrations
+        await db.execute(text("ALTER TABLE service_nodes ADD COLUMN IF NOT EXISTS organization_id UUID;"))
+        await db.execute(text("ALTER TABLE service_nodes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
+        await db.execute(text("ALTER TABLE service_nodes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
+        await db.execute(text("ALTER TABLE service_dependencies ADD COLUMN IF NOT EXISTS organization_id UUID;"))
+        await db.execute(text("ALTER TABLE service_dependencies ADD COLUMN IF NOT EXISTS source_service_id UUID;"))
+        await db.execute(text("ALTER TABLE service_dependencies ADD COLUMN IF NOT EXISTS target_service_id UUID;"))
+        await db.execute(text("ALTER TABLE service_dependencies ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
+        await db.execute(text("ALTER TABLE service_dependencies ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
         await db.commit()
     except Exception as exc:
         await db.rollback()
