@@ -1,178 +1,193 @@
-# CloudPulse-AI — Enterprise System Architecture Documentation
+# CloudPulse AI — Enterprise System Architecture
 
-## 1. System Architecture Diagram
+This document provides a detailed breakdown of the **CloudPulse AI** system architecture, component relationships, data flow patterns, backend module hierarchy, frontend client structure, and data persistence models.
+
+---
+
+## 1. High-Level System Architecture Diagram
+
+The system follows an event-driven, microservices-ready layered architecture. The React SPA communicates with the FastAPI API Gateway via REST and WebSockets, while the backend orchestrates data across PostgreSQL, Redis, ChromaDB, and Google Gemini API (or the local deterministic fallback engine).
 
 ```mermaid
-graph TB
-    subgraph Client Layer
-        WebBrowser["Web Browser (React SPA)"]
-        CLI["CLI / API Consumers"]
+flowchart TB
+    subgraph ClientLayer["Frontend Control Plane (React 18 + TypeScript + Vite)"]
+        DashboardUI["Executive & Operational Dashboards"]
+        TopologyUI["Cloud Topology & Blast Radius Center"]
+        AssetUI["Cloud Asset Inventory Center"]
+        RemediationUI["AIOps Action & Remediation Center"]
+        RAGChatUI["AI Infrastructure Chat (RAG) UI"]
+        WSClient["WebSocket Live Streaming Client"]
     end
 
-    subgraph Ingress & Gateway Layer
-        Nginx["Nginx Reverse Proxy (Port 80/443)"]
-        SPA_Static["Static Assets (/usr/share/nginx/html)"]
+    subgraph GatewayLayer["FastAPI Gateway & Middleware Layer"]
+        Router["API v1 Master Router (/api/v1)"]
+        CorsMW["CORS & Compression Middleware"]
+        AuthMW["Security & Correlation ID Middleware"]
+        RateLimitMW["In-Process Rate Limiter (Token Bucket)"]
+        RBAC["Granular RBAC Authorization Engine"]
     end
 
-    subgraph Backend Application Layer (FastAPI)
-        AuthMW["Security & Correlation Middleware"]
-        Router["API Router (/api/v1)"]
-        
-        subgraph Core Services
-            AuthService["Auth & RBAC Service"]
-            TelemetryService["Telemetry & Metric Ingestion"]
-            IncidentService["Incident & RCA Engine"]
-            CostService["FinOps Cost Optimizer"]
-            LogService["AI Log Parser & Analyzer"]
-            RAGService["RAG Intelligence Pipeline"]
-            AIOpsService["Autonomous AIOps Agent"]
-            RunbookService["Runbook Automation Service"]
-        end
+    subgraph ServiceLayer["Core Domain Services & AI Engines"]
+        AuthService["Auth & Tenant Isolation Service"]
+        TelemetryService["Unified Telemetry Ingestion Service"]
+        TopologyEngine["Cloud Topology & Blast-Radius Engine"]
+        AssetEngine["Asset Intelligence & Inventory Engine"]
+        IncidentEngine["Incident Correlation & RCA Engine"]
+        FinOpsEngine["FinOps Governance & Cost Engine"]
+        RemediationEngine["Automated Remediation Engine"]
+        RAGEngine["RAG Vector Intelligence Engine"]
+        AutonomousEngine["Autonomous Self-Healing Loop Engine"]
     end
 
-    subgraph Data & Storage Layer
-        PostgreSQL[("PostgreSQL 15 (Relational DB)")]
-        Redis[("Redis 7 (Cache & Sessions)")]
-        ChromaDB[("ChromaDB (Vector Store)")]
+    subgraph DataLayer["Persistence & Caching Infrastructure"]
+        Postgres[(PostgreSQL 15 Relational DB)]
+        Redis[(Redis 7 Cache & Execution Locks)]
+        ChromaDB[(ChromaDB 0.5.5 Vector Store)]
     end
 
-    subgraph AI Intelligence Layer
+    subgraph AILayer["AI & LLM Services Layer"]
         GeminiAPI["Google Gemini 1.5 API"]
-        LocalEngine["Local Deterministic SRE Engine (Fallback)"]
+        LocalEngine["Local Deterministic SRE Engine (Fallback / Demo)"]
     end
 
-    WebBrowser --> Nginx
-    CLI --> Nginx
-    Nginx --> SPA_Static
-    Nginx -->|Proxy /api/*| AuthMW
-    AuthMW --> Router
+    DashboardUI --> Router
+    TopologyUI --> Router
+    AssetUI --> Router
+    RemediationUI --> Router
+    RAGChatUI --> Router
+    WSClient <--> Router
 
-    Router --> AuthService
-    Router --> TelemetryService
-    Router --> IncidentService
-    Router --> CostService
-    Router --> LogService
-    Router --> RAGService
-    Router --> AIOpsService
-    Router --> RunbookService
+    Router --> CorsMW --> AuthMW --> RateLimitMW --> RBAC
+    RBAC --> AuthService
+    RBAC --> TelemetryService
+    RBAC --> TopologyEngine
+    RBAC --> AssetEngine
+    RBAC --> IncidentEngine
+    RBAC --> FinOpsEngine
+    RBAC --> RemediationEngine
+    RBAC --> RAGEngine
+    RBAC --> AutonomousEngine
 
-    AuthService --> PostgreSQL
+    AuthService --> Postgres
     AuthService --> Redis
-    TelemetryService --> PostgreSQL
-    IncidentService --> PostgreSQL
-    CostService --> PostgreSQL
-    LogService --> PostgreSQL
-    RAGService --> ChromaDB
-    RAGService --> GeminiAPI
-    RAGService -.-> LocalEngine
-    LogService --> GeminiAPI
-    LogService -.-> LocalEngine
-    AIOpsService --> PostgreSQL
-    RunbookService --> PostgreSQL
-```
-
----
-
-## 2. Authentication & RBAC Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User / Engineer
-    participant Frontend as React Client
-    participant Backend as FastAPI Auth
-    participant DB as PostgreSQL
-    participant Redis as Redis Cache
-
-    User->>Frontend: Enter credentials (email, password)
-    Frontend->>Backend: POST /api/v1/auth/login
-    Backend->>DB: Query User record by email
-    DB-->>Backend: Return User (hash, salt, role)
-    Backend->>Backend: Verify bcrypt password hash
-    Backend->>Backend: Generate JWT Access (30m) & Refresh (7d) tokens
-    Backend-->>Frontend: Return { access_token, refresh_token, user_profile }
-    Frontend->>Frontend: Store tokens in secure state memory
-
-    Note over Frontend,Backend: Authenticated API Requests
-    Frontend->>Backend: GET /api/v1/incidents (Authorization: Bearer <token>)
-    Backend->>Redis: Check if token is in revocation blocklist
-    Redis-->>Backend: Token valid
-    Backend->>Backend: Verify JWT signature & extract user_id, role
-    Backend->>Backend: Validate RBAC permissions (require_roles)
-    Backend->>DB: Execute query scoped to user/tenant
-    DB-->>Backend: Return data
-    Backend-->>Frontend: HTTP 200 OK with data payload
-```
-
----
-
-## 3. RAG Intelligence Pipeline Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor SRE as SRE Engineer
-    participant UI as RAG Chat UI
-    participant RAG as RAG Service
-    participant VectorDB as ChromaDB Vector Store
-    participant AI as Gemini AI / Local Engine
-    participant DB as Chat History DB
-
-    SRE->>UI: "Why is api-gateway P99 latency spiking?"
-    UI->>RAG: POST /api/v1/rag/query
-    RAG->>RAG: Preprocess query & extract entity keywords
-    RAG->>VectorDB: Semantic vector search on metrics, traces, incidents
-    VectorDB-->>RAG: Return top-K relevant context documents
-    RAG->>RAG: Construct grounded prompt with telemetry evidence
+    TelemetryService --> Postgres
+    TopologyEngine --> Postgres
+    AssetEngine --> Postgres
+    IncidentEngine --> Postgres
+    FinOpsEngine --> Postgres
+    RemediationEngine --> Postgres
+    AutonomousEngine --> Redis
     
-    alt Gemini API Key Configured
-        RAG->>AI: Send prompt to Gemini 1.5 Pro
-        AI-->>RAG: Return structured JSON (answer, citations, root cause)
-    else Fallback / Demo Mode
-        RAG->>AI: Invoke Local SRE Deterministic Inference Engine
-        AI-->>RAG: Return grounded diagnostics & recommendations
-    end
-
-    RAG->>DB: Persist query & response in session history
-    RAG-->>UI: Return RAGQueryResponse with citations & evidence
-    UI-->>SRE: Render Markdown diagnostics, related alerts, and action items
+    RAGEngine --> ChromaDB
+    RAGEngine --> GeminiAPI
+    RAGEngine -.-> LocalEngine
 ```
 
 ---
 
-## 4. Incident Lifecycle & Correlation Engine
+## 2. Backend Component Structure
+
+The backend application is built on FastAPI and follows a modular repository pattern with strict separation between routes, services, data models, and database access.
 
 ```mermaid
-stateDiagram-v2
-    [*] --> DETECTED: Metric anomaly or log error threshold breached
-    DETECTED --> CORRELATED: Multi-service topology correlation & deduplication
-    CORRELATED --> INVESTIGATING: SRE engineer assigned / alerted
-    INVESTIGATING --> IDENTIFIED: AI Root Cause Analysis (RCA) completed
-    IDENTIFIED --> MITIGATING: Automated runbook approved or scaling action dispatched
-    MITIGATING --> RESOLVED: Telemetry returns within SLA baseline thresholds
-    RESOLVED --> CLOSED: Post-mortem generated and incident archived
-    CLOSED --> [*]
+graph TD
+    BackendRoot["backend/app/"]
+    
+    BackendRoot --> Core["core/<br/>• config.py (Pydantic Settings)<br/>• security.py (JWT & Bcrypt)<br/>• middleware.py (Correlation & Rate Limit)<br/>• logging.py (Structlog)"]
+    BackendRoot --> API["api/v1/<br/>• router.py (Master v1 Router)<br/>• endpoints/ (38 Domain Endpoints)"]
+    BackendRoot --> Models["models/<br/>• 34 SQLAlchemy ORM Models<br/>• Declarative Base & Mixins"]
+    BackendRoot --> Schemas["schemas/<br/>• Pydantic v2 Request/Response Validation"]
+    BackendRoot --> CRUD["crud/<br/>• Repository Pattern Base CRUD Classes"]
+    BackendRoot --> DB["db/<br/>• session.py (AsyncEngine & AsyncSession)<br/>• init_db.py (Database Seeding)"]
+    BackendRoot --> Services["services/<br/>• 67 Business Logic & AI Engines<br/>• Gemini API & Local SRE Fallback"]
+    BackendRoot --> Telemetry["telemetry/<br/>• OpenTelemetry Exporter & Collectors"]
+```
+
+### Key Backend Components:
+1. **API Router Layer (`app/api/v1/endpoints/`)**: Contains 38 router modules managing REST routes (`auth`, `incidents`, `topology`, `finops_governance`, `remediation`, etc.).
+2. **Business Logic Layer (`app/services/`)**: Contains 67 service modules powering topology calculations, blast radius predictions, AI log parsing, RAG querying, FinOps cost policies, and autonomous self-healing loops.
+3. **ORM Models Layer (`app/models/`)**: Defines SQLAlchemy 2.0 async models with table constraints, foreign keys, indexes, and JSON fields.
+4. **Database Session Layer (`app/db/session.py`)**: Uses `asyncpg` driver with SQLAlchemy `AsyncSession` for high-concurrency non-blocking database queries.
+
+---
+
+## 3. Frontend Component Structure
+
+The frontend is a single-page application (SPA) built with React 18, TypeScript, Vite, and TailwindCSS. It leverages TanStack React Query for async server-state caching and Zustand for lightweight global UI state.
+
+```mermaid
+graph TD
+    FrontendRoot["frontend/src/"]
+    
+    FrontendRoot --> Layouts["layouts/<br/>• AuthLayout.tsx<br/>• DashboardLayout.tsx"]
+    FrontendRoot --> Pages["pages/<br/>• 36 Page View Component Folders<br/>• dashboard, topology, assets, finops, etc."]
+    FrontendRoot --> Components["components/<br/>• ui/ (Glassmorphic Design System)<br/>• auth/ (Protected & Guest Route Guards)<br/>• topology, assets, remediation, etc."]
+    FrontendRoot --> Services["services/<br/>• Axios API Client Services<br/>• Token Interceptors & Error Handlers"]
+    FrontendRoot --> Store["store/<br/>• Zustand Global Stores (authStore, uiStore)"]
+    FrontendRoot --> Types["types/<br/>• TypeScript Interface Definitions"]
+```
+
+### Key Frontend Views (`src/pages/`):
+- **Command Center & Executive Operations**: `/executive`, `/command-center`, `/dashboard`
+- **Cloud Infrastructure & Topology**: `/topology`, `/assets`, `/cloud`, `/cloud/accounts`, `/cloud/resources`, `/infrastructure`, `/servers`
+- **AIOps & Self-Healing Ops**: `/autonomous`, `/aiops`, `/remediation`, `/runbooks`, `/workflows`
+- **FinOps & Cost Governance**: `/cost`, `/finops/governance`
+- **Observability & Reliability**: `/monitoring`, `/tracing`, `/logs`, `/telemetry`, `/incidents`, `/sre`, `/slo`, `/reliability`, `/dependencies`, `/predictions`
+- **Kubernetes & Digital Twin**: `/k8s`, `/k8s/pods`, `/k8s/deployments`, `/twin`, `/twin/simulation/:id`
+- **AI Infrastructure Chat & Security**: `/chat`, `/ai`, `/security`, `/governance`
+- **Organization & Administration**: `/organization`, `/settings`, `/alerts`, `/notifications`, `/platform-health`
+
+---
+
+## 4. End-to-End Request & Data Flow
+
+When an SRE or executive interacts with CloudPulse AI, requests follow a strictly authenticated and validated pipeline:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as SRE / Executive
+    participant SPA as React Frontend
+    participant Gateway as FastAPI Router
+    participant Auth as RBAC / JWT Middleware
+    participant Service as Domain Engine (e.g. Topology)
+    participant Redis as Redis Cache
+    participant DB as PostgreSQL DB
+    participant AI as Gemini API / Local Fallback Engine
+
+    User->>SPA: Select action (e.g., Run Blast Radius Simulation)
+    SPA->>Gateway: POST /api/v1/topology/simulate-failure (Header: Bearer JWT)
+    Gateway->>Auth: Extract & Validate JWT token
+    Auth->>Redis: Check token revocation blocklist
+    Redis-->>Auth: Token valid
+    Auth->>Auth: Verify RBAC permissions (`require_roles("OPERATOR", "ADMIN")`)
+    Auth-->>Gateway: Context authenticated (user_id, org_id, role)
+    
+    Gateway->>Service: Dispatch `simulate_topology_failure(node_id)`
+    Service->>DB: Fetch infrastructure dependency graph
+    DB-->>Service: Return nodes, edges, & telemetry metrics
+    Service->>Service: Calculate topological blast-radius score
+    
+    alt Gemini AI Enabled
+        Service->>AI: Request AI strategic recommendation
+        AI-->>Service: Return structured AI recommendation
+    else Demo / Fallback Mode
+        Service->>AI: Invoke Local SRE Deterministic Engine
+        AI-->>Service: Return deterministic offline recommendation
+    end
+
+    Service-->>Gateway: Return Simulation Result (Blast Radius, SPOFs, AI Advice)
+    Gateway-->>SPA: HTTP 200 OK JSON Payload
+    SPA-->>User: Render visual graph breakdown & risk alerts
 ```
 
 ---
 
-## 5. Deployment Topology
+## 5. Telemetry & Data Storage Strategy
 
-```mermaid
-graph LR
-    subgraph Host / Cloud Instance
-        subgraph Docker Bridge Network
-            FE[frontend:80<br/>Nginx SPA Proxy]
-            BE[backend:8000<br/>FastAPI ASGI]
-            PG[postgres:5432<br/>PostgreSQL 15]
-            RD[redis:6379<br/>Redis 7]
-            CH[chromadb:8000<br/>Chroma Vector DB]
-        end
-    end
-
-    HostPort80[Port 80 / 5173] --> FE
-    FE -->|HTTP Proxy| BE
-    BE --> PG
-    BE --> RD
-    BE --> CH
-```
+| Data Type | Primary Store | Backup/Cache Store | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Relational Data** | PostgreSQL 15 | Disk Snapshots | Users, Orgs, Teams, Projects, Incidents, SLOs, Policies, Runbooks |
+| **Session & Locks** | Redis 7 | In-Memory Fallback | JWT Revocation list, Execution Locks for remediation, Metric Cache |
+| **RAG Embeddings** | ChromaDB 0.5.5 | Local Disk (`chroma_db_data`) | Vector embeddings for logs, metrics, traces, and incident post-mortems |
+| **Time-Series Metrics** | Postgres / Redis | Memory Buffer | Live WebSockets streaming metrics (CPU, Memory, Disk, RPS, P99) |
