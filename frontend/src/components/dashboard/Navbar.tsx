@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { Bell, Globe, Command, Search, Menu, LogOut, User, Settings, Building2, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/authStore";
 import { useLogout } from "@/hooks/useAuth";
+import { getDetailedPlatformHealth } from "@/services/platformService";
 import { cn } from "@/lib/utils";
 import { NavLink } from "react-router-dom";
 
@@ -15,6 +17,30 @@ interface NavbarProps {
 export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarProps) {
   const user = useAuthStore((s) => s.user);
   const { mutate: logout } = useLogout();
+  const [healthStatus, setHealthStatus] = useState<"healthy" | "degraded" | "critical" | "offline">("healthy");
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkHealth = async () => {
+      try {
+        const res = await getDetailedPlatformHealth();
+        if (isMounted) {
+          const st = res.overall_status?.toLowerCase();
+          if (st === "healthy") setHealthStatus("healthy");
+          else if (st === "degraded") setHealthStatus("degraded");
+          else setHealthStatus("critical");
+        }
+      } catch {
+        if (isMounted) setHealthStatus("offline");
+      }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const initials = user
     ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase() || "CP"
@@ -51,13 +77,32 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
           </div>
         </div>
 
-        {/* Status */}
+        {/* Live Dynamic Operational Status */}
         <div className="hidden lg:flex items-center gap-2 shrink-0">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+            <span
+              className={cn(
+                "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                healthStatus === "healthy" && "bg-emerald-400",
+                healthStatus === "degraded" && "bg-amber-400",
+                (healthStatus === "critical" || healthStatus === "offline") && "bg-rose-400"
+              )}
+            />
+            <span
+              className={cn(
+                "relative inline-flex rounded-full h-2 w-2",
+                healthStatus === "healthy" && "bg-emerald-400",
+                healthStatus === "degraded" && "bg-amber-400",
+                (healthStatus === "critical" || healthStatus === "offline") && "bg-rose-400"
+              )}
+            />
           </span>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">All systems operational</span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {healthStatus === "healthy" && "All systems operational"}
+            {healthStatus === "degraded" && "Systems degraded"}
+            {healthStatus === "critical" && "Critical system degradation"}
+            {healthStatus === "offline" && "Backend offline / unreachable"}
+          </span>
         </div>
 
         {/* Right actions */}

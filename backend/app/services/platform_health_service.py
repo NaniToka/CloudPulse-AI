@@ -17,6 +17,7 @@ import structlog
 from sqlalchemy import text
 
 from app.core.config import settings
+from app.core.logging import sanitize_error_message
 from app.db.session import engine
 from app.services.cache_service import cache_service
 from app.services.metrics_collector import metrics_collector
@@ -54,12 +55,13 @@ class PlatformHealthService:
             }
         except Exception as exc:
             latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
-            log.error("platform_health_db_error", error=str(exc))
+            safe_msg = sanitize_error_message(exc)
+            log.error("platform_health_db_error", error=safe_msg)
             return {
                 "status": "unhealthy",
                 "latency_ms": latency_ms,
                 "last_checked": datetime.datetime.now(datetime.UTC).isoformat(),
-                "message": f"PostgreSQL database error: {exc!s}",
+                "message": f"PostgreSQL database error: {safe_msg}",
             }
 
     async def check_redis(self) -> dict[str, Any]:
@@ -83,12 +85,13 @@ class PlatformHealthService:
             }
         except Exception as exc:
             latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
-            log.warning("platform_health_redis_error", error=str(exc))
+            safe_msg = sanitize_error_message(exc)
+            log.warning("platform_health_redis_error", error=safe_msg)
             return {
                 "status": "degraded",
                 "latency_ms": latency_ms,
                 "last_checked": datetime.datetime.now(datetime.UTC).isoformat(),
-                "message": f"Redis cache unavailable ({exc!s}); fallback active",
+                "message": f"Redis cache unavailable ({safe_msg}); fallback active",
             }
 
     async def check_chromadb(self) -> dict[str, Any]:
@@ -112,12 +115,13 @@ class PlatformHealthService:
             }
         except Exception as exc:
             latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
-            log.warning("platform_health_chromadb_error", error=str(exc))
+            safe_msg = sanitize_error_message(exc)
+            log.warning("platform_health_chromadb_error", error=safe_msg)
             return {
                 "status": "degraded",
                 "latency_ms": latency_ms,
                 "last_checked": datetime.datetime.now(datetime.UTC).isoformat(),
-                "message": f"ChromaDB error ({exc!s}); fallback active",
+                "message": f"ChromaDB error ({safe_msg}); fallback active",
             }
 
     def check_ai_provider(self) -> dict[str, Any]:
