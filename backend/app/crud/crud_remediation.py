@@ -5,6 +5,7 @@ CRUD Repository for Enterprise AIOps Automated Remediation & Action Center.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -41,11 +42,11 @@ class CRUDRemediation:
         stmt = select(RemediationPlan)
         if user_id:
             stmt = stmt.where(RemediationPlan.user_id == user_id)
-        if status:
+        if status and isinstance(status, str):
             stmt = stmt.where(RemediationPlan.status == status.upper())
-        if provider:
+        if provider and isinstance(provider, str):
             stmt = stmt.where(RemediationPlan.provider == provider)
-        if risk_level:
+        if risk_level and isinstance(risk_level, str):
             stmt = stmt.where(RemediationPlan.risk_level == risk_level.upper())
         stmt = stmt.order_by(RemediationPlan.created_at.desc()).limit(limit).offset(offset)
         res = await db.execute(stmt)
@@ -74,6 +75,7 @@ class CRUDRemediation:
         status: str = "PLANNED",
         plan_details: dict[str, Any] | None = None,
     ) -> RemediationPlan:
+        now = datetime.now(UTC)
         plan = RemediationPlan(
             user_id=user_id,
             trigger_source=trigger_source,
@@ -93,6 +95,8 @@ class CRUDRemediation:
             confidence_score=confidence_score,
             status=status,
             plan_details=plan_details or {},
+            created_at=now,
+            updated_at=now,
         )
         db.add(plan)
         await db.commit()

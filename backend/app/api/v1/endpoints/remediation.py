@@ -100,8 +100,11 @@ async def list_remediation_actions(
     current_user: User = Depends(require_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[RemediationPlanResponse]:
+    status_filter = status if isinstance(status, str) else None
+    provider_filter = provider if isinstance(provider, str) else None
+    risk_filter = risk_level if isinstance(risk_level, str) else None
     plans = await crud_remediation.get_plans(
-        db, user_id=current_user.id, status=status, provider=provider, risk_level=risk_level
+        db, user_id=current_user.id, status=status_filter, provider=provider_filter, risk_level=risk_filter
     )
     if not plans:
         # Seed initial realistic remediation plans if empty
