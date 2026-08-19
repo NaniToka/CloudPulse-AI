@@ -31,8 +31,8 @@ from app.db.session import AsyncSessionLocal
 
 log = structlog.get_logger(__name__)
 
-# Reusable bearer scheme instance (auto_error=False lets us return 403 instead of 422)
-_bearer = HTTPBearer(auto_error=True)
+# Reusable bearer scheme instance
+_bearer = HTTPBearer(auto_error=False)
 
 
 # ---------------------------------------------------------------------------
@@ -91,9 +91,15 @@ def _extract_user_id(token: str) -> str:
 
 
 async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> str:
     """Return the authenticated user's UUID as a plain string."""
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
     from app.services.cache_service import cache_service
 

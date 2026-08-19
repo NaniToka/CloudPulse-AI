@@ -100,10 +100,15 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // Only intercept 401s that haven't already been retried.
+    const isUnauth =
+      error.response?.status === 401 ||
+      (error.response?.status === 403 &&
+        (error.response?.data as any)?.error?.includes("authenticated"));
+
+    // Only intercept 401/unauthenticated 403s that haven't already been retried.
     // Also skip if the failing request IS the refresh call (avoids infinite loop).
     if (
-      error.response?.status !== 401 ||
+      !isUnauth ||
       original._retry ||
       original.url?.includes("/auth/refresh")
     ) {
