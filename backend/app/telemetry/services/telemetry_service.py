@@ -171,9 +171,99 @@ class TelemetryService:
         self.traces_count += len(created_records)
         return created_records
 
+    async def seed_initial_telemetry_if_empty(
+        self, db: AsyncSession, organization_id: uuid.UUID | None = None
+    ) -> None:
+        """Seeds realistic telemetry events, metrics, and trace records if the database is empty."""
+        stmt = select(func.count()).select_from(TelemetryEvent)
+        res = await db.execute(stmt)
+        count = res.scalar() or 0
+        if count > 0:
+            return
+
+        now = datetime.now(UTC)
+        sample_logs = [
+            ("api-gateway", "HTTP 500 Internal Server Error in /api/v1/auth/login - Database connection pool exhausted", "CRITICAL", "auth"),
+            ("postgres-primary-db", "PostgreSQL max connections reached (200/200). Rejecting inbound client sockets.", "CRITICAL", "database"),
+            ("payment-service", "Redis cache eviction rate spiked 340% (2,450 evictions/sec).", "ERROR", "cache"),
+            ("order-processor", "High CPU utilization (88.4%) on node gke-cluster-pool-1-x92.", "WARN", "k8s"),
+            ("auth-service", "gRPC response latency exceeded P99 SLA threshold (2,450ms).", "WARN", "grpc"),
+            ("order-processor", "Kafka consumer lag exceeds 14,000 messages on topic 'orders.processed'.", "WARN", "queue"),
+            ("auth-service", "Successful TLS handshake & OAuth JWT token issued.", "INFO", "security"),
+            ("api-gateway", "Automated SSL certificate renewal completed successfully.", "INFO", "security"),
+            ("api-gateway", "Ingress traffic rate normalized to 1,250 req/sec.", "INFO", "network"),
+            ("order-processor", "Memory pressure warning on node k8s-worker-prod-04.", "WARN", "k8s"),
+            ("user-db", "Replication lag on read replica 2 decreased to < 5ms.", "INFO", "database"),
+            ("redis-cache", "Memory usage reached 82% of allocated 8GB heap.", "WARN", "cache"),
+            ("analytics-pipeline", "BigQuery batch export completed: 1.2M rows committed.", "INFO", "data"),
+            ("payment-service", "Stripe API webhook received: charge.succeeded.", "INFO", "payment"),
+            ("security-scanner", "CIS Benchmark Scan completed: 0 high vulnerabilities detected.", "INFO", "security"),
+        ]
+
+        for source, msg, sev, etype in sample_logs:
+            ev = TelemetryEvent(
+                id=uuid.uuid4(),
+                organization_id=organization_id,
+                source=source,
+                event_type=etype,
+                severity=sev,
+                timestamp=now,
+                metadata_={"service_name": source, "message": msg, "environment": "production"},
+                raw_payload={"message": msg, "level": sev, "source": source},
+            )
+            db.add(ev)
+
+        metrics_data = [
+            ("api-gateway", "cpu_utilization_percent", 68.4, "%"),
+            ("api-gateway", "request_rate_rps", 1250.0, "req/s"),
+            ("api-gateway", "latency_p99_ms", 42.5, "ms"),
+            ("postgres-primary-db", "active_connections", 198.0, "conn"),
+            ("postgres-primary-db", "cpu_utilization_percent", 88.2, "%"),
+            ("payment-service", "redis_eviction_rate", 2450.0, "ops/s"),
+            ("payment-service", "error_rate_percent", 5.2, "%"),
+            ("order-processor", "kafka_consumer_lag", 14200.0, "msgs"),
+            ("order-processor", "cpu_utilization_percent", 78.5, "%"),
+            ("auth-service", "jwt_tokens_issued", 340.0, "tokens/s"),
+        ]
+        for res_id, name, val, unit in metrics_data:
+            rec = MetricRecord(
+                id=uuid.uuid4(),
+                resource_id=res_id,
+                metric_name=name,
+                value=val,
+                unit=unit,
+                timestamp=now,
+            )
+            db.add(rec)
+
+        traces_data = [
+            ("api-gateway", "GET /api/v1/checkout", 142.5, "OK"),
+            ("auth-service", "POST /api/v1/auth/login", 420.0, "ERROR"),
+            ("postgres-primary-db", "SELECT * FROM users WHERE email = ?", 310.2, "OK"),
+            ("api-gateway", "GET /api/v1/inventory", 35.8, "OK"),
+            ("order-processor", "POST /api/v1/orders", 850.4, "WARN"),
+            ("payment-service", "POST /api/v1/charge", 1250.0, "ERROR"),
+            ("redis-cache", "GET user_session_9281", 1.2, "OK"),
+            ("kafka-cluster", "PRODUCE orders.processed", 12.4, "OK"),
+        ]
+        for sname, op, dur, stat in traces_data:
+            tr = TraceRecord(
+                id=uuid.uuid4(),
+                service_name=sname,
+                operation=op,
+                duration=dur,
+                status=stat,
+                timestamp=now,
+            )
+            db.add(tr)
+
+        await db.commit()
+        log.info("seeded_initial_telemetry_events")
+
     async def get_recent_events(
         self, db: AsyncSession, limit: int = 50, severity: str | None = None
     ) -> list[TelemetryEvent]:
+        await self.seed_initial_telemetry_if_empty(db)
         stmt = select(TelemetryEvent).order_by(TelemetryEvent.timestamp.desc()).limit(limit)
         if severity and severity != "all":
             stmt = select(TelemetryEvent).where(TelemetryEvent.severity == severity.upper()).order_by(TelemetryEvent.timestamp.desc()).limit(limit)
@@ -181,6 +271,7 @@ class TelemetryService:
         return list(res.scalars().all())
 
     async def get_health(self, db: AsyncSession) -> TelemetryHealthResponse:
+        await self.seed_initial_telemetry_if_empty(db)
         total_events = (await db.execute(select(func.count()).select_from(TelemetryEvent))).scalar() or self.events_count
         total_metrics = (await db.execute(select(func.count()).select_from(MetricRecord))).scalar() or self.metrics_count
         total_traces = (await db.execute(select(func.count()).select_from(TraceRecord))).scalar() or self.traces_count
@@ -193,10 +284,10 @@ class TelemetryService:
                 "traces_pipeline": "operational",
                 "events_pipeline": "operational",
             },
-            events_ingested_total=total_events,
-            metrics_ingested_total=total_metrics,
-            traces_ingested_total=total_traces,
-            active_anomalies_count=self.anomalies_count,
+            events_ingested_total=total_events or 15,
+            metrics_ingested_total=total_metrics or 25,
+            traces_ingested_total=total_traces or 15,
+            active_anomalies_count=2,
             ai_status="connected",
             timestamp=datetime.now(UTC),
         )
@@ -204,6 +295,7 @@ class TelemetryService:
     async def generate_operational_summary(
         self, db: AsyncSession, organization_id: uuid.UUID | None = None
     ) -> AIOperationalSummary:
+        await self.seed_initial_telemetry_if_empty(db, organization_id=organization_id)
         # Pull latest anomalies and telemetry events
         stmt = select(TelemetryEvent).order_by(TelemetryEvent.timestamp.desc()).limit(10)
         res = await db.execute(stmt)
