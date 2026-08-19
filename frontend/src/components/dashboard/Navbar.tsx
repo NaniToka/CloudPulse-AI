@@ -1,4 +1,4 @@
-import { Bell, Globe, Command, Search, Menu, LogOut, User, Settings, Building2 } from "lucide-react";
+import { Bell, Globe, Command, Search, Menu, LogOut, User, Settings, Building2, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -36,11 +36,19 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
         <div className="flex flex-1 max-w-md items-center">
           <button className="flex h-9 w-full items-center gap-2.5 rounded-lg border border-white/10 bg-bg-elevated px-3 text-sm text-muted-foreground transition-colors hover:border-white/20 hover:bg-bg-overlay">
             <Search className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 text-left truncate">Search or run a command…</span>
+            <span className="flex-1 text-left truncate">Search metrics, logs, or services…</span>
             <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-white/10 bg-bg-surface px-1.5 font-mono text-[10px] text-muted-foreground shrink-0">
               <Command className="h-2.5 w-2.5" />K
             </kbd>
           </button>
+        </div>
+
+        {/* Demo Mode Badge */}
+        <div className="hidden md:flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 rounded-full border border-brand-purple/30 bg-brand-purple/10 px-2.5 py-1 text-xs text-brand-purple font-semibold shadow-glow-purple">
+            <Sparkles className="h-3 w-3 text-brand-purple animate-pulse" />
+            <span>Demo Mode &bull; Local Fixtures</span>
+          </div>
         </div>
 
         {/* Status */}
@@ -109,12 +117,7 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <NavLink to="/settings" className="gap-2">
-                  <User className="h-3.5 w-3.5" /> Profile
-                </NavLink>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <NavLink to="/settings" className="gap-2">
-                  <Settings className="h-3.5 w-3.5" /> Settings
+                  <User className="h-3.5 w-3.5" /> Profile Settings
                 </NavLink>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

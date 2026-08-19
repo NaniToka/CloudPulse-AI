@@ -25,6 +25,8 @@ import {
   Box,
   Network,
   Layers,
+  BarChart3,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -42,57 +44,91 @@ interface SidebarProps {
 
 const navGroups = [
   {
-    label: "Overview",
+    label: "Executive & Command",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard",       to: "/dashboard"      },
-      { icon: LayoutDashboard, label: "Executive Command", to: "/command-center" },
-      { icon: Bot,             label: "Autonomous Ops",   to: "/autonomous"   },
-      { icon: Zap,             label: "AIOps Action Center", to: "/remediation" },
+      { icon: LayoutDashboard, label: "Dashboard",          to: "/dashboard"      },
+      { icon: LayoutDashboard, label: "Executive Command",    to: "/command-center" },
+      { icon: BarChart3,       label: "Executive Center",   to: "/executive"      },
+    ],
+  },
+  {
+    label: "Observability",
+    items: [
+      { icon: Radio,           label: "Live Monitoring",    to: "/monitoring"     },
+      { icon: Activity,        label: "Telemetry",          to: "/telemetry"      },
+      { icon: GitCommit,       label: "Trace Explorer",     to: "/tracing"        },
+      { icon: Terminal,        label: "Log Analyzer",       to: "/logs"           },
+    ],
+  },
+  {
+    label: "AIOps & Self-Healing",
+    items: [
+      { icon: Bot,             label: "Autonomous Ops",     to: "/autonomous"     },
+      { icon: Cpu,             label: "AIOps Agent",        to: "/aiops"          },
+      { icon: Zap,             label: "AIOps Action Center",to: "/remediation"     },
+      { icon: BookOpen,        label: "AI Runbooks",        to: "/runbooks"       },
+      { icon: Bot,             label: "RAG AI Chat",        to: "/chat"           },
+      { icon: Activity,        label: "AI Copilot",         to: "/ai"             },
+    ],
+  },
+  {
+    label: "Incidents & Root Cause",
+    items: [
+      { icon: AlertTriangle,   label: "Incidents",          to: "/incidents",   badge: 3  },
+      { icon: Network,         label: "Root Cause & Graph", to: "/dependencies"         },
+      { icon: Activity,        label: "SRE Reliability",    to: "/sre"                  },
+    ],
+  },
+  {
+    label: "Services & Assets",
+    items: [
+      { icon: Layers,          label: "Asset Inventory",    to: "/assets"         },
+      { icon: Network,         label: "Cloud Topology",     to: "/topology"       },
+      { icon: Server,          label: "Infrastructure",     to: "/infrastructure" },
+      { icon: HardDrive,       label: "Servers",            to: "/servers"        },
+      { icon: Radio,           label: "Digital Twin",       to: "/twin"           },
+    ],
+  },
+  {
+    label: "Predictive AIOps",
+    items: [
+      { icon: Sparkles,        label: "Predictive AI",      to: "/predictions", badge: 4  },
       { icon: ShieldCheck,     label: "SLO & Error Budgets", to: "/reliability" },
-      { icon: Activity,        label: "Telemetry",       to: "/telemetry"      },
-      { icon: Cpu,             label: "AIOps Agent",     to: "/aiops"          },
-      { icon: Bot,             label: "RAG AI Chat",     to: "/chat"           },
-      { icon: Radio,           label: "Live Monitoring", to: "/monitoring"     },
-      { icon: Activity,        label: "AI Copilot",      to: "/ai"             },
+      { icon: BarChart3,       label: "SLO Intelligence",   to: "/slo"            },
     ],
   },
   {
-    label: "Infrastructure",
+    label: "Kubernetes",
     items: [
-      { icon: Radio,      label: "Digital Twin",   to: "/twin"           },
-      { icon: Box,        label: "Kubernetes K8s", to: "/k8s"            },
-      { icon: Cloud,      label: "Multi-Cloud",    to: "/cloud"          },
-      { icon: Server,     label: "Infrastructure", to: "/infrastructure" },
-      { icon: HardDrive,  label: "Servers",        to: "/servers"        },
-      { icon: Terminal,   label: "Logs",           to: "/logs"           },
-      { icon: DollarSign, label: "Cost Optimizer",   to: "/cost"           },
-      { icon: ShieldCheck,label: "FinOps Governance", to: "/finops/governance"},
-      { icon: Layers,     label: "Asset Inventory",   to: "/assets"         },
-      { icon: Network,    label: "Cloud Topology",    to: "/topology"       },
+      { icon: Box,             label: "Kubernetes K8s",     to: "/k8s"            },
+      { icon: Box,             label: "K8s Pod Explorer",   to: "/k8s/pods"       },
+      { icon: Box,             label: "K8s Deployments",    to: "/k8s/deployments"},
     ],
   },
   {
-    label: "Operations",
+    label: "Security",
     items: [
-      { icon: Zap,           label: "Workflows",            to: "/workflows"            },
-      { icon: ShieldCheck,   label: "AI Security Center",   to: "/security",  badge: 4  },
-      { icon: ShieldCheck,   label: "Governance Center",    to: "/governance"           },
-      { icon: Activity,      label: "SRE Center",           to: "/sre"                  },
-      { icon: Network,       label: "Service Dependencies", to: "/dependencies"         },
-      { icon: GitCommit,     label: "Trace Explorer",       to: "/tracing"              },
-      { icon: BookOpen,      label: "AI Runbooks",          to: "/runbooks"             },
-      { icon: Sparkles,      label: "Predictive AI",        to: "/predictions", badge: 4  },
-      { icon: AlertTriangle, label: "Incidents",            to: "/incidents",   badge: 3  },
-      { icon: Bell,          label: "Alerts",               to: "/alerts",      badge: 47 },
+      { icon: ShieldCheck,     label: "AI Security Center", to: "/security",  badge: 4  },
+      { icon: ShieldCheck,     label: "Governance Center",  to: "/governance"         },
     ],
   },
   {
-    label: "System",
+    label: "FinOps",
     items: [
-      { icon: Activity,      label: "Platform Health", to: "/platform-health" },
-      { icon: Building2,     label: "Organization",  to: "/organization"  },
-      { icon: Settings,      label: "Settings",      to: "/settings"      },
-      { icon: MessageSquare, label: "Notifications",  to: "/notifications", badge: 7 },
+      { icon: DollarSign,      label: "Cost Optimizer",     to: "/cost"           },
+      { icon: ShieldCheck,     label: "FinOps Governance",  to: "/finops/governance"},
+    ],
+  },
+  {
+    label: "Platform & System",
+    items: [
+      { icon: Activity,        label: "Platform Health",    to: "/platform-health" },
+      { icon: Zap,             label: "Workflows",          to: "/workflows"       },
+      { icon: Cloud,           label: "Multi-Cloud",        to: "/cloud"          },
+      { icon: Building2,       label: "Organization",       to: "/organization"   },
+      { icon: Settings,        label: "Settings",           to: "/settings"       },
+      { icon: Bell,            label: "Alerts",             to: "/alerts",      badge: 47 },
+      { icon: MessageSquare,   label: "Notifications",      to: "/notifications", badge: 7 },
     ],
   },
 ];
@@ -113,16 +149,16 @@ function NavItem({
   onClick?: () => void;
 }) {
   const location = useLocation();
-  const isActive = location.pathname === to || location.pathname.startsWith(to + "/");
+  const isActive = location.pathname === to || (to !== "/dashboard" && location.pathname.startsWith(to + "/"));
 
   const inner = (
     <NavLink
       to={to}
       onClick={onClick}
       className={cn(
-        "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150 group select-none",
+        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150 group select-none",
         isActive
-          ? "bg-brand-gradient text-white shadow-glow-blue"
+          ? "bg-brand-gradient text-white shadow-glow-blue font-medium"
           : "text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
       )}
     >
@@ -136,7 +172,7 @@ function NavItem({
           isActive ? "text-white" : "text-muted-foreground group-hover:text-foreground"
         )}
       />
-      {!collapsed && <span className="flex-1 truncate font-medium">{label}</span>}
+      {!collapsed && <span className="flex-1 truncate font-medium text-xs sm:text-sm">{label}</span>}
       {!collapsed && badge && badge > 0 ? (
         <span className={cn(
           "flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold",
@@ -211,12 +247,12 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClo
         )}
 
         {/* ── Nav groups ───────────────────────────────────────────── */}
-        <ScrollArea className="flex-1 py-4">
-          <nav className="space-y-5 px-3">
+        <ScrollArea className="flex-1 py-3">
+          <nav className="space-y-4 px-3">
             {navGroups.map((group) => (
               <div key={group.label} className="space-y-0.5">
                 {!collapsed && (
-                  <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
                     {group.label}
                   </p>
                 )}
@@ -257,10 +293,10 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClo
           </Tooltip>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
+              <p className="text-xs font-medium text-foreground truncate">
                 {user?.first_name ?? "Guest"} {user?.last_name ?? ""}
               </p>
-              <p className="text-xs text-muted-foreground capitalize truncate">
+              <p className="text-[10px] text-muted-foreground capitalize truncate">
                 {user?.role ?? "member"}
               </p>
             </div>
@@ -309,10 +345,10 @@ export default function Sidebar({ collapsed, onCollapse, mobileOpen, onMobileClo
                   <span className="font-bold text-base gradient-text tracking-tight">CloudPulse AI</span>
                 </div>
                 <ScrollArea className="flex-1 py-4">
-                  <nav className="space-y-5 px-3">
+                  <nav className="space-y-4 px-3">
                     {navGroups.map((group) => (
                       <div key={group.label} className="space-y-0.5">
-                        <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+                        <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
                           {group.label}
                         </p>
                         {group.items.map((item) => (
