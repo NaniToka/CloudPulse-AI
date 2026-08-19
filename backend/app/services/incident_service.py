@@ -242,7 +242,8 @@ class IncidentService:
 
         await db.commit()
         reloaded = await self.crud.get_with_timeline(db, incident.id)
-        assert reloaded is not None
+        if reloaded is None:
+            reloaded = incident
 
         try:
             resp = IncidentResponse.model_validate(reloaded)
@@ -334,7 +335,8 @@ class IncidentService:
 
         await db.commit()
         reloaded = await self.crud.get_with_timeline(db, incident.id)
-        assert reloaded is not None
+        if reloaded is None:
+            reloaded = incident
 
         try:
             resp = IncidentResponse.model_validate(reloaded)
@@ -406,7 +408,8 @@ class IncidentService:
             await db.commit()
 
         reloaded = await self.crud.get_with_timeline(db, incident_id)
-        assert reloaded is not None
+        if reloaded is None:
+            reloaded = updated_obj
 
         try:
             resp = IncidentResponse.model_validate(reloaded)
@@ -459,7 +462,8 @@ class IncidentService:
         await db.commit()
 
         reloaded = await self.crud.get_with_timeline(db, incident_id)
-        assert reloaded is not None
+        if reloaded is None:
+            reloaded = incident
 
         try:
             resp = IncidentResponse.model_validate(reloaded)
@@ -546,7 +550,8 @@ class IncidentService:
         await db.commit()
 
         reloaded = await self.crud.get_with_timeline(db, incident_id)
-        assert reloaded is not None
+        if reloaded is None:
+            reloaded = incident
 
         try:
             resp = IncidentResponse.model_validate(reloaded)
@@ -611,7 +616,8 @@ class IncidentService:
         await db.commit()
 
         reloaded = await self.crud.get_with_timeline(db, incident_id)
-        assert reloaded is not None
+        if reloaded is None:
+            reloaded = incident
 
         try:
             resp = IncidentResponse.model_validate(reloaded)

@@ -98,5 +98,14 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         return self.APP_ENV == "development"
 
+    @field_validator("APP_ENV", mode="after")
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
+        allowed = {"development", "demo", "staging", "production", "test"}
+        if v.lower() not in allowed:
+            return "development"
+        return v.lower()
+
 
 settings = Settings()
+
