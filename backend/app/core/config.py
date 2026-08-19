@@ -46,7 +46,14 @@ class Settings(BaseSettings):
 
     @property
     def effective_secret_key(self) -> str:
-        return self.SECRET_KEY or self.JWT_SECRET_KEY
+        key = self.SECRET_KEY or self.JWT_SECRET_KEY
+        if self.is_production and key in ("insecure_default_change_in_production", "change_me_in_production"):
+            import structlog
+            structlog.get_logger(__name__).warning(
+                "insecure_production_jwt_secret",
+                message="CRITICAL SECURITY WARNING: Running in production with default insecure JWT_SECRET_KEY! Set JWT_SECRET_KEY or SECRET_KEY in .env.",
+            )
+        return key
 
     # Gemini AI
     GEMINI_API_KEY: str = ""

@@ -19,8 +19,9 @@ import { useAuthStore } from "@/store/authStore";
 
 // Vite exposes env variables on import.meta.env.  The tsconfig already
 // includes "dom" so the type is correct — no cast needed.
-const BASE_URL: string =
-  import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+const BASE_URL: string = (
+  import.meta.env.VITE_API_BASE_URL ?? "/api/v1"
+).replace(/\/+$/, "");
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
