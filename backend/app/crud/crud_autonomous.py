@@ -5,6 +5,7 @@ CRUD Operations for Autonomous Operations & Self-Healing Center.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,6 +85,7 @@ async def get_autonomy_policy(db: AsyncSession, user_id: uuid.UUID | None = None
     policy = res.scalars().first()
 
     if not policy:
+        now = datetime.now(UTC)
         policy = AutonomyPolicy(
             user_id=user_id,
             autonomy_level=1,
@@ -92,6 +94,8 @@ async def get_autonomy_policy(db: AsyncSession, user_id: uuid.UUID | None = None
             allowed_environments=["development", "staging", "production"],
             default_execution_mode="SIMULATED",
             is_active=True,
+            created_at=now,
+            updated_at=now,
         )
         db.add(policy)
         await db.commit()
