@@ -661,10 +661,16 @@ async def get_remediations(
 async def request_remediation(
     db: AsyncSession, *, user_id: uuid.UUID, data: dict[str, Any], actor_email: str
 ) -> FinOpsRemediationAction:
-    """Create a new remediation request."""
-    violation_id_val = (
-        uuid.UUID(str(data["violation_id"])) if data.get("violation_id") else None
-    )
+    violation_id_val = None
+    if data.get("violation_id"):
+        try:
+            v_uuid = uuid.UUID(str(data["violation_id"]))
+            v_check = await db.execute(select(FinOpsCostViolation).where(FinOpsCostViolation.id == v_uuid))
+            if v_check.scalar_one_or_none():
+                violation_id_val = v_uuid
+        except Exception:
+            pass
+
     rem = FinOpsRemediationAction(
         id=uuid.uuid4(),
         user_id=user_id,

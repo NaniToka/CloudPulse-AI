@@ -195,6 +195,11 @@ api_router.include_router(
     tags=["FinOps Governance & Cost Control Center"],
 )
 api_router.include_router(
+    finops_governance.router,
+    prefix="/finops/governance",
+    include_in_schema=False,
+)
+api_router.include_router(
     executive.router,
     prefix="/executive",
     tags=["Executive Cloud Operations Command Center"],

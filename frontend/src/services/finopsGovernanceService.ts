@@ -32,33 +32,33 @@ export const finopsGovernanceService = {
     skip?: number;
     limit?: number;
   }): Promise<{ policies: CostPolicy[]; total: number }> {
-    const response = await apiClient.get<{ policies: CostPolicy[]; total: number }>("/finops/policies", { params });
+    const response = await apiClient.get<{ policies: CostPolicy[]; total: number }>("/finops/governance/policies", { params });
     return response.data;
   },
 
   async createPolicy(payload: CostPolicyCreatePayload): Promise<CostPolicy> {
-    const response = await apiClient.post<CostPolicy>("/finops/policies", payload);
+    const response = await apiClient.post<CostPolicy>("/finops/governance/policies", payload);
     return response.data;
   },
 
   async updatePolicy(id: string, payload: Partial<CostPolicyCreatePayload>): Promise<CostPolicy> {
-    const response = await apiClient.put<CostPolicy>(`/finops/policies/${id}`, payload);
+    const response = await apiClient.put<CostPolicy>(`/finops/governance/policies/${id}`, payload);
     return response.data;
   },
 
   async togglePolicyStatus(id: string, enabled: boolean): Promise<CostPolicy> {
-    const response = await apiClient.patch<CostPolicy>(`/finops/policies/${id}/status`, null, {
+    const response = await apiClient.patch<CostPolicy>(`/finops/governance/policies/${id}/status`, null, {
       params: { enabled },
     });
     return response.data;
   },
 
   async deletePolicy(id: string): Promise<void> {
-    await apiClient.delete(`/finops/policies/${id}`);
+    await apiClient.delete(`/finops/governance/policies/${id}`);
   },
 
   async evaluatePolicy(id: string): Promise<Record<string, unknown>> {
-    const response = await apiClient.post<Record<string, unknown>>(`/finops/policies/${id}/evaluate`);
+    const response = await apiClient.post<Record<string, unknown>>(`/finops/governance/policies/${id}/evaluate`);
     return response.data;
   },
 
@@ -75,27 +75,27 @@ export const finopsGovernanceService = {
       total: number;
       critical_count: number;
       high_count: number;
-    }>("/finops/violations", { params });
+    }>("/finops/governance/violations", { params });
     return response.data;
   },
 
   async updateViolationStatus(id: string, status: string): Promise<CostViolation> {
-    const response = await apiClient.patch<CostViolation>(`/finops/violations/${id}/status`, { status });
+    const response = await apiClient.patch<CostViolation>(`/finops/governance/violations/${id}/status`, { status });
     return response.data;
   },
 
   async getExceptions(): Promise<{ exceptions: PolicyException[]; total: number }> {
-    const response = await apiClient.get<{ exceptions: PolicyException[]; total: number }>("/finops/exceptions");
+    const response = await apiClient.get<{ exceptions: PolicyException[]; total: number }>("/finops/governance/exceptions");
     return response.data;
   },
 
   async createException(payload: PolicyExceptionCreatePayload): Promise<PolicyException> {
-    const response = await apiClient.post<PolicyException>("/finops/exceptions", payload);
+    const response = await apiClient.post<PolicyException>("/finops/governance/exceptions", payload);
     return response.data;
   },
 
   async updateExceptionStatus(id: string, status: string, approvedBy?: string): Promise<PolicyException> {
-    const response = await apiClient.patch<PolicyException>(`/finops/exceptions/${id}`, {
+    const response = await apiClient.patch<PolicyException>(`/finops/governance/exceptions/${id}`, {
       status,
       approved_by: approvedBy,
     });
@@ -113,34 +113,34 @@ export const finopsGovernanceService = {
       total: number;
       pending_approvals: number;
       potential_savings: number;
-    }>("/finops/remediations");
+    }>("/finops/governance/remediations");
     return response.data;
   },
 
   async requestRemediation(payload: RemediationRequestPayload): Promise<RemediationAction> {
-    const response = await apiClient.post<RemediationAction>("/finops/remediations/request", payload);
+    const response = await apiClient.post<RemediationAction>("/finops/governance/remediations/request", payload);
     return response.data;
   },
 
   async approveRemediation(id: string, status: string): Promise<RemediationAction> {
-    const response = await apiClient.post<RemediationAction>(`/finops/remediations/${id}/approve`, { status });
+    const response = await apiClient.post<RemediationAction>(`/finops/governance/remediations/${id}/approve`, { status });
     return response.data;
   },
 
   async executeRemediation(id: string, executionMode = "SIMULATED"): Promise<RemediationAction> {
-    const response = await apiClient.post<RemediationAction>(`/finops/remediations/${id}/execute`, {
+    const response = await apiClient.post<RemediationAction>(`/finops/governance/remediations/${id}/execute`, {
       execution_mode: executionMode,
     });
     return response.data;
   },
 
   async rollbackRemediation(id: string): Promise<RemediationAction> {
-    const response = await apiClient.post<RemediationAction>(`/finops/remediations/${id}/rollback`);
+    const response = await apiClient.post<RemediationAction>(`/finops/governance/remediations/${id}/rollback`);
     return response.data;
   },
 
   async getAuditTrail(skip = 0, limit = 50): Promise<{ audit_logs: FinOpsAuditLog[]; total: number }> {
-    const response = await apiClient.get<{ audit_logs: FinOpsAuditLog[]; total: number }>("/finops/audit", {
+    const response = await apiClient.get<{ audit_logs: FinOpsAuditLog[]; total: number }>("/finops/governance/audit", {
       params: { skip, limit },
     });
     return response.data;
