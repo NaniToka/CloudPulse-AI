@@ -22,6 +22,10 @@ from app.services.kubernetes_service import KubernetesService, kubernetes_servic
 router = APIRouter()
 
 
+def get_k8s_service() -> KubernetesService:
+    return kubernetes_service
+
+
 @router.get(
     "/clusters", response_model=list[K8sClusterResponse], summary="List Kubernetes Clusters"
 )
@@ -31,7 +35,7 @@ async def list_clusters(
     ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
-    service: KubernetesService = Depends(lambda: kubernetes_service),
+    service: KubernetesService = Depends(get_k8s_service),
 ):
     """Retrieve monitored Kubernetes clusters."""
     clusters = await service.get_clusters(db, user_id=current_user.id, provider=provider)
@@ -43,7 +47,7 @@ async def list_nodes(
     cluster_id: uuid.UUID | None = Query(None, description="Filter by cluster ID"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
-    service: KubernetesService = Depends(lambda: kubernetes_service),
+    service: KubernetesService = Depends(get_k8s_service),
 ):
     """Retrieve nodes with CPU and memory utilization metrics."""
     nodes = await service.get_nodes(db, cluster_id=cluster_id)
@@ -62,7 +66,7 @@ async def list_pods(
     search: str | None = Query(None, description="Search pod name or deployment"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
-    service: KubernetesService = Depends(lambda: kubernetes_service),
+    service: KubernetesService = Depends(get_k8s_service),
 ):
     """Retrieve Kubernetes Pods with status, restart counts, and resource usage."""
     pods = await service.get_pods(
@@ -77,7 +81,7 @@ async def list_deployments(
     namespace: str | None = Query(None, description="Filter by namespace"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
-    service: KubernetesService = Depends(lambda: kubernetes_service),
+    service: KubernetesService = Depends(get_k8s_service),
 ):
     """Retrieve Kubernetes Deployments and replica rollout status."""
     deployments = await service.get_deployments(db, cluster_id=cluster_id, namespace=namespace)
@@ -89,7 +93,7 @@ async def list_events(
     event_type: str | None = Query(None, description="Filter event type (Normal, Warning)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
-    service: KubernetesService = Depends(lambda: kubernetes_service),
+    service: KubernetesService = Depends(get_k8s_service),
 ):
     """Retrieve Kubernetes warning and normal cluster events."""
     events = await service.get_events(db, event_type=event_type)
@@ -102,7 +106,7 @@ async def get_pod_logs(
     tail: int = Query(100, description="Number of lines to tail"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
-    service: KubernetesService = Depends(lambda: kubernetes_service),
+    service: KubernetesService = Depends(get_k8s_service),
 ):
     """Retrieve stdout/stderr container logs for a pod."""
     logs = await service.get_pod_logs(db, pod_name, tail=tail)
@@ -116,7 +120,7 @@ async def analyze_cluster(
     cluster_id: uuid.UUID | None = Query(None, description="Optional cluster ID"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_active_user),
-    service: KubernetesService = Depends(lambda: kubernetes_service),
+    service: KubernetesService = Depends(get_k8s_service),
 ):
     """Diagnose pod failures, OOMKilled events, and cluster capacity using Gemini AI."""
     return await service.analyze_cluster(db, cluster_id=cluster_id)

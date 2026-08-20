@@ -59,9 +59,9 @@ class CRUDK8sPod(CRUDBase[K8sPod, Any, Any]):
         return list(res.scalars().all())
 
     async def get_by_name(self, db: AsyncSession, pod_name: str) -> K8sPod | None:
-        stmt = select(K8sPod).where(K8sPod.name == pod_name)
+        stmt = select(K8sPod).where(K8sPod.name == pod_name).order_by(K8sPod.created_at.desc())
         res = await db.execute(stmt)
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
 
 class CRUDK8sDeployment(CRUDBase[K8sDeployment, Any, Any]):
