@@ -284,6 +284,7 @@ export default function GovernancePage() {
         remediations={remediations}
         onTriggerAnalysis={handleTriggerAnalysis}
         isAnalyzing={analyzing}
+        aiAnalysis={aiAnalysis}
       />
 
       {/* Audit Trail & History */}
