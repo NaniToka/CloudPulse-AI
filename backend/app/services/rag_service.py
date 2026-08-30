@@ -173,6 +173,10 @@ class RAGService:
             context_snippets.append(f"[{doc['collection'].upper()}]: {doc['text']}")
 
         # Step 3: Invoke Gemini API if configured
+        import time
+        from app.services.metrics_collector import metrics_collector
+        start_ai = time.perf_counter()
+
         if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY not in ("your_key_here", ""):
             try:
                 import google.generativeai as genai
@@ -212,6 +216,15 @@ class RAGService:
                     recommended_actions=data.get("recommended_actions", []),
                     suggested_followup_questions=data.get("suggested_followup_questions", []),
                 )
+                duration_ai = time.perf_counter() - start_ai
+                metrics_collector.record_ai_execution(
+                    provider="google_gemini_rag",
+                    model=settings.GEMINI_MODEL,
+                    duration_sec=duration_ai,
+                    success=True,
+                    fallback_used=False,
+                    tokens_est=(len(user_prompt) + len(response.text)) // 4,
+                )
                 from app.crud.crud_rag_chat import crud_rag_chat
 
                 await crud_rag_chat.add_message(
@@ -220,11 +233,28 @@ class RAGService:
                 log.info("rag_query_completed_live_ai", conversation_id=conv_id, sources_count=len(sources))
                 return res
             except Exception as exc:
+                duration_ai = time.perf_counter() - start_ai
+                metrics_collector.record_ai_execution(
+                    provider="google_gemini_rag",
+                    model=settings.GEMINI_MODEL,
+                    duration_sec=duration_ai,
+                    success=False,
+                    fallback_used=True,
+                )
                 log.warning("gemini_rag_query_failed_falling_back", error=str(exc))
 
         # Fallback RAG synthesis if Gemini API unconfigured or offline
         log.info("rag_query_using_local_demo_provider", conversation_id=conv_id, question=req.question[:60])
         res = self._generate_fallback_rag_response(conv_id, req.question, sources)
+        duration_ai = time.perf_counter() - start_ai
+        metrics_collector.record_ai_execution(
+            provider="local_fallback_rag",
+            model="deterministic_rag",
+            duration_sec=duration_ai,
+            success=True,
+            fallback_used=True,
+            tokens_est=(len(req.question) + len(res.answer)) // 4,
+        )
         from app.crud.crud_rag_chat import crud_rag_chat
 
         await crud_rag_chat.add_message(conv_id, res.question, res.answer, res.confidence_score)

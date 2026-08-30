@@ -47,6 +47,16 @@ export interface EnvironmentInfo {
   demo_mode: boolean;
 }
 
+export interface PlatformHealthSummaryResponse {
+  status: string;
+  app: string;
+  version: string;
+  env: string;
+  overall_health_score: number;
+  overall_status: 'Healthy' | 'Degraded' | 'Critical';
+  dependencies: Record<string, DependencyHealthItem>;
+}
+
 export interface PlatformHealthDetailedResponse {
   overall_health_score: number;
   overall_status: 'Healthy' | 'Degraded' | 'Critical';
@@ -60,3 +70,4 @@ export interface PlatformHealthDetailedResponse {
   system_events: SystemEventItem[];
   environment_info: EnvironmentInfo;
 }
+

@@ -202,6 +202,9 @@ def _generate_fallback_copilot_response(user_message: str) -> str:
         )
 
 
+from app.services.metrics_collector import metrics_collector
+
+
 async def chat_completion(
     user_message: str,
     history: list[dict],
@@ -210,6 +213,7 @@ async def chat_completion(
     """
     Non-streaming chat completion. Uses Gemini if configured, or falls back to local SRE demo engine.
     """
+    start = time.perf_counter()
     if not rate_limiter.is_allowed(user_id):
         raise ValueError(
             "Rate limit exceeded. Please wait a moment before sending another message."
@@ -217,7 +221,17 @@ async def chat_completion(
 
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
         log.info("gemini_key_missing_using_local_copilot", user_id=user_id)
-        return _generate_fallback_copilot_response(user_message)
+        reply = _generate_fallback_copilot_response(user_message)
+        duration = time.perf_counter() - start
+        metrics_collector.record_ai_execution(
+            provider="local_fallback",
+            model="deterministic_sre",
+            duration_sec=duration,
+            success=True,
+            fallback_used=True,
+            tokens_est=len(reply) // 4,
+        )
+        return reply
 
     try:
         model = _get_model()
@@ -235,6 +249,16 @@ async def chat_completion(
         response = await chat.send_message_async(user_message)
         reply = response.text
 
+        duration = time.perf_counter() - start
+        metrics_collector.record_ai_execution(
+            provider="google_gemini",
+            model=settings.GEMINI_MODEL,
+            duration_sec=duration,
+            success=True,
+            fallback_used=False,
+            tokens_est=(len(user_message) + len(reply)) // 4,
+        )
+
         log.info(
             "gemini_response",
             user_id=user_id,
@@ -242,6 +266,14 @@ async def chat_completion(
         )
         return reply
     except Exception as exc:
+        duration = time.perf_counter() - start
+        metrics_collector.record_ai_execution(
+            provider="google_gemini",
+            model=settings.GEMINI_MODEL,
+            duration_sec=duration,
+            success=False,
+            fallback_used=True,
+        )
         log.warning("gemini_call_failed_falling_back_to_local", error=str(exc))
         return _generate_fallback_copilot_response(user_message)
 
@@ -254,6 +286,7 @@ async def stream_chat_completion(
     """
     Streaming chat completion. Yields text chunks as they arrive.
     """
+    start = time.perf_counter()
     if not rate_limiter.is_allowed(user_id):
         raise ValueError(
             "Rate limit exceeded. Please wait a moment before sending another message."
@@ -262,6 +295,15 @@ async def stream_chat_completion(
     if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("your_key_here", ""):
         log.info("gemini_key_missing_streaming_local_copilot", user_id=user_id)
         full_text = _generate_fallback_copilot_response(user_message)
+        duration = time.perf_counter() - start
+        metrics_collector.record_ai_execution(
+            provider="local_fallback",
+            model="deterministic_sre",
+            duration_sec=duration,
+            success=True,
+            fallback_used=True,
+            tokens_est=len(full_text) // 4,
+        )
         words = full_text.split(" ")
         for i in range(0, len(words), 4):
             chunk = " ".join(words[i : i + 4]) + " "
@@ -289,10 +331,28 @@ async def stream_chat_completion(
                 total_chars += len(text)
                 yield text
 
+        duration = time.perf_counter() - start
+        metrics_collector.record_ai_execution(
+            provider="google_gemini",
+            model=settings.GEMINI_MODEL,
+            duration_sec=duration,
+            success=True,
+            fallback_used=False,
+            tokens_est=(len(user_message) + total_chars) // 4,
+        )
         log.info("gemini_stream_done", user_id=user_id, total_chars=total_chars)
     except Exception as exc:
+        duration = time.perf_counter() - start
+        metrics_collector.record_ai_execution(
+            provider="google_gemini",
+            model=settings.GEMINI_MODEL,
+            duration_sec=duration,
+            success=False,
+            fallback_used=True,
+        )
         log.warning("gemini_stream_failed_streaming_fallback", error=str(exc))
         full_text = _generate_fallback_copilot_response(user_message)
         for chunk in [full_text[: len(full_text) // 2], full_text[len(full_text) // 2 :]]:
             yield chunk
+
 

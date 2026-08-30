@@ -30,19 +30,51 @@ def sanitize_error_message(error: Exception | str | None) -> str:
     if error is None:
         return "Unknown error"
     msg = str(error)
-    for secret_val in (settings.SECRET_KEY, settings.JWT_SECRET_KEY, settings.GEMINI_API_KEY):
-        if secret_val and len(secret_val) > 4 and secret_val not in ("your_key_here", "your_gemini_api_key_here", "dummy", "secret") and secret_val in msg:
+    secrets_to_redact = (
+        settings.SECRET_KEY,
+        settings.JWT_SECRET_KEY,
+        settings.effective_secret_key,
+        settings.GEMINI_API_KEY,
+    )
+    for secret_val in secrets_to_redact:
+        if (
+            secret_val
+            and len(secret_val) > 4
+            and secret_val not in ("your_key_here", "your_gemini_api_key_here", "dummy", "secret")
+            and secret_val in msg
+        ):
             msg = msg.replace(secret_val, "[REDACTED]")
     for pattern, replacement in SENSITIVE_PATTERNS:
         msg = pattern.sub(replacement, msg)
     return msg
 
 
+def _sanitize_data_structure(data: Any) -> Any:
+    """Recursively sanitize strings and redact sensitive keys inside data structures."""
+    if isinstance(data, str):
+        return sanitize_error_message(data)
+    if isinstance(data, dict):
+        sanitized: dict[str, Any] = {}
+        for k, v in data.items():
+            key_lower = str(k).lower()
+            if any(
+                sensitive in key_lower
+                for sensitive in ("password", "secret", "token", "api_key", "authorization", "cookie")
+            ):
+                sanitized[k] = "[REDACTED]"
+            else:
+                sanitized[k] = _sanitize_data_structure(v)
+        return sanitized
+    if isinstance(data, (list, tuple)):
+        sanitized_list = [_sanitize_data_structure(item) for item in data]
+        return type(data)(sanitized_list)
+    return data
+
+
 def redact_sensitive_data(_logger: Any, _method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Structlog processor masking secrets, JWT tokens, and connection URIs from log dicts."""
     for key, val in list(event_dict.items()):
-        if isinstance(val, str):
-            event_dict[key] = sanitize_error_message(val)
+        event_dict[key] = _sanitize_data_structure(val)
     return event_dict
 
 

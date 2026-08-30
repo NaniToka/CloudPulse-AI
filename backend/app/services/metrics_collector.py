@@ -18,6 +18,9 @@ class PrometheusMetricsCollector:
         self.request_counts: dict[str, int] = {}
         self.request_latencies: dict[str, list[float]] = {}
         self.status_counts: dict[str, int] = {}
+        self.ai_request_counts: dict[str, int] = {}
+        self.ai_latencies: dict[str, list[float]] = {}
+        self.ai_fallbacks: dict[str, int] = {}
         self.start_time = time.time()
 
     @classmethod
@@ -45,6 +48,30 @@ class PrometheusMetricsCollector:
         if len(times) > 100:
             times.pop(0)
         self.request_latencies[key] = times
+
+    def record_ai_execution(
+        self,
+        provider: str,
+        model: str,
+        duration_sec: float,
+        success: bool = True,
+        fallback_used: bool = False,
+        tokens_est: int = 0,
+    ) -> None:
+        """Records execution metrics for AI engines (Gemini, Local Deterministic Fallback)."""
+        status_label = "success" if success else "error"
+        key = f"{provider}:{model}:{status_label}"
+        self.ai_request_counts[key] = self.ai_request_counts.get(key, 0) + 1
+
+        lat_key = f"{provider}:{model}"
+        times = self.ai_latencies.get(lat_key, [])
+        times.append(duration_sec)
+        if len(times) > 100:
+            times.pop(0)
+        self.ai_latencies[lat_key] = times
+
+        if fallback_used:
+            self.ai_fallbacks[provider] = self.ai_fallbacks.get(provider, 0) + 1
 
     def render_prometheus(self) -> str:
         lines = [
@@ -86,6 +113,54 @@ class PrometheusMetricsCollector:
                     f'cloudpulse_http_request_duration_seconds{{method="{method}",path="{path}"}} {avg:.6f}'
                 )
 
+        # AI Observability Metrics
+        lines.extend(
+            [
+                "",
+                "# HELP cloudpulse_ai_requests_total Total number of AI inferences executed.",
+                "# TYPE cloudpulse_ai_requests_total counter",
+            ]
+        )
+        total_ai_reqs = sum(self.ai_request_counts.values())
+        lines.append(f"cloudpulse_ai_requests_total {total_ai_reqs}")
+        for key, count in self.ai_request_counts.items():
+            parts = key.split(":")
+            prov = parts[0] if len(parts) > 0 else "unknown"
+            mdl = parts[1] if len(parts) > 1 else "unknown"
+            st = parts[2] if len(parts) > 2 else "success"
+            lines.append(
+                f'cloudpulse_ai_requests_by_provider{{provider="{prov}",model="{mdl}",status="{st}"}} {count}'
+            )
+
+        if self.ai_latencies:
+            lines.extend(
+                [
+                    "",
+                    "# HELP cloudpulse_ai_request_duration_seconds Average AI execution latency in seconds.",
+                    "# TYPE cloudpulse_ai_request_duration_seconds gauge",
+                ]
+            )
+            for key, times in self.ai_latencies.items():
+                if times:
+                    avg_ai = sum(times) / len(times)
+                    parts = key.split(":")
+                    prov = parts[0] if len(parts) > 0 else "unknown"
+                    mdl = parts[1] if len(parts) > 1 else "unknown"
+                    lines.append(
+                        f'cloudpulse_ai_request_duration_seconds{{provider="{prov}",model="{mdl}"}} {avg_ai:.6f}'
+                    )
+
+        if self.ai_fallbacks:
+            lines.extend(
+                [
+                    "",
+                    "# HELP cloudpulse_ai_fallback_total Total times AI fell back to local deterministic engine.",
+                    "# TYPE cloudpulse_ai_fallback_total counter",
+                ]
+            )
+            for prov, fb_count in self.ai_fallbacks.items():
+                lines.append(f'cloudpulse_ai_fallback_total{{provider="{prov}"}} {fb_count}')
+
         lines.extend(
             [
                 "",
@@ -101,7 +176,7 @@ class PrometheusMetricsCollector:
 
         return "\n".join(lines) + "\n"
 
-    def get_metrics_summary(self) -> dict[str, float | int | list[dict[str, float | int | str]]]:
+    def get_metrics_summary(self) -> dict[str, Any]:
         """Returns structured summary of application metrics for platform health inspection."""
         total_reqs = sum(self.request_counts.values())
         error_count = sum(count for code, count in self.status_counts.items() if int(code) >= 400)
@@ -131,6 +206,27 @@ class PrometheusMetricsCollector:
             round((sum(all_latencies) / len(all_latencies)) * 1000.0, 2) if all_latencies else 0.0
         )
 
+        # AI Telemetry Summary
+        all_ai_latencies = [lat for times in self.ai_latencies.values() for lat in times]
+        avg_ai_latency_ms = (
+            round((sum(all_ai_latencies) / len(all_ai_latencies)) * 1000.0, 2)
+            if all_ai_latencies
+            else 0.0
+        )
+        total_ai_requests = sum(self.ai_request_counts.values())
+        total_ai_fallbacks = sum(self.ai_fallbacks.values())
+
+        ai_telemetry = {
+            "total_ai_requests": total_ai_requests,
+            "total_fallbacks": total_ai_fallbacks,
+            "avg_ai_latency_ms": avg_ai_latency_ms,
+            "fallback_rate_pct": (
+                round((total_ai_fallbacks / total_ai_requests) * 100.0, 1)
+                if total_ai_requests > 0
+                else 0.0
+            ),
+        }
+
         return {
             "total_requests": total_reqs,
             "error_count": error_count,
@@ -139,7 +235,9 @@ class PrometheusMetricsCollector:
             "avg_latency_ms": avg_latency_ms,
             "uptime_seconds": round(uptime, 1),
             "slowest_endpoints": slowest[:5],
+            "ai_telemetry": ai_telemetry,
         }
 
 
 metrics_collector = PrometheusMetricsCollector.get_instance()
+

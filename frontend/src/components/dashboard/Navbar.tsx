@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/authStore";
 import { useLogout } from "@/hooks/useAuth";
-import { getDetailedPlatformHealth } from "@/services/platformService";
+import { getPlatformHealthSummary, getDetailedPlatformHealth } from "@/services/platformService";
 import { cn } from "@/lib/utils";
 import { NavLink } from "react-router-dom";
 
@@ -23,7 +23,7 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
     let isMounted = true;
     const checkHealth = async () => {
       try {
-        const res = await getDetailedPlatformHealth();
+        const res = await getPlatformHealthSummary();
         if (isMounted) {
           const st = res.overall_status?.toLowerCase();
           if (st === "healthy") setHealthStatus("healthy");
@@ -31,7 +31,18 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
           else setHealthStatus("critical");
         }
       } catch {
-        if (isMounted) setHealthStatus("offline");
+        // Fallback check to detailed platform health if summary not available
+        try {
+          const res = await getDetailedPlatformHealth();
+          if (isMounted) {
+            const st = res.overall_status?.toLowerCase();
+            if (st === "healthy") setHealthStatus("healthy");
+            else if (st === "degraded") setHealthStatus("degraded");
+            else setHealthStatus("critical");
+          }
+        } catch {
+          if (isMounted) setHealthStatus("offline");
+        }
       }
     };
     checkHealth();
@@ -78,7 +89,11 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
         </div>
 
         {/* Live Dynamic Operational Status */}
-        <div className="hidden lg:flex items-center gap-2 shrink-0">
+        <NavLink
+          to="/platform/health"
+          className="hidden lg:flex items-center gap-2 shrink-0 px-2.5 py-1 rounded-md transition-colors hover:bg-bg-elevated border border-transparent hover:border-white/10"
+          title="Click to view Platform Health & Readiness"
+        >
           <span className="relative flex h-2 w-2">
             <span
               className={cn(
@@ -103,7 +118,7 @@ export default function Navbar({ sidebarCollapsed, onMobileMenuOpen }: NavbarPro
             {healthStatus === "critical" && "Critical system degradation"}
             {healthStatus === "offline" && "Backend offline / unreachable"}
           </span>
-        </div>
+        </NavLink>
 
         {/* Right actions */}
         <div className="flex items-center gap-2 shrink-0">
