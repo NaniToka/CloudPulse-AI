@@ -49,7 +49,7 @@ def _build_token(subject: Any, token_type: str, expires_delta: timedelta) -> str
         "exp": now + expires_delta,
         "type": token_type,
     }
-    return jwt.encode(payload, settings.effective_secret_key, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(payload, settings.effective_secret_key, algorithm=settings.effective_jwt_algorithm)
 
 
 def create_access_token(
@@ -57,7 +57,7 @@ def create_access_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     """Return a signed JWT access token for *subject* (typically a user UUID)."""
-    delta = expires_delta or timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+    delta = expires_delta or timedelta(minutes=settings.effective_access_token_expire_minutes)
     return _build_token(subject, token_type="access", expires_delta=delta)
 
 
@@ -66,7 +66,7 @@ def create_refresh_token(subject: Any) -> str:
     return _build_token(
         subject,
         token_type="refresh",
-        expires_delta=timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_delta=timedelta(days=settings.effective_refresh_token_expire_days),
     )
 
 
@@ -82,5 +82,5 @@ def decode_token(token: str) -> dict[str, Any]:
     return jwt.decode(
         token,
         settings.effective_secret_key,
-        algorithms=[settings.JWT_ALGORITHM],
+        algorithms=[settings.effective_jwt_algorithm],
     )

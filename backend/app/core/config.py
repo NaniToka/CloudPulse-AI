@@ -41,8 +41,11 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "insecure_default_change_in_production"
     SECRET_KEY: str | None = None
     JWT_ALGORITHM: str = "HS256"
+    ALGORITHM: str | None = None
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int | None = None
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    REFRESH_TOKEN_EXPIRE_DAYS: int | None = None
 
     @property
     def effective_secret_key(self) -> str:
@@ -55,6 +58,18 @@ class Settings(BaseSettings):
             )
         return key
 
+    @property
+    def effective_jwt_algorithm(self) -> str:
+        return self.ALGORITHM or self.JWT_ALGORITHM
+
+    @property
+    def effective_access_token_expire_minutes(self) -> int:
+        return self.ACCESS_TOKEN_EXPIRE_MINUTES or self.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+
+    @property
+    def effective_refresh_token_expire_days(self) -> int:
+        return self.REFRESH_TOKEN_EXPIRE_DAYS or self.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+
     # Gemini AI
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-1.5-pro"
@@ -63,8 +78,18 @@ class Settings(BaseSettings):
 
     # ChromaDB
     CHROMA_HOST: str = "localhost"
+    CHROMADB_HOST: str | None = None
     CHROMA_PORT: int = 8001
+    CHROMADB_PORT: int | None = None
     CHROMA_COLLECTION_NAME: str = "cloudpulse_vectors"
+
+    @property
+    def effective_chroma_host(self) -> str:
+        return self.CHROMADB_HOST or self.CHROMA_HOST
+
+    @property
+    def effective_chroma_port(self) -> int:
+        return self.CHROMADB_PORT or self.CHROMA_PORT
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -105,14 +130,19 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         return self.APP_ENV == "development"
 
+    @property
+    def is_testing(self) -> bool:
+        return self.APP_ENV in ("test", "testing")
+
     @field_validator("APP_ENV", mode="after")
     @classmethod
     def validate_environment(cls, v: str) -> str:
-        allowed = {"development", "demo", "staging", "production", "test"}
+        allowed = {"development", "demo", "staging", "production", "test", "testing"}
         if v.lower() not in allowed:
             return "development"
         return v.lower()
 
 
 settings = Settings()
+
 

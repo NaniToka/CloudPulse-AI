@@ -15,7 +15,10 @@
 import apiClient from "@/lib/api";
 import type { ChatRequest, ChatResponse, HistoryResponse } from "@/types/ai";
 
-const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+const BASE_URL: string = (
+  import.meta.env.VITE_API_BASE_URL ?? "/api/v1"
+).replace(/\/+$/, "");
+
 
 // ─── Non-streaming chat ───────────────────────────────────────────────────────
 
