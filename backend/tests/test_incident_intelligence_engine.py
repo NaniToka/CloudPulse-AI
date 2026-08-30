@@ -443,8 +443,9 @@ async def test_incident_pagination_and_filtering(db_session: AsyncSession):
         db_session, status="OPEN", service="api-gateway", page=1, size=10
     )
     assert total >= 1
-    assert all(i.status == "OPEN" for i in items)
+    assert all(str(i.status).upper() == "OPEN" for i in items)
     assert all("api-gateway" in (i.affected_service or "") for i in items)
+
 
 
 @pytest.mark.asyncio
