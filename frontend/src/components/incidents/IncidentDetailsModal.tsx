@@ -173,77 +173,99 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
 
             {/* TAB 1: AI Diagnostics */}
             <TabsContent value="overview" className="space-y-4">
-              {/* AI Summary Card */}
-              <Card className="p-4 bg-brand-purple/10 border border-brand-purple/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-brand-purple font-semibold text-xs">
-                    <Sparkles className="h-4 w-4" />
-                    Gemini AI Executive Summary
+              {isAnalyzing && !incident.ai_summary ? (
+                <div className="space-y-4 animate-pulse">
+                  <div className="rounded-lg border border-white/5 bg-white/5 h-24 w-full"></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-lg border border-white/5 bg-white/5 h-20 w-full"></div>
+                    <div className="rounded-lg border border-white/5 bg-white/5 h-20 w-full"></div>
                   </div>
-
-                  {/* Confidence Score Pill */}
-                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-[11px] text-emerald-400 font-medium">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    AI Confidence: {Math.round((incident.ai_confidence_score || 0.94) * 100)}%
-                  </div>
+                  <div className="rounded-lg border border-white/5 bg-white/5 h-20 w-full"></div>
+                  <div className="rounded-lg border border-white/5 bg-white/5 h-24 w-full"></div>
                 </div>
+              ) : (
+                <>
+                  {/* AI Summary Card */}
+                  <Card className="p-4 bg-brand-purple/10 border border-brand-purple/20 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-brand-purple font-semibold text-xs">
+                        <Sparkles className="h-4 w-4" />
+                        Gemini AI Executive Summary
+                      </div>
 
-                <p className="text-foreground leading-relaxed text-xs">
-                  {incident.ai_summary || "Gemini AI diagnostic analysis is currently evaluating incident telemetry."}
-                </p>
+                      {/* Confidence Score Pill */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-[11px] text-emerald-400 font-medium">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        AI Confidence: {Math.round((incident.ai_confidence_score || incident.confidence_score || 0.94) * 100)}%
+                      </div>
+                    </div>
 
-                {incident.ai_estimated_resolution_time && (
-                  <div className="pt-2 text-[11px] text-muted-foreground flex items-center gap-1.5 border-t border-white/5">
-                    <Clock className="h-3.5 w-3.5 text-brand-purple" />
-                    Estimated Recovery Time: <span className="font-semibold text-foreground">{incident.ai_estimated_resolution_time}</span>
+                    <p className="text-foreground leading-relaxed text-xs">
+                      {incident.ai_summary || "Gemini AI diagnostic analysis is currently evaluating incident telemetry or is temporarily unavailable."}
+                    </p>
+
+                    {incident.ai_estimated_resolution_time && (
+                      <div className="pt-2 text-[11px] text-muted-foreground flex items-center gap-1.5 border-t border-white/5">
+                        <Clock className="h-3.5 w-3.5 text-brand-purple" />
+                        Estimated Recovery Time: <span className="font-semibold text-foreground">{incident.ai_estimated_resolution_time}</span>
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* Grid: Root Cause & Business Impact */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
+                      <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs">
+                        <AlertTriangle className="h-4 w-4" /> Possible Root Cause
+                      </div>
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        {incident.root_cause || incident.ai_root_cause || "Root cause identification in progress."}
+                      </p>
+                    </Card>
+
+                    <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
+                      <div className="flex items-center gap-2 text-red-400 font-semibold text-xs">
+                        <TrendingUp className="h-4 w-4" /> Business & SLA Impact
+                      </div>
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        {incident.ai_business_impact || "Evaluating error rates and user session conversion impact."}
+                      </p>
+                    </Card>
                   </div>
-                )}
-              </Card>
 
-              {/* Grid: Root Cause & Business Impact */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
-                  <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs">
-                    <AlertTriangle className="h-4 w-4" /> Possible Root Cause
-                  </div>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    {incident.root_cause || incident.ai_root_cause || "Root cause identification in progress."}
-                  </p>
-                </Card>
+                  {/* Immediate Mitigation */}
+                  <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
+                      <Zap className="h-4 w-4" /> Immediate Mitigation Steps
+                    </div>
+                    {incident.ai_immediate_mitigation || incident.ai_suggested_resolution ? (
+                      <p className="text-muted-foreground text-xs whitespace-pre-line font-mono leading-relaxed bg-black/30 p-3 rounded border border-white/5">
+                        {incident.ai_immediate_mitigation || incident.ai_suggested_resolution}
+                      </p>
+                    ) : (
+                      <div className="text-xs text-muted-foreground italic bg-black/30 p-3 rounded border border-white/5">
+                        No immediate mitigation steps identified yet.
+                      </div>
+                    )}
+                  </Card>
 
-                <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
-                  <div className="flex items-center gap-2 text-red-400 font-semibold text-xs">
-                    <TrendingUp className="h-4 w-4" /> Business & SLA Impact
-                  </div>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    {incident.ai_business_impact || "Evaluating error rates and user session conversion impact."}
-                  </p>
-                </Card>
-              </div>
-
-              {/* Immediate Mitigation */}
-              <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
-                <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
-                  <Zap className="h-4 w-4" /> Immediate Mitigation Steps
-                </div>
-                <p className="text-muted-foreground text-xs whitespace-pre-line font-mono leading-relaxed bg-black/30 p-3 rounded border border-white/5">
-                  {incident.ai_immediate_mitigation || incident.ai_suggested_resolution || "1. Check server metrics\n2. Scale pod instances"}
-                </p>
-              </Card>
-
-              {/* Long-term Prevention */}
-              <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
-                <div className="font-semibold text-foreground text-xs">Long-term Prevention Plan</div>
-                <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
-                  {(incident.ai_long_term_prevention || incident.ai_preventive_actions || []).length > 0 ? (
-                    (incident.ai_long_term_prevention || incident.ai_preventive_actions || []).map((act, i) => (
-                      <li key={i}>{act}</li>
-                    ))
-                  ) : (
-                    <li>Configure automated auto-scaling rules</li>
-                  )}
-                </ul>
-              </Card>
+                  {/* Long-term Prevention */}
+                  <Card className="p-4 bg-bg-elevated/30 border border-white/10 space-y-2">
+                    <div className="font-semibold text-foreground text-xs">Long-term Prevention Plan</div>
+                    {(incident.ai_long_term_prevention || incident.ai_preventive_actions || []).length > 0 ? (
+                      <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                        {(incident.ai_long_term_prevention || incident.ai_preventive_actions || []).map((act, i) => (
+                          <li key={i}>{act}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-xs text-muted-foreground italic">
+                        No long-term prevention plan generated.
+                      </div>
+                    )}
+                  </Card>
+                </>
+              )}
             </TabsContent>
 
             {/* TAB 2: Timeline */}

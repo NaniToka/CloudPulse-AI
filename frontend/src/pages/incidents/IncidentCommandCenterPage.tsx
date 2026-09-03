@@ -495,51 +495,78 @@ export default function IncidentCommandCenterPage() {
             </div>
 
             <div className="space-y-2.5 max-h-[780px] overflow-y-auto pr-1">
-              {activeList.map((inc) => {
-                const isSelected = inc.id === selectedIncidentId;
-                return (
-                  <div
-                    key={inc.id}
-                    onClick={() => setSelectedIncidentId(inc.id)}
-                    className={cn(
-                      "rounded-xl border p-4 cursor-pointer transition-all duration-200 backdrop-blur-md shadow-glass",
-                      isSelected
-                        ? "border-brand-500 bg-brand-500/15 shadow-brand-500/10 shadow-lg"
-                        : "border-white/[0.08] bg-bg-surface hover:border-white/[0.2] hover:bg-white/[0.02]"
-                    )}
-                  >
+              {isActiveLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-white/5 bg-white/5 p-4 animate-pulse">
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <IncidentSeverityBadge severity={inc.severity} size="sm" />
-                      <span className="text-[11px] font-mono text-muted-foreground">
-                        {inc.affected_service}
-                      </span>
+                      <div className="h-4 w-16 bg-white/10 rounded"></div>
+                      <div className="h-3 w-20 bg-white/10 rounded"></div>
                     </div>
-
-                    <h4 className="text-xs font-bold text-white font-mono leading-snug line-clamp-2 mb-1.5">
-                      {inc.title}
-                    </h4>
-
-                    {inc.root_cause && (
-                      <p className="text-[11px] text-muted-foreground/80 font-mono line-clamp-1 mb-2">
-                        Origin: {inc.root_cause}
-                      </p>
-                    )}
-
-                    <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground pt-2 border-t border-white/[0.06]">
-                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-white/20">
-                        {inc.status}
-                      </Badge>
-                      <span>Confidence: {Math.round((inc.confidence_score || 0.94) * 100)}%</span>
+                    <div className="h-4 w-full bg-white/10 rounded mb-1.5"></div>
+                    <div className="h-4 w-3/4 bg-white/10 rounded mb-2"></div>
+                    <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+                      <div className="h-4 w-12 bg-white/10 rounded"></div>
+                      <div className="h-3 w-16 bg-white/10 rounded"></div>
                     </div>
                   </div>
-                );
-              })}
+                ))
+              ) : activeList.length === 0 ? (
+                <div className="text-xs font-mono text-muted-foreground italic text-center p-8 bg-white/5 rounded-xl border border-white/10">
+                  No active incidents in the queue.
+                </div>
+              ) : (
+                activeList.map((inc) => {
+                  const isSelected = inc.id === selectedIncidentId;
+                  return (
+                    <div
+                      key={inc.id}
+                      onClick={() => setSelectedIncidentId(inc.id)}
+                      className={cn(
+                        "rounded-xl border p-4 cursor-pointer transition-all duration-200 backdrop-blur-md shadow-glass",
+                        isSelected
+                          ? "border-brand-500 bg-brand-500/15 shadow-brand-500/10 shadow-lg"
+                          : "border-white/[0.08] bg-bg-surface hover:border-white/[0.2] hover:bg-white/[0.02]"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <IncidentSeverityBadge severity={inc.severity} size="sm" />
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          {inc.affected_service}
+                        </span>
+                      </div>
+
+                      <h4 className="text-xs font-bold text-white font-mono leading-snug line-clamp-2 mb-1.5">
+                        {inc.title}
+                      </h4>
+
+                      {inc.root_cause && (
+                        <p className="text-[11px] text-muted-foreground/80 font-mono line-clamp-1 mb-2">
+                          Origin: {inc.root_cause}
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground pt-2 border-t border-white/[0.06]">
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-white/20">
+                          {inc.status}
+                        </Badge>
+                        <span>Confidence: {Math.round((inc.confidence_score || 0.94) * 100)}%</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
           {/* Right Panel: Incident Investigation Command Center */}
           <div className="lg:col-span-8 space-y-6">
-            {selectedIncident ? (
+            {isDetailLoading ? (
+              <div className="space-y-6 animate-pulse">
+                <div className="rounded-xl border border-white/5 bg-white/5 h-40 shadow-glass"></div>
+                <div className="rounded-xl border border-white/5 bg-white/5 h-64 shadow-glass"></div>
+                <div className="rounded-xl border border-white/5 bg-white/5 h-64 shadow-glass"></div>
+              </div>
+            ) : selectedIncident ? (
               <div className="space-y-6">
                 {/* Incident Detail Header Banner */}
                 <div className="rounded-xl border border-white/[0.1] bg-bg-surface p-5 shadow-glass backdrop-blur-md space-y-4">

@@ -327,7 +327,7 @@ class CRUDIncident(CRUDBase[Incident, IncidentCreate, IncidentUpdate]):
         stmt = (
             select(IncidentTimelineEvent)
             .where(IncidentTimelineEvent.incident_id == incident_id)
-            .order_by(IncidentTimelineEvent.timestamp.asc())
+            .order_by(IncidentTimelineEvent.timestamp.asc(), IncidentTimelineEvent.id.asc())
         )
         res = await db.execute(stmt)
         return list(res.scalars().all())

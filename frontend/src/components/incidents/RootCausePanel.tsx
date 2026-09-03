@@ -24,11 +24,9 @@ export function RootCausePanel({ incident, onReanalyze, isAnalyzing = false }: P
   const confidence = incident.confidence_score ?? 0.94;
   const confidencePct = Math.round(confidence * 100);
   const rootCause = incident.root_cause || incident.ai_root_cause || "PostgreSQL connection pool saturation";
-  const factors = incident.contributing_factors || [
-    "Peak concurrency transaction window exceeding baseline connection pool",
-    "42 idle in transaction connections held by background worker threads",
-    "Microservice retry loop storm multiplying connection latency",
-  ];
+  const factors = incident.contributing_factors && incident.contributing_factors.length > 0
+    ? incident.contributing_factors
+    : [];
 
   return (
     <div className="space-y-4">
@@ -66,7 +64,7 @@ export function RootCausePanel({ incident, onReanalyze, isAnalyzing = false }: P
                 variant="outline"
                 onClick={onReanalyze}
                 disabled={isAnalyzing}
-                className="h-8 text-xs border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.08] text-white"
+                className="h-8 text-xs border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.08] text-white z-10"
               >
                 <RefreshCw className={cn("w-3 h-3 mr-1.5", isAnalyzing && "animate-spin")} />
                 Refresh RCA
@@ -75,57 +73,74 @@ export function RootCausePanel({ incident, onReanalyze, isAnalyzing = false }: P
           </div>
         </div>
 
-        {/* Root Cause Title Box */}
-        <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 mb-4">
-          <div className="text-[11px] font-mono text-red-400 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5" />
-            Identified Root Cause Origin
-          </div>
-          <p className="text-sm font-semibold text-white font-mono leading-relaxed">
-            "{rootCause}"
-          </p>
-        </div>
-
-        {/* AI Executive Summary & Impact */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
-            <div className="text-[11px] font-mono text-brand-300 font-medium mb-1">
-              Executive Summary
+        {isAnalyzing && !incident.ai_summary && !incident.root_cause ? (
+          <div className="space-y-4 animate-pulse">
+            <div className="rounded-lg border border-white/5 bg-white/5 h-16 w-full"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-white/5 bg-white/5 h-24 w-full"></div>
+              <div className="rounded-lg border border-white/5 bg-white/5 h-24 w-full"></div>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {incident.ai_summary ||
-                `Incident '${incident.title}' identified with multi-modal telemetry corroboration pointing to ${incident.affected_service}.`}
-            </p>
+            <div className="rounded-lg border border-white/5 bg-white/5 h-20 w-full"></div>
           </div>
-
-          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
-            <div className="text-[11px] font-mono text-amber-300 font-medium mb-1">
-              Customer & SLA Impact
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {incident.ai_business_impact ||
-                `Degradation across ${incident.affected_services?.length || 1} services. Active user sessions experiencing elevated p99 latency.`}
-            </p>
-          </div>
-        </div>
-
-        {/* Contributing Factors */}
-        <div>
-          <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
-            Contributing Factors & Preconditions ({factors.length})
-          </div>
-          <div className="space-y-1.5">
-            {factors.map((factor, idx) => (
-              <div
-                key={idx}
-                className="flex items-start gap-2 text-xs text-muted-foreground font-mono bg-white/[0.01] p-2 rounded border border-white/[0.04]"
-              >
-                <div className="h-1.5 w-1.5 rounded-full bg-brand-400 mt-1.5 shrink-0" />
-                <span>{factor}</span>
+        ) : (
+          <>
+            {/* Root Cause Title Box */}
+            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 mb-4 relative z-10">
+              <div className="text-[11px] font-mono text-red-400 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                Identified Root Cause Origin
               </div>
-            ))}
-          </div>
-        </div>
+              <p className="text-sm font-semibold text-white font-mono leading-relaxed">
+                {rootCause ? `"${rootCause}"` : "Awaiting root cause identification..."}
+              </p>
+            </div>
+
+            {/* AI Executive Summary & Impact */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 relative z-10">
+              <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
+                <div className="text-[11px] font-mono text-brand-300 font-medium mb-1">
+                  Executive Summary
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {incident.ai_summary || "No executive summary available."}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
+                <div className="text-[11px] font-mono text-amber-300 font-medium mb-1">
+                  Customer & SLA Impact
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {incident.ai_business_impact || "Business impact analysis pending."}
+                </p>
+              </div>
+            </div>
+
+            {/* Contributing Factors */}
+            <div className="relative z-10">
+              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
+                Contributing Factors & Preconditions ({factors.length})
+              </div>
+              {factors.length > 0 ? (
+                <div className="space-y-1.5">
+                  {factors.map((factor, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-2 text-xs text-muted-foreground font-mono bg-white/[0.01] p-2 rounded border border-white/[0.04]"
+                    >
+                      <div className="h-1.5 w-1.5 rounded-full bg-brand-400 mt-1.5 shrink-0" />
+                      <span>{factor}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground italic bg-white/[0.01] p-3 rounded border border-white/[0.04]">
+                  No contributing factors identified.
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

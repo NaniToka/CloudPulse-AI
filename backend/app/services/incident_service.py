@@ -218,27 +218,35 @@ class IncidentService:
         # Run AI RCA if auto_analyze requested
         if payload.auto_analyze:
             rca_res = await root_cause_analysis_service.analyze_incident(db, incident)
-            ai_data = await analyze_incident_with_gemini(
-                title=incident.title,
-                description=incident.description or "",
-                severity=str(incident.severity),
-                priority=str(incident.priority),
-                affected_service=incident.affected_service or "api-gateway",
-                evidence=rca_res.get("evidence", []),
-                contributing_factors=rca_res.get("contributing_factors", []),
-            )
-            incident.ai_analysis = ai_data
-            incident.analysis_engine = ai_data.get("analysis_engine", "local")
-            incident.ai_summary = ai_data.get("summary") or ai_data.get("ai_summary")
-            incident.ai_root_cause = ai_data.get("root_cause") or ai_data.get("ai_root_cause")
-            incident.ai_business_impact = ai_data.get("impact") or ai_data.get("ai_business_impact")
-            incident.ai_suggested_resolution = ai_data.get("ai_suggested_resolution")
-            incident.ai_immediate_mitigation = ai_data.get("ai_immediate_mitigation")
-            incident.ai_long_term_prevention = ai_data.get("preventive_actions") or ai_data.get("ai_long_term_prevention")
-            incident.ai_preventive_actions = ai_data.get("preventive_actions") or ai_data.get("ai_preventive_actions")
-            incident.ai_similar_incidents = ai_data.get("ai_similar_incidents")
-            incident.ai_estimated_resolution_time = ai_data.get("ai_estimated_resolution_time")
-            incident.ai_confidence_score = ai_data.get("confidence") or ai_data.get("ai_confidence_score", 0.94)
+            try:
+                ai_data = await analyze_incident_with_gemini(
+                    title=incident.title,
+                    description=incident.description or "",
+                    severity=str(incident.severity),
+                    priority=str(incident.priority),
+                    affected_service=incident.affected_service or "api-gateway",
+                    evidence=rca_res.get("evidence", []),
+                    contributing_factors=rca_res.get("contributing_factors", []),
+                )
+                incident.ai_analysis = ai_data
+                incident.analysis_engine = ai_data.get("analysis_engine", "local")
+                incident.ai_summary = ai_data.get("summary") or ai_data.get("ai_summary")
+                incident.ai_root_cause = ai_data.get("root_cause") or ai_data.get("ai_root_cause")
+                incident.ai_business_impact = ai_data.get("impact") or ai_data.get("ai_business_impact")
+                incident.ai_suggested_resolution = ai_data.get("ai_suggested_resolution")
+                incident.ai_immediate_mitigation = ai_data.get("ai_immediate_mitigation")
+                incident.ai_long_term_prevention = ai_data.get("preventive_actions") or ai_data.get("ai_long_term_prevention")
+                incident.ai_preventive_actions = ai_data.get("preventive_actions") or ai_data.get("ai_preventive_actions")
+                incident.ai_similar_incidents = ai_data.get("ai_similar_incidents")
+                incident.ai_estimated_resolution_time = ai_data.get("ai_estimated_resolution_time")
+                incident.ai_confidence_score = ai_data.get("confidence") or ai_data.get("ai_confidence_score", 0.94)
+            except Exception as e:
+                log.error("ai_analysis_failed_declare", error=str(e), incident_id=str(incident.id))
+                incident.analysis_engine = "local"
+                incident.ai_summary = "Local deterministic RCA complete. AI diagnostics temporarily unavailable."
+                incident.ai_root_cause = incident.root_cause
+                incident.ai_confidence_score = incident.confidence_score or 0.90
+                incident.ai_preventive_actions = []
 
         await db.commit()
         reloaded = await self.crud.get_with_timeline(db, incident.id)
@@ -312,26 +320,34 @@ class IncidentService:
 
         if payload.auto_analyze:
             rca_res = await root_cause_analysis_service.analyze_incident(db, incident)
-            ai_data = await analyze_incident_with_gemini(
-                title=incident.title,
-                description=incident.description or "",
-                severity=str(incident.severity),
-                priority=str(incident.priority),
-                affected_service=incident.affected_service or "api-gateway",
-                evidence=rca_res.get("evidence", []),
-                contributing_factors=rca_res.get("contributing_factors", []),
-            )
-            incident.ai_analysis = ai_data
-            incident.analysis_engine = ai_data.get("analysis_engine", "local")
-            incident.ai_summary = ai_data.get("summary") or ai_data.get("ai_summary")
-            incident.ai_root_cause = ai_data.get("root_cause") or ai_data.get("ai_root_cause")
-            incident.ai_business_impact = ai_data.get("impact") or ai_data.get("ai_business_impact")
-            incident.ai_suggested_resolution = ai_data.get("ai_suggested_resolution")
-            incident.ai_immediate_mitigation = ai_data.get("ai_immediate_mitigation")
-            incident.ai_long_term_prevention = ai_data.get("preventive_actions") or ai_data.get("ai_long_term_prevention")
-            incident.ai_preventive_actions = ai_data.get("preventive_actions") or ai_data.get("ai_preventive_actions")
-            incident.ai_similar_incidents = ai_data.get("ai_similar_incidents")
-            incident.ai_estimated_resolution_time = ai_data.get("ai_estimated_resolution_time")
+            try:
+                ai_data = await analyze_incident_with_gemini(
+                    title=incident.title,
+                    description=incident.description or "",
+                    severity=str(incident.severity),
+                    priority=str(incident.priority),
+                    affected_service=incident.affected_service or "api-gateway",
+                    evidence=rca_res.get("evidence", []),
+                    contributing_factors=rca_res.get("contributing_factors", []),
+                )
+                incident.ai_analysis = ai_data
+                incident.analysis_engine = ai_data.get("analysis_engine", "local")
+                incident.ai_summary = ai_data.get("summary") or ai_data.get("ai_summary")
+                incident.ai_root_cause = ai_data.get("root_cause") or ai_data.get("ai_root_cause")
+                incident.ai_business_impact = ai_data.get("impact") or ai_data.get("ai_business_impact")
+                incident.ai_suggested_resolution = ai_data.get("ai_suggested_resolution")
+                incident.ai_immediate_mitigation = ai_data.get("ai_immediate_mitigation")
+                incident.ai_long_term_prevention = ai_data.get("preventive_actions") or ai_data.get("ai_long_term_prevention")
+                incident.ai_preventive_actions = ai_data.get("preventive_actions") or ai_data.get("ai_preventive_actions")
+                incident.ai_similar_incidents = ai_data.get("ai_similar_incidents")
+                incident.ai_estimated_resolution_time = ai_data.get("ai_estimated_resolution_time")
+            except Exception as e:
+                log.error("ai_analysis_failed_create", error=str(e), incident_id=str(incident.id))
+                incident.analysis_engine = "local"
+                incident.ai_summary = "Local deterministic RCA complete. AI diagnostics temporarily unavailable."
+                incident.ai_root_cause = incident.root_cause
+                incident.ai_confidence_score = incident.confidence_score or 0.90
+                incident.ai_preventive_actions = []
 
         await db.commit()
         reloaded = await self.crud.get_with_timeline(db, incident.id)
@@ -641,28 +657,37 @@ class IncidentService:
 
         rca_res = await root_cause_analysis_service.analyze_incident(db, incident)
 
-        ai_data = await analyze_incident_with_gemini(
-            title=incident.title,
-            description=incident.description or "",
-            severity=str(incident.severity),
-            priority=str(incident.priority),
-            affected_service=incident.affected_service or "api-gateway",
-            evidence=rca_res.get("evidence", []),
-            contributing_factors=rca_res.get("contributing_factors", []),
-        )
+        ai_data = {}
+        try:
+            ai_data = await analyze_incident_with_gemini(
+                title=incident.title,
+                description=incident.description or "",
+                severity=str(incident.severity),
+                priority=str(incident.priority),
+                affected_service=incident.affected_service or "api-gateway",
+                evidence=rca_res.get("evidence", []),
+                contributing_factors=rca_res.get("contributing_factors", []),
+            )
 
-        incident.ai_analysis = ai_data
-        incident.analysis_engine = ai_data.get("analysis_engine", "local")
-        incident.ai_summary = ai_data.get("summary") or ai_data.get("ai_summary")
-        incident.ai_root_cause = ai_data.get("root_cause") or ai_data.get("ai_root_cause")
-        incident.ai_business_impact = ai_data.get("impact") or ai_data.get("ai_business_impact")
-        incident.ai_suggested_resolution = ai_data.get("ai_suggested_resolution")
-        incident.ai_immediate_mitigation = ai_data.get("ai_immediate_mitigation")
-        incident.ai_long_term_prevention = ai_data.get("preventive_actions") or ai_data.get("ai_long_term_prevention")
-        incident.ai_preventive_actions = ai_data.get("preventive_actions") or ai_data.get("ai_preventive_actions")
-        incident.ai_similar_incidents = ai_data.get("ai_similar_incidents")
-        incident.ai_estimated_resolution_time = ai_data.get("ai_estimated_resolution_time")
-        incident.ai_confidence_score = ai_data.get("confidence") or ai_data.get("ai_confidence_score", 0.94)
+            incident.ai_analysis = ai_data
+            incident.analysis_engine = ai_data.get("analysis_engine", "local")
+            incident.ai_summary = ai_data.get("summary") or ai_data.get("ai_summary")
+            incident.ai_root_cause = ai_data.get("root_cause") or ai_data.get("ai_root_cause")
+            incident.ai_business_impact = ai_data.get("impact") or ai_data.get("ai_business_impact")
+            incident.ai_suggested_resolution = ai_data.get("ai_suggested_resolution")
+            incident.ai_immediate_mitigation = ai_data.get("ai_immediate_mitigation")
+            incident.ai_long_term_prevention = ai_data.get("preventive_actions") or ai_data.get("ai_long_term_prevention")
+            incident.ai_preventive_actions = ai_data.get("preventive_actions") or ai_data.get("ai_preventive_actions")
+            incident.ai_similar_incidents = ai_data.get("ai_similar_incidents")
+            incident.ai_estimated_resolution_time = ai_data.get("ai_estimated_resolution_time")
+            incident.ai_confidence_score = ai_data.get("confidence") or ai_data.get("ai_confidence_score", 0.94)
+        except Exception as e:
+            log.error("ai_analysis_failed_analyze", error=str(e), incident_id=str(incident.id))
+            incident.analysis_engine = "local"
+            incident.ai_summary = "Local deterministic RCA complete. AI diagnostics temporarily unavailable."
+            incident.ai_root_cause = incident.root_cause
+            incident.ai_confidence_score = incident.confidence_score or 0.90
+            incident.ai_preventive_actions = []
 
         now = datetime.now(UTC)
         evt = IncidentTimelineEvent(
