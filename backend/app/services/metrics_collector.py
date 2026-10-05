@@ -6,7 +6,7 @@ Emits standard Prometheus text format without external heavy dependencies.
 from __future__ import annotations
 
 import time
-from typing import ClassVar
+from typing import Any, ClassVar
 
 
 class PrometheusMetricsCollector:

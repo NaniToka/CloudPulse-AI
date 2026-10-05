@@ -16,6 +16,7 @@ from collections.abc import AsyncGenerator
 import structlog
 
 from app.core.config import settings
+from app.services.metrics_collector import metrics_collector
 
 log = structlog.get_logger(__name__)
 
@@ -201,8 +202,6 @@ def _generate_fallback_copilot_response(user_message: str) -> str:
             "> *Note: Running in Local Demo SRE mode. Configure GEMINI_API_KEY in .env for live Gemini Pro completions.*"
         )
 
-
-from app.services.metrics_collector import metrics_collector
 
 
 async def chat_completion(

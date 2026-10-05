@@ -3,6 +3,7 @@ RAG Pipeline Service — Manages RAG telemetry indexing, retrieval, and Gemini A
 """
 
 import json
+import time
 import uuid
 
 import structlog
@@ -14,6 +15,7 @@ from app.schemas.rag_chat import (
     RelatedItem,
     SourceCitation,
 )
+from app.services.metrics_collector import metrics_collector
 from app.services.vector_store_service import vector_store_service
 
 log = structlog.get_logger(__name__)
@@ -173,8 +175,6 @@ class RAGService:
             context_snippets.append(f"[{doc['collection'].upper()}]: {doc['text']}")
 
         # Step 3: Invoke Gemini API if configured
-        import time
-        from app.services.metrics_collector import metrics_collector
         start_ai = time.perf_counter()
 
         if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY not in ("your_key_here", ""):

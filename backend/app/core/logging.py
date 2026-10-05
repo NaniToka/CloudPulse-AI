@@ -65,7 +65,7 @@ def _sanitize_data_structure(data: Any) -> Any:
             else:
                 sanitized[k] = _sanitize_data_structure(v)
         return sanitized
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, list | tuple):
         sanitized_list = [_sanitize_data_structure(item) for item in data]
         return type(data)(sanitized_list)
     return data
