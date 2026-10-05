@@ -58,7 +58,8 @@ Thumbs.db
 
 # Logs
 *.log
-logs/
+/logs/
+backend/logs/
 
 # ChromaDB local data
 chroma_data/
