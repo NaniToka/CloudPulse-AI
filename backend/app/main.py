@@ -140,6 +140,10 @@ async def health_check():
 # ---------------------------------------------------------------------------
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests_per_minute=300)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -148,9 +152,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Session-Id", "X-Correlation-ID", "X-Request-ID", "traceparent"],
 )
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(CorrelationIdMiddleware)
-app.add_middleware(RateLimitMiddleware, max_requests_per_minute=300)
 
 
 @app.middleware("http")

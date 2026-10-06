@@ -107,26 +107,31 @@ class Settings(BaseSettings):
     # CORS — accepts list[str], JSON string array, comma-separated, or single URL
     CORS_ORIGINS: list[str] | str = ["http://localhost:5173", "http://localhost:3000"]
 
-    @field_validator("CORS_ORIGINS", mode="after")
+    @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> list[str]:
-        """
-        Accept three formats:
-          1. Already a list
-          2. JSON array string:  '["http://a","http://b"]'
-          3. Comma-separated:   'http://a,http://b'
-          4. Single URL:        'http://a'
-        """
+        defaults = ["https://cloudpulse-frontend-55i6.onrender.com", "http://localhost:5173", "http://localhost:3000"]
+        parsed = []
         if isinstance(v, list):
-            return v
-        if isinstance(v, str):
+            parsed = v
+        elif isinstance(v, str):
             stripped = v.strip()
             if stripped.startswith("["):
                 import json
-
-                return json.loads(stripped)
-            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
-        return ["http://localhost:5173", "http://localhost:3000"]
+                try:
+                    parsed = json.loads(stripped)
+                except Exception:
+                    pass
+            else:
+                parsed = [origin.strip().strip("'").strip('"').rstrip('/') for origin in stripped.split(",") if origin.strip()]
+        
+        final_origins = set(defaults)
+        for origin in parsed:
+            clean_origin = origin.strip().strip("'").strip('"').rstrip('/')
+            if clean_origin:
+                final_origins.add(clean_origin)
+        
+        return list(final_origins)
 
     # Logging
     LOG_LEVEL: str = "INFO"

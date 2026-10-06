@@ -82,21 +82,28 @@ export const authService = {
  */
 export function getApiErrorMessage(error: unknown, fallback = "An unexpected error occurred."): string {
   if (!error || typeof error !== "object") return fallback;
-  const axiosErr = error as { isAxiosError?: boolean; response?: { status?: number; data?: { error?: string; detail?: string } }; code?: string };
+  const axiosErr = error as { isAxiosError?: boolean; response?: { status?: number; data?: { error?: string; detail?: any; message?: string } }; code?: string };
   if (axiosErr.isAxiosError) {
     if (!axiosErr.response) {
-      if (axiosErr.code === 'ECONNABORTED' || axiosErr.code === 'ETIMEDOUT') {
-         return "Server waking up, please retry... (Render cold start)";
-      }
-      return "Cannot reach server, retry";
+      return "Cannot reach server. If the server was idle, wait 30-60s and retry.";
     }
     const status = axiosErr.response.status;
     if (status === 401) return "Invalid email or password";
-    if (status >= 500) return "Server error";
+    if (status === 409) return "An account with this email already exists";
+    if (status === 422) {
+      const detail = axiosErr.response.data?.detail;
+      if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) {
+        return detail[0].msg;
+      }
+      if (typeof detail === "string") return detail;
+      return "Validation error";
+    }
+    if (status !== undefined && status >= 500) return "Server error, please try again";
   }
   return (
     axiosErr.response?.data?.error ??
-    axiosErr.response?.data?.detail ??
+    (typeof axiosErr.response?.data?.detail === "string" ? axiosErr.response?.data?.detail : null) ??
+    axiosErr.response?.data?.message ??
     fallback
   );
 }

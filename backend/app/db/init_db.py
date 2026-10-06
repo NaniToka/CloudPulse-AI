@@ -239,6 +239,9 @@ async def init_db(db: AsyncSession) -> None:
 
 async def _seed_admin_user_and_org(db: AsyncSession) -> User | None:
     """Ensure default admin user exists for immediate local development login."""
+    import os
+    demo_password = os.getenv("DEMO_USER_PASSWORD", "Password123!")
+    
     stmt = select(User).where(User.email == "admin@cloudpulse.io")
     res = await db.execute(stmt)
     user = res.scalar_one_or_none()
@@ -263,7 +266,7 @@ async def _seed_admin_user_and_org(db: AsyncSession) -> User | None:
         user = User(
             id=uuid.uuid4(),
             email="admin@cloudpulse.io",
-            hashed_password=hash_password("Password123!"),
+            hashed_password=hash_password(demo_password),
             first_name="Admin",
             last_name="Engineer",
             role="admin",
@@ -285,7 +288,12 @@ async def _seed_admin_user_and_org(db: AsyncSession) -> User | None:
         )
         db.add(member)
         await db.commit()
-        log.info("default_admin_user_seeded", email="admin@cloudpulse.io")
+    else:
+        # Update the password hash if the user exists
+        user.hashed_password = hash_password(demo_password)
+        await db.commit()
+
+    log.info("demo user ready", email="admin@cloudpulse.io")
 
     return user
 
