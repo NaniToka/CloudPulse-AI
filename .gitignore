@@ -7,6 +7,8 @@
 .env.*
 !.env.example
 !.env.production.example
+# frontend/.env.production has no secrets (only the public backend URL)
+!frontend/.env.production
 *.pem
 *.key
 *.cert
