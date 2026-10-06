@@ -59,7 +59,11 @@ google-generativeai==0.7.2
 # ---------------------------------------------------------------------------
 # Vector Database & Cache
 # ---------------------------------------------------------------------------
-chromadb==0.5.5
+# chromadb removed: the 200 MB package + onnxruntime (~150 MB) OOM-crashes
+# the free-tier 512 MB Render container. The app uses an in-memory keyword
+# fallback that is functionally equivalent for the demo workload.
+# To re-enable persistent vector search, install chromadb==0.5.5 and set
+# CHROMA_DATA_DIR to a mounted persistent volume.
 redis==5.0.4
 
 # ---------------------------------------------------------------------------

@@ -32,19 +32,19 @@ class VectorStoreService:
     def _initialize_chromadb(self) -> None:
         """Initialize ChromaDB client and create 6 collections.
 
-        We use ChromaDB purely as a persistent document store — embeddings are
-        handled externally (Gemini API) or via the in-memory keyword fallback.
-        Passing embedding_function=None prevents ChromaDB from downloading the
-        79 MB all-MiniLM-L6-v2 ONNX model, which would OOM a 512 MB container.
+        ChromaDB is an optional dependency. When not installed the service
+        runs entirely in-memory (keyword search fallback). This keeps the
+        free-tier Docker container under 512 MB RAM.
+
+        To enable persistent storage: install chromadb==0.5.5 and set
+        CHROMA_DATA_DIR to a writable path (e.g. a mounted volume).
+        We pass embedding_function=None so ChromaDB never downloads the
+        79 MB all-MiniLM-L6-v2 ONNX model.
         """
         try:
-            import chromadb
+            import chromadb  # optional — not in requirements for free-tier deploy
             from chromadb.config import Settings
-            from chromadb.utils.embedding_functions import EmbeddingFunction  # noqa: F401
 
-            # Prefer an explicit env var, then fall back to /tmp so the
-            # non-root appuser (uid 1001) always has write access in Docker.
-            # In production, mount a persistent volume and set CHROMA_DATA_DIR.
             persist_dir = os.environ.get(
                 "CHROMA_DATA_DIR",
                 os.path.join("/tmp", "chroma_db_data"),
@@ -65,6 +65,8 @@ class VectorStoreService:
                 )
                 self.collections[col] = collection_obj
             log.info("chromadb_vector_store_initialized", collections=COLLECTION_NAMES)
+        except ImportError:
+            log.info("chromadb_not_installed_using_in_memory_fallback")
         except Exception as exc:
             log.warning("chromadb_init_fallback_in_memory", error=str(exc))
 
