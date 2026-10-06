@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Zap, Loader2 } from "lucide-react";
 import { registerSchema, type RegisterFormValues } from "@/lib/validations/auth";
 import { useRegister } from "@/hooks/useAuth";
+import { getApiErrorMessage } from "@/services/authService";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -58,10 +59,7 @@ export default function RegisterPage() {
     register_(payload);
   };
 
-  const apiError =
-    error && "response" in (error as any)
-      ? ((error as any).response?.data?.detail as string)
-      : null;
+  const apiError = error ? getApiErrorMessage(error) : null;
 
   return (
     <div className="glass rounded-2xl p-8 space-y-7">
