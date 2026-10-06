@@ -108,32 +108,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ---------------------------------------------------------------------------
-# Health Check Endpoint
-# ---------------------------------------------------------------------------
-
-from sqlalchemy import text
-from app.db.session import AsyncSessionLocal
-
-@app.get("/health")
-async def health_check():
-    db_status = "healthy"
-    try:
-        async with AsyncSessionLocal() as session:
-            await session.execute(text("SELECT 1"))
-    except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
-    
-    return {
-        "status": "ok" if db_status == "healthy" else "error",
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "env": settings.APP_ENV,
-        "dependencies": {
-            "database": db_status
-        }
-    }
-
 
 # ---------------------------------------------------------------------------
 # Middleware (Outer to Inner)

@@ -90,7 +90,7 @@ async def calculate_executive_health_score(
             sec_reports = await security_service.security_service.get_compliance_reports(db)
         else:
             sec_reports = []
-            
+
         sec_score = (
             round(sum(r.overall_score for r in sec_reports) / max(1, len(sec_reports)), 1)
             if sec_reports

@@ -42,12 +42,13 @@ class VectorStoreService:
         79 MB all-MiniLM-L6-v2 ONNX model.
         """
         try:
+            import tempfile
+
             import chromadb  # optional — not in requirements for free-tier deploy
             from chromadb.config import Settings
-
             persist_dir = os.environ.get(
                 "CHROMA_DATA_DIR",
-                os.path.join("/tmp", "chroma_db_data"),
+                os.path.join(tempfile.gettempdir(), "chroma_db_data"),
             )
             os.makedirs(persist_dir, exist_ok=True)
             self.chroma_client = chromadb.PersistentClient(

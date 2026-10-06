@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "CloudPulse AI"
     APP_VERSION: str = "1.0.0"
     DEMO_MODE: bool = True
+    ENABLE_DEMO_USER: bool = True
 
     # Backend
     BACKEND_HOST: str = "0.0.0.0"  # nosec B104
@@ -124,13 +125,13 @@ class Settings(BaseSettings):
                     pass
             else:
                 parsed = [origin.strip().strip("'").strip('"').rstrip('/') for origin in stripped.split(",") if origin.strip()]
-        
+
         final_origins = set(defaults)
         for origin in parsed:
             clean_origin = origin.strip().strip("'").strip('"').rstrip('/')
             if clean_origin:
                 final_origins.add(clean_origin)
-        
+
         return list(final_origins)
 
     # Logging

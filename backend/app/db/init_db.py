@@ -240,8 +240,17 @@ async def init_db(db: AsyncSession) -> None:
 async def _seed_admin_user_and_org(db: AsyncSession) -> User | None:
     """Ensure default admin user exists for immediate local development login."""
     import os
+    from app.core.config import settings
+
+    if not getattr(settings, "ENABLE_DEMO_USER", True):
+        log.info("demo_user_seeding_disabled")
+        return None
+
     demo_password = os.getenv("DEMO_USER_PASSWORD", "Password123!")
-    
+    if settings.is_production and demo_password == "Password123!":
+        log.warning("Insecure configuration: DEMO_USER_PASSWORD is using the default value in production. Please set it in the environment.")
+
+
     stmt = select(User).where(User.email == "admin@cloudpulse.io")
     res = await db.execute(stmt)
     user = res.scalar_one_or_none()
