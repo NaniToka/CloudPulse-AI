@@ -43,7 +43,9 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Create a dedicated non-root user for security
 RUN groupadd -g 1001 appgroup && \
-    useradd -u 1001 -g appgroup -s /bin/bash -m appuser
+    useradd -u 1001 -g appgroup -s /bin/bash -m appuser && \
+    mkdir -p /data/chroma_db_data && \
+    chown -R appuser:appgroup /data
 
 # Copy application source code
 COPY --chown=appuser:appgroup . /app

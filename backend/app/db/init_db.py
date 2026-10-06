@@ -165,7 +165,7 @@ async def init_db(db: AsyncSession) -> None:
         # 7. Seed Servers & Infrastructure
         try:
             from app.services.server_service import server_service
-            await server_service.get_servers(db)
+            await server_service.get_servers(db, user_id=admin_user.id)
         except Exception as e:
             log.warning("seed_servers_skipped", error=str(e))
 

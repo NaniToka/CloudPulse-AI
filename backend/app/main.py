@@ -148,6 +148,17 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(api_router, prefix="/api", include_in_schema=False)
 
 # ---------------------------------------------------------------------------
+# Root redirect
+# ---------------------------------------------------------------------------
+
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    """Redirect bare root URL to the interactive API docs."""
+    from fastapi.responses import RedirectResponse  # noqa: PLC0415
+    return RedirectResponse(url="/docs")
+
+# ---------------------------------------------------------------------------
 # System & Observability Routes
 # ---------------------------------------------------------------------------
 

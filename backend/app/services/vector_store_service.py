@@ -35,7 +35,13 @@ class VectorStoreService:
             import chromadb
             from chromadb.config import Settings
 
-            persist_dir = os.path.join(os.getcwd(), "chroma_db_data")
+            # Prefer an explicit env var, then fall back to /tmp so the
+            # non-root appuser (uid 1001) always has write access in Docker.
+            # In production, mount a persistent volume and set CHROMA_DATA_DIR.
+            persist_dir = os.environ.get(
+                "CHROMA_DATA_DIR",
+                os.path.join("/tmp", "chroma_db_data"),
+            )
             os.makedirs(persist_dir, exist_ok=True)
             self.chroma_client = chromadb.PersistentClient(
                 path=persist_dir,
