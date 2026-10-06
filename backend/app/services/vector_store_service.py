@@ -30,10 +30,17 @@ class VectorStoreService:
         self._initialize_chromadb()
 
     def _initialize_chromadb(self) -> None:
-        """Initialize ChromaDB client and create 6 collections."""
+        """Initialize ChromaDB client and create 6 collections.
+
+        We use ChromaDB purely as a persistent document store — embeddings are
+        handled externally (Gemini API) or via the in-memory keyword fallback.
+        Passing embedding_function=None prevents ChromaDB from downloading the
+        79 MB all-MiniLM-L6-v2 ONNX model, which would OOM a 512 MB container.
+        """
         try:
             import chromadb
             from chromadb.config import Settings
+            from chromadb.utils.embedding_functions import EmbeddingFunction  # noqa: F401
 
             # Prefer an explicit env var, then fall back to /tmp so the
             # non-root appuser (uid 1001) always has write access in Docker.
@@ -49,9 +56,12 @@ class VectorStoreService:
             )
 
             for col in COLLECTION_NAMES:
+                # embedding_function=None: we manage embeddings ourselves.
+                # This prevents ChromaDB from auto-downloading ONNX models.
                 collection_obj = self.chroma_client.get_or_create_collection(
                     name=col,
                     metadata={"hnsw:space": "cosine"},
+                    embedding_function=None,  # type: ignore[arg-type]
                 )
                 self.collections[col] = collection_obj
             log.info("chromadb_vector_store_initialized", collections=COLLECTION_NAMES)
@@ -72,13 +82,18 @@ class VectorStoreService:
             "collection": collection_name,
         }
 
-        # Store in ChromaDB if available
+        # Persist to ChromaDB using a placeholder embedding (all zeros).
+        # We do NOT use ChromaDB's built-in embedding function to avoid
+        # downloading the 79 MB ONNX model. Similarity search is handled
+        # by the keyword fallback below; ChromaDB is used for persistence only.
         if collection_name in self.collections:
             try:
+                # Store text in metadata so we can retrieve it on restart
+                meta_with_text = {**metadata, "_text": text[:2000]}
                 self.collections[collection_name].upsert(
                     ids=[doc_id],
-                    documents=[text],
-                    metadatas=[metadata],
+                    embeddings=[[0.0] * 384],  # placeholder — not used for search
+                    metadatas=[meta_with_text],
                 )
             except Exception as exc:
                 log.error("chromadb_upsert_failed", collection=collection_name, error=str(exc))
@@ -94,7 +109,12 @@ class VectorStoreService:
         collection_filter: list[str] | None = None,
         top_k: int = 4,
     ) -> list[dict[str, Any]]:
-        """Queries across ChromaDB collections for relevant context documents."""
+        """Queries collections for relevant context documents via keyword matching.
+
+        ChromaDB is used as a persistence backend only; all similarity search
+        is done in-memory via keyword overlap to avoid triggering the ONNX
+        embedding model download.
+        """
         target_collections = collection_filter or COLLECTION_NAMES
         results = []
         seen_ids = set()
@@ -105,37 +125,32 @@ class VectorStoreService:
             if col_name not in COLLECTION_NAMES:
                 continue
 
-            # Query ChromaDB collection if active
-            if col_name in self.collections:
+            # Rebuild in-memory index from ChromaDB if empty (e.g. after restart)
+            if col_name in self.collections and not self.in_memory_docs.get(col_name):
                 try:
                     count = self.collections[col_name].count()
                     if count > 0:
-                        n_res = min(top_k, count)
-                        res = self.collections[col_name].query(
-                            query_texts=[query],
-                            n_results=n_res,
+                        # Fetch all stored docs via metadata (no query_texts needed)
+                        res = self.collections[col_name].get(
+                            include=["metadatas", "ids"],
+                            limit=200,
                         )
-                        if res and res.get("documents") and len(res["documents"]) > 0:
-                            docs = res["documents"][0]
-                            metas = res.get("metadatas", [[]])[0]
-                            ids = res.get("ids", [[]])[0]
-                            for idx, d_text in enumerate(docs):
-                                doc_id = ids[idx] if idx < len(ids) else f"{col_name}-{idx}"
-                                if doc_id not in seen_ids:
-                                    seen_ids.add(doc_id)
-                                    results.append(
-                                        {
-                                            "collection": col_name,
-                                            "id": doc_id,
-                                            "text": d_text,
-                                            "metadata": metas[idx] if idx < len(metas) else {},
-                                            "score": 0.95,
-                                        }
-                                    )
+                        ids = res.get("ids", [])
+                        metas = res.get("metadatas", [])
+                        for i, doc_id in enumerate(ids):
+                            meta = metas[i] if i < len(metas) else {}
+                            text = meta.pop("_text", "")
+                            if text and doc_id not in {d["id"] for d in self.in_memory_docs[col_name]}:
+                                self.in_memory_docs[col_name].append({
+                                    "id": doc_id,
+                                    "text": text,
+                                    "metadata": meta,
+                                    "collection": col_name,
+                                })
                 except Exception as exc:
-                    log.debug("chromadb_query_failed", collection=col_name, error=str(exc))
+                    log.debug("chromadb_restore_failed", collection=col_name, error=str(exc))
 
-            # Query in-memory docs fallback
+            # Keyword search across in-memory docs
             for doc in self.in_memory_docs.get(col_name, []):
                 if doc["id"] in seen_ids:
                     continue
