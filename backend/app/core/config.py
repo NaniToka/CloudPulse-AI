@@ -37,6 +37,15 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://cloudpulse_user:cloudpulse_dev_password@localhost:5432/cloudpulse"
     )
 
+    @field_validator("DATABASE_URL", mode="after")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
     # JWT Authentication
     JWT_SECRET_KEY: str = "insecure_default_change_in_production"
     SECRET_KEY: str | None = None
@@ -52,10 +61,11 @@ class Settings(BaseSettings):
         key = self.SECRET_KEY or self.JWT_SECRET_KEY
         if self.is_production and key in ("insecure_default_change_in_production", "change_me_in_production"):
             import structlog
-            structlog.get_logger(__name__).warning(
+            structlog.get_logger(__name__).critical(
                 "insecure_production_jwt_secret",
                 message="CRITICAL SECURITY WARNING: Running in production with default insecure JWT_SECRET_KEY! Set JWT_SECRET_KEY or SECRET_KEY in .env.",
             )
+            raise ValueError("SECRET_KEY must be set in production")
         return key
 
     @property

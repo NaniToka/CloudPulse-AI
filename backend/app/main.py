@@ -62,7 +62,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     from app.db.base import Base  # noqa: PLC0415 — deferred to avoid circular imports
 
-    log.info("startup", app=settings.APP_NAME, env=settings.APP_ENV)
+    log.info(
+        "startup",
+        app=settings.APP_NAME,
+        env=settings.APP_ENV,
+        cors_origins=settings.CORS_ORIGINS,
+        db_host=settings.DATABASE_URL.split("@")[-1] if "@" in settings.DATABASE_URL else "unknown"
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     log.info("database_ready")
@@ -101,6 +107,33 @@ app = FastAPI(
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
+
+# ---------------------------------------------------------------------------
+# Health Check Endpoint
+# ---------------------------------------------------------------------------
+
+from sqlalchemy import text
+from app.db.session import AsyncSessionLocal
+
+@app.get("/health")
+async def health_check():
+    db_status = "healthy"
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+    
+    return {
+        "status": "ok" if db_status == "healthy" else "error",
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "env": settings.APP_ENV,
+        "dependencies": {
+            "database": db_status
+        }
+    }
+
 
 # ---------------------------------------------------------------------------
 # Middleware (Outer to Inner)

@@ -82,7 +82,18 @@ export const authService = {
  */
 export function getApiErrorMessage(error: unknown, fallback = "An unexpected error occurred."): string {
   if (!error || typeof error !== "object") return fallback;
-  const axiosErr = error as { response?: { data?: { error?: string; detail?: string } } };
+  const axiosErr = error as { isAxiosError?: boolean; response?: { status?: number; data?: { error?: string; detail?: string } }; code?: string };
+  if (axiosErr.isAxiosError) {
+    if (!axiosErr.response) {
+      if (axiosErr.code === 'ECONNABORTED' || axiosErr.code === 'ETIMEDOUT') {
+         return "Server waking up, please retry... (Render cold start)";
+      }
+      return "Cannot reach server, retry";
+    }
+    const status = axiosErr.response.status;
+    if (status === 401) return "Invalid email or password";
+    if (status >= 500) return "Server error";
+  }
   return (
     axiosErr.response?.data?.error ??
     axiosErr.response?.data?.detail ??

@@ -120,13 +120,20 @@ async def login(
         "login_attempt", email=payload.email, ip=request.client.host if request.client else None
     )
 
-    user = await crud_user.authenticate(db, email=payload.email, password=payload.password)
+    try:
+        user = await crud_user.authenticate(db, email=payload.email, password=payload.password)
+    except Exception as e:
+        log.error("login_exception", email=payload.email, error=str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during login."
+        )
 
     # Use a single generic message to avoid user enumeration
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
+            detail="Invalid email or password",
         )
 
     if not user.is_active:

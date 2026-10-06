@@ -27,7 +27,7 @@ export const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
   withCredentials: false,
-  timeout: 15_000, // 15 s — avoids hanging requests showing no feedback
+  timeout: 60_000, // 60 s — for Render cold starts
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

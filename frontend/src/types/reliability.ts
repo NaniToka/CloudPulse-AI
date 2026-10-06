@@ -69,7 +69,7 @@ export interface SloForecastItem {
   projected_budget_consumed_pct: number;
   days_to_exhaustion: number;
   projected_exhaustion_date: string;
-  is_compliant_projected: bool;
+  is_compliant_projected: boolean;
   confidence_pct: number;
   message?: string;
 }
